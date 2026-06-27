@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
     QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QPushButton,
     QToolBar,
@@ -17,14 +18,20 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.dashboard_manager import DashboardManager
+from src.core.state_manager import StateManager
+from src.data import DataManager
+from src.gui.chart_workspace import ChartWorkspace
 
 
 class MainWindow(QMainWindow):
     def __init__(self, dashboard_symbols: list[dict[str, Any]] | None = None) -> None:
         super().__init__()
         self._dashboard_manager = DashboardManager()
+        self._state_manager = StateManager()
+        self._data_manager = DataManager()
         self._dashboard_symbols = dashboard_symbols or self._dashboard_manager.load_symbols()
         self._dashboard_list = QListWidget(self)
+        self._chart_workspace = ChartWorkspace(self._data_manager)
 
         self.setWindowTitle("EXOS Desktop")
         self.resize(1200, 800)
@@ -33,7 +40,7 @@ class MainWindow(QMainWindow):
         self._create_toolbar()
         self._create_central_workspace()
         self._create_dashboard_dock()
-        self.statusBar().showMessage("Ready")
+        self._update_current_symbol_views()
 
     def _create_menu_bar(self) -> None:
         file_menu = self.menuBar().addMenu("File")
@@ -50,9 +57,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, toolbar)
 
     def _create_central_workspace(self) -> None:
-        workspace = QWidget(self)
-        workspace.setObjectName("centralWorkspace")
-        self.setCentralWidget(workspace)
+        self.setCentralWidget(self._chart_workspace)
 
     def _create_dashboard_dock(self) -> None:
         dashboard_dock = QDockWidget("Dashboard", self)
@@ -80,6 +85,7 @@ class MainWindow(QMainWindow):
 
         dashboard_dock.setWidget(dashboard_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, dashboard_dock)
+        self._dashboard_list.currentItemChanged.connect(self._select_dashboard_symbol)
         self._refresh_dashboard_list()
 
     def _add_dashboard_symbol(self) -> None:
@@ -98,7 +104,9 @@ class MainWindow(QMainWindow):
 
         if self._dashboard_manager.remove_symbol(selected_item.text()):
             self._dashboard_symbols = self._dashboard_manager.load_symbols()
+            self._state_manager.clear_current_symbol()
             self._refresh_dashboard_list()
+            self._update_current_symbol_views()
 
     def _refresh_dashboard_list(self) -> None:
         self._dashboard_list.clear()
@@ -106,3 +114,22 @@ class MainWindow(QMainWindow):
             symbol = str(item.get("symbol", "")).strip().upper()
             if symbol:
                 self._dashboard_list.addItem(symbol)
+
+    def _select_dashboard_symbol(
+        self, current: QListWidgetItem | None, previous: QListWidgetItem | None
+    ) -> None:
+        if current is None:
+            self._state_manager.clear_current_symbol()
+        else:
+            self._state_manager.set_current_symbol(current.text())
+
+        self._update_current_symbol_views()
+
+    def _update_current_symbol_views(self) -> None:
+        current_symbol = self._state_manager.current_symbol
+        self._chart_workspace.set_current_symbol(current_symbol)
+
+        if current_symbol:
+            self.statusBar().showMessage(f"Selected: {current_symbol}")
+        else:
+            self.statusBar().showMessage("Ready")

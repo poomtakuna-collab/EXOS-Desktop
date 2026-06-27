@@ -1,3 +1,14 @@
 {
-  "symbols": []
+  "symbols": [
+    {
+      "symbol": "NVDA",
+      "note": "",
+      "priority": 0
+    },
+    {
+      "symbol": "TXN",
+      "note": "",
+      "priority": 0
+    }
+  ]
 }
