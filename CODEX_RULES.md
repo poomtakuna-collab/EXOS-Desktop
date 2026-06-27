@@ -68,6 +68,20 @@ If you discover
 - duplicated code
 - a maintainability issue
 
+Development Environment
+
+Primary development platform: Windows.
+
+When providing run commands, prefer:
+
+py -m src.main
+
+instead of:
+
+python -m src.main
+
+unless cross-platform compatibility is specifically required.
+
 Report it first.
 
 Do not fix it unless requested,
