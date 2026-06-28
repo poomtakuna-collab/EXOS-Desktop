@@ -28,6 +28,59 @@ Market scope is limited to **NASDAQ**.
 
 ---
 
+# Phase 2 - Market Learning Engine
+
+## Goal
+
+Learn which market conditions tend to appear before future price movement.
+
+Snapshot is the central data unit of EXOS. Each snapshot represents market state at one time. Future outcome data is attached later for learning and statistics.
+
+Implementation schema:
+
+* `docs/MARKET_LEARNING_SCHEMA.md`
+
+### Planned
+
+* Statistics Engine
+  * Store EXOS snapshots
+  * Store key extracted fields for fast querying
+  * Store full nested snapshot as JSON
+  * Calculate forward returns
+* Outcome Engine
+  * Label future outcomes such as Bull, Strong Bull, Sideway, Bear, and Crash
+  * Track 5D / 10D / 20D returns
+  * Track max gain and max drawdown
+* Factor Analysis Engine
+  * Analyze which snapshot factors are common before strong outcomes
+  * Example factors: trend_score, squeeze_state, market_structure_state, volume, and slope
+  * Estimate factor importance later
+* Pattern Database
+  * Group similar snapshots into repeatable market patterns
+  * Reference snapshot IDs from every pattern
+
+### Database v1
+
+* `snapshots` stores one searchable EXOS snapshot per symbol, timeframe, and completed candle date.
+* `outcomes` stores future return, gain, drawdown, hit-rate, and label data by `snapshot_id`.
+* Required indexes support symbol/timeframe/date range, score, state, and outcome lookup queries.
+* Snapshot insertion is immediate; outcome calculation happens later when enough future OHLCV data exists.
+
+Status
+
+Planned
+
+### Design Rules
+
+* Database-first design.
+* Do not load all snapshots into memory.
+* Store important searchable fields as columns.
+* Store the full nested snapshot as JSON.
+* Use `snapshot_id` as the shared reference for Statistics, Outcome, Factor Analysis, Backtest, Prediction, and AI Analysis.
+* Keep Core Indicators v1 frozen unless a real bug appears.
+
+---
+
 # Phase 1 — Foundation
 
 ## Goal

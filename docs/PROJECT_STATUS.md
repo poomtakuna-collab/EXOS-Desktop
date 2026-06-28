@@ -1,7 +1,7 @@
 # PROJECT STATUS
 
 Current
-Milestone 4.22 - EXOS Score Engine v1 added
+Milestone 4.28 - EXOS Similarity Engine v1 added
 
 Done
 - Dashboard
@@ -36,11 +36,19 @@ Done
 - EXOS Market Structure Engine v1 in Developer Panel snapshot
 - EXOS Snapshot Builder v1 nested core_indicators_v1 contract
 - EXOS Score Engine v1 weighted aggregate score
+- EXOS Statistics Engine v1 foundation with schema helpers and snapshot insert support
+- EXOS Snapshot Collector v1 for building and storing snapshot records from market rows
+- EXOS Outcome Calculator v1 for calculating future return metrics from stored snapshots
+- EXOS Pattern Discovery Engine v1 for simple SQL-based snapshot/outcome pattern statistics
+- EXOS Pattern Library v1 for persisting discovered patterns as reusable knowledge
+- EXOS Similarity Engine v1 for deterministic matching between new snapshots and stored patterns
 
 Next
-- Zoom / Pan
+- Phase 2 - Market Learning Engine
+- Implement Pattern Discovery reports or Factor Analysis UI integration later
 
 Later
+- Zoom / Pan
 - Statistics
 - Backtest
 - AI
@@ -100,6 +108,50 @@ Notes
 - EXOS Score Engine v1 aggregates trend, trend_slope, squeeze, and market_structure scores with 30/20/20/30 weights.
 - EXOS Snapshot Builder v1 now injects score into the nested snapshot.
 - Core Indicators v1 is complete through Snapshot Builder and Score Engine.
+- Phase 2 is Market Learning Engine: store snapshots, attach future outcomes, analyze factors, and group repeatable market patterns.
+- EXOS Phase 2 is not just win-rate tracking. It is designed to learn what market conditions tend to appear before future price movement.
+- Snapshot is the central data unit. Use snapshot_id as the shared reference for Statistics, Outcome, Factor Analysis, Backtest, Prediction, and AI Analysis.
+- Phase 2 is database-first: store searchable fields as columns and store the full nested snapshot as JSON.
+- Market Learning Engine v1 schema is documented in docs/MARKET_LEARNING_SCHEMA.md.
+- Required Phase 2 tables are snapshots and outcomes.
+- snapshots stores snapshot_id, symbol, timeframe, date, close, EXOS score fields, state fields, full snapshot_json, and created_at.
+- outcomes stores future 5D/10D/20D returns, 10D max gain/drawdown, hit flags, label_10d, and calculated_at by snapshot_id.
+- Required indexes cover symbol/timeframe/date, exos_score, trend_state, squeeze_state, market_structure_state, and outcome snapshot_id.
+- Snapshot inserts should upsert by symbol + timeframe + date and return snapshot_id.
+- Outcome calculation should run later in batches after enough future OHLCV data exists.
+- Statistics Engine v1 foundation lives in src/statistics.
+- initialize_statistics_db creates snapshots, outcomes, and required indexes using sqlite3.
+- prepare_snapshot_record extracts searchable fields from nested EXOS snapshots and stores the full JSON snapshot.
+- insert_snapshot writes one snapshot row at a time and returns snapshot_id.
+- Snapshot Collector v1 lives in src/statistics/collector.py.
+- collect_snapshot builds one EXOS snapshot from market rows, prepares the statistics record, inserts it, and returns snapshot_id.
+- collect_snapshots_for_series walks historical rows with a rolling window and inserts one snapshot per valid completed date.
+- Snapshot Collector v1 enriches the collected snapshot copy with latest date and close metadata for database storage.
+- Outcome Calculator v1 lives in src/statistics/outcome_calculator.py.
+- calculate_outcome_for_snapshot calculates forward 5D/10D/20D returns, 10D max gain, 10D max drawdown, 10D hit flags, and label_10d.
+- insert_or_update_outcome writes one outcome row by snapshot_id using stable outcome_id upsert behavior.
+- calculate_outcomes_for_series matches stored snapshot dates to future OHLCV rows and skips snapshots without enough future data.
+- Outcome Calculator v1 does not run factor analysis, backtest, prediction, AI, or UI logic.
+- Pattern Discovery Engine v1 lives in src/statistics/pattern_discovery.py.
+- discover_patterns groups stored snapshots joined to outcomes by trend_state, squeeze_state, market_structure_state, rating, and recommendation.
+- Pattern metrics include sample count, average 5D/10D/20D returns, hit rates, average max gain, average drawdown, dominant label, and sample-size confidence.
+- discover_best_patterns filters for patterns with sample_count >= 50, average_10d_return > 5, and hit_5pct_rate > 60 by default.
+- summarize_pattern_statistics reports total patterns, largest pattern, average pattern size, best pattern return, and best hit rate.
+- discover_strong_bull_patterns remains available as a convenience filter for Strong Bull style patterns.
+- summarize_factor_distribution counts factor values across all outcomes or a supported label_10d outcome filter.
+- Pattern Discovery Engine v1 is SQL/statistics only. It is not AI, ML, backtest, prediction, or UI logic.
+- Pattern Library v1 lives in src/statistics/pattern_library.py.
+- patterns table stores discovered factor combinations, returns, hit rates, dominant label, confidence, and timestamps.
+- rebuild_pattern_library clears stored patterns, runs discover_patterns, inserts every discovered pattern, and returns rebuild counts.
+- load_pattern_library returns stored patterns sorted by confidence.
+- get_pattern returns one stored pattern by pattern_id.
+- Pattern Library v1 is reusable statistical knowledge only. It is not AI, prediction, backtest, API, or UI logic.
+- Similarity Engine v1 lives in src/statistics/similarity.py.
+- calculate_similarity compares snapshot states, rating, recommendation, and available numeric score fields against a pattern.
+- find_similar_patterns loads the Pattern Library read-only and returns the top deterministic matches.
+- find_best_match returns the highest similarity pattern.
+- Similarity Engine v1 is deterministic scoring only. It is not AI, ML, prediction, backtest, API, or UI logic.
+- Core Indicators v1 should remain frozen unless a real bug appears.
 - Statistics, Backtest, Prediction, and AI are not implemented yet.
 - Sample OHLC candles are isolated as developer fallback only and are disabled by default.
 - If no cached rows exist for a symbol, the chart shows an empty OHLC message instead of fake candles.

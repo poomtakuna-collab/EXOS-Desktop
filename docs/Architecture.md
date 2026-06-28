@@ -84,6 +84,23 @@ Calculates win rate, risk/reward, expectancy, drawdown, and performance statisti
 
 Runs historical strategy tests.
 
+### Market Learning Engine
+
+Stores EXOS snapshots, links future outcomes by snapshot_id, analyzes common factors before price movement, and groups repeatable market patterns.
+
+The full nested snapshot is stored as JSON, while important searchable fields are stored as database columns.
+
+Schema design:
+
+- `docs/MARKET_LEARNING_SCHEMA.md`
+
+Market Learning Engine v1 uses two core tables:
+
+- `snapshots` for searchable EXOS snapshot records and full snapshot JSON.
+- `outcomes` for future return, drawdown, hit-rate, and label data attached later by `snapshot_id`.
+
+The engine must query snapshots by symbol, timeframe, date range, score, and state without loading all snapshots into memory.
+
 ### API Connector
 
 Prepares structured JSON data for external APIs.
