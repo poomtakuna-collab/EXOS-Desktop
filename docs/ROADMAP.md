@@ -1,246 +1,148 @@
 # EXOS ROADMAP
 
-> Long-term development roadmap for EXOS Desktop.
->
-> This document defines the overall development direction.
-> Current implementation progress is tracked separately in `PROJECT_STATUS.md`.
+Long-term development roadmap for EXOS Desktop.
 
----
+Current implementation progress is tracked separately in `PROJECT_STATUS.md`.
 
-# Vision
+## Vision
 
 Build EXOS into a local NASDAQ investment research platform.
 
-EXOS is **not** intended to replace TradingView.
+EXOS is not intended to replace TradingView.
 
 Its purpose is to:
 
-* Collect historical market data
-* Calculate indicators
-* Build investment statistics
-* Backtest strategies
-* Predict future probabilities
-* Explain results using AI
+- Collect historical market data
+- Calculate indicators
+- Build investment statistics
+- Discover repeatable market patterns
+- Backtest strategies
+- Evaluate portfolio risk
+- Estimate future probabilities
+- Explain results using AI
 
-The primary trading system is **POOM+**.
+The primary trading system is POOM+.
 
-Market scope is limited to **NASDAQ**.
+Market scope is limited to NASDAQ.
 
----
+## Phase 1 - Core Indicators
 
-# Phase 2 - Market Learning Engine
+Status: Complete and frozen.
 
-## Goal
+Goal:
 
-Learn which market conditions tend to appear before future price movement.
+- Convert market rows into a stable EXOS snapshot contract.
 
-Snapshot is the central data unit of EXOS. Each snapshot represents market state at one time. Future outcome data is attached later for learning and statistics.
+Completed:
 
-Implementation schema:
+- Indicator Engine v1
+- EW Engine v1
+- Volume Pressure Engine v1
+- Trend Slope Engine v1
+- Squeeze Engine v1
+- Market Structure Engine v1
+- Snapshot Builder v1
+- Score Engine v1
 
-* `docs/MARKET_LEARNING_SCHEMA.md`
+Rule:
 
-### Planned
+- Core Indicators v1 remains frozen unless a real bug appears.
 
-* Statistics Engine
-  * Store EXOS snapshots
-  * Store key extracted fields for fast querying
-  * Store full nested snapshot as JSON
-  * Calculate forward returns
-* Outcome Engine
-  * Label future outcomes such as Bull, Strong Bull, Sideway, Bear, and Crash
-  * Track 5D / 10D / 20D returns
-  * Track max gain and max drawdown
-* Factor Analysis Engine
-  * Analyze which snapshot factors are common before strong outcomes
-  * Example factors: trend_score, squeeze_state, market_structure_state, volume, and slope
-  * Estimate factor importance later
-* Pattern Database
-  * Group similar snapshots into repeatable market patterns
-  * Reference snapshot IDs from every pattern
+## Phase 2 - Market Learning Engine
 
-### Database v1
+Status: Complete.
 
-* `snapshots` stores one searchable EXOS snapshot per symbol, timeframe, and completed candle date.
-* `outcomes` stores future return, gain, drawdown, hit-rate, and label data by `snapshot_id`.
-* Required indexes support symbol/timeframe/date range, score, state, and outcome lookup queries.
-* Snapshot insertion is immediate; outcome calculation happens later when enough future OHLCV data exists.
+Goal:
 
-Status
+- Learn which market conditions tend to appear before future price movement.
 
-Planned
+Completed:
 
-### Design Rules
+- Statistics DB
+- Snapshot Store
+- Snapshot Collector
+- Outcome Calculator
+- Pattern Discovery
+- Pattern Library
+- Similarity Engine
+- Pipeline Smoke Test
 
-* Database-first design.
-* Do not load all snapshots into memory.
-* Store important searchable fields as columns.
-* Store the full nested snapshot as JSON.
-* Use `snapshot_id` as the shared reference for Statistics, Outcome, Factor Analysis, Backtest, Prediction, and AI Analysis.
-* Keep Core Indicators v1 frozen unless a real bug appears.
+Design:
 
----
+- Database-first.
+- `snapshot_id` is the central reference.
+- Important searchable values are stored as columns.
+- Full nested EXOS snapshots are stored as JSON.
+- Outcomes are calculated when enough future OHLCV rows exist.
+- Pattern Discovery and Similarity are deterministic statistics, not AI or ML.
 
-# Phase 1 — Foundation
+Schema:
 
-## Goal
+- `docs/MARKET_LEARNING_SCHEMA.md`
 
-Create a stable desktop application architecture.
+## Phase 3 - Strategy / Backtest
 
-### Completed
+Status: Not Started.
 
-* Dashboard
-* State Manager
-* SQLite Cache
-* Yahoo Finance Data Provider
-* Symbol Management
-* Automatic Data Cache
+Goal:
 
-Status
+- Use snapshots, outcomes, patterns, and similarity results to evaluate strategy rules.
 
-**Completed**
+Planned:
 
----
+- Strategy Engine
+- Backtest Engine
+- Portfolio / Risk Evaluation
+- Entry / Exit Rules
+- Position Management
+- Performance Reports
 
-# Phase 2 — Chart Engine
+## Phase 4 - Prediction
 
-## Goal
+Status: Not Started.
 
-Provide a professional charting interface for analysis.
+Goal:
 
-### Completed
+- Estimate future market probabilities using statistical evidence.
 
-* Candlestick Chart
-* Volume
-* Current Price Line
-* EMA20
-* EMA50
-* EMA200
-* Crosshair
-* OHLC Tooltip
-* 1D Timeframe
-* 1W Timeframe
-* 1M Timeframe
-* Visible Rows (60 / 120 / 240 / All)
-* 10 Years Historical Data
+Planned:
 
-Status
+- Probability Model
+- Historical Similarity Search
+- Scenario Generation
+- Confidence Score
 
-**Completed**
+## Phase 5 - AI Analysis / Overlay
 
----
+Status: Not Started.
 
-# Phase 3 — Interaction
+Goal:
 
-## Goal
+- Explain structured EXOS statistics to the user.
 
-Improve chart usability.
+AI will not make decisions.
 
-### Planned
+AI may:
 
-* Mouse Wheel Zoom
-* Pan
-* Keyboard Navigation
-* Better Tooltip
-* Chart Settings
+- Explain current market condition
+- Summarize statistics
+- Compare historical situations
+- Produce investment reports
 
-Status
+## Later UI Work
 
-In Progress
+- Pattern Discovery reports
+- Market Learning dashboards
+- Zoom / Pan improvements
+- Better chart settings
 
----
+## Design Principles
 
-# Phase 4 — Statistics Engine
-
-## Goal
-
-Transform raw market data into measurable statistics.
-
-### Planned
-
-* Trend Detection
-* Support / Resistance Detection
-* Pattern Detection
-* Win Rate
-* Expectancy
-* Drawdown
-* Risk Metrics
-* Trade Statistics
-
-Status
-
-Not Started
-
----
-
-# Phase 5 — Backtest Engine
-
-## Goal
-
-Evaluate POOM+ using historical market data.
-
-### Planned
-
-* Historical Trade Simulation
-* Entry / Exit Rules
-* Position Management
-* Portfolio Statistics
-* Performance Report
-
-Status
-
-Not Started
-
----
-
-# Phase 6 — Prediction Engine
-
-## Goal
-
-Estimate future market probabilities using statistical evidence.
-
-### Planned
-
-* Probability Model
-* Historical Similarity Search
-* Scenario Generation
-* Confidence Score
-
-Status
-
-Not Started
-
----
-
-# Phase 7 — AI Analysis
-
-## Goal
-
-Explain statistical results to the user.
-
-AI will **not** make decisions.
-
-AI will interpret structured data generated by EXOS.
-
-Example:
-
-* Explain current market condition
-* Summarize statistics
-* Compare historical situations
-* Produce investment reports
-
-Status
-
-Not Started
-
----
-
-# Design Principles
-
-* SQLite is the source of truth.
-* Historical data must be reproducible.
-* Statistics come before prediction.
-* Prediction comes before AI explanation.
-* AI explains; it does not guess.
-* Keep the architecture modular.
-* Prioritize correctness over feature count.
+- SQLite is the source of truth.
+- Historical data must be reproducible.
+- Statistics come before strategy.
+- Strategy and backtest come before prediction.
+- Prediction comes before AI explanation.
+- AI explains; it does not guess.
+- Keep the architecture modular.
+- Prioritize correctness over feature count.

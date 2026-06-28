@@ -4,27 +4,25 @@
 
 EXOS Desktop is a data-first investment research platform.
 
-Priority:
+AI is an optional analysis layer. The application must remain fully functional when AI is disabled.
 
-Data
-↓
-Database
-↓
-Chart
-↓
-Statistics
-↓
-Backtest
-↓
-AI
+Core order:
 
-AI is an optional analysis layer.
-
-The application must remain fully functional even if AI is disabled.
+Market Data
+-> Core Indicators
+-> Snapshot
+-> Statistics DB
+-> Outcome
+-> Pattern Discovery
+-> Pattern Library
+-> Similarity
+-> Strategy
+-> Prediction
+-> AI
 
 ## Layered Architecture
 
-EXOS Desktop is divided into three main layers:
+EXOS Desktop is divided into three main layers.
 
 ### Presentation Layer
 
@@ -32,7 +30,7 @@ GUI, windows, panels, menus, tables, and charts.
 
 ### Business Layer
 
-POOM+, indicators, statistics, backtest logic, scoring, and trade analysis.
+Core indicators, snapshot building, scoring, statistics, market learning, strategy, backtest, and trade analysis.
 
 ### Data Layer
 
@@ -40,15 +38,11 @@ Data loading, local storage, SQLite database, cache, and file access.
 
 ## Dependency Rule
 
-Presentation Layer may call Business Layer.
-
-Business Layer may call Data Layer.
-
-Presentation Layer must not access Database directly.
-
-AI must not control core logic.
-
-AI may only read structured data and generate analysis or summaries.
+- Presentation Layer may call Business Layer.
+- Business Layer may call Data Layer.
+- Presentation Layer must not access the database directly.
+- AI must not control core logic.
+- AI may only read structured data and generate analysis or summaries.
 
 ## Core Modules
 
@@ -68,58 +62,77 @@ Handles local SQLite database access.
 
 Displays candlestick charts, volume, and indicators.
 
-### Indicator Engine
+### Core Indicators
 
-Calculates technical indicators.
+Calculates the frozen Core Indicators v1 contract:
 
-### POOM+ Engine
+- Trend
+- Trend Slope
+- Squeeze
+- Market Structure
+- Score
 
-Applies the POOM+ trading logic and scoring system.
+Core Indicators v1 remains frozen unless a real bug appears.
 
-### Statistics Engine
+### Snapshot Builder
 
-Calculates win rate, risk/reward, expectancy, drawdown, and performance statistics.
-
-### Backtest Engine
-
-Runs historical strategy tests.
+Builds the nested `core_indicators_v1` EXOS snapshot contract.
 
 ### Market Learning Engine
 
-Stores EXOS snapshots, links future outcomes by snapshot_id, analyzes common factors before price movement, and groups repeatable market patterns.
+Stores EXOS snapshots, attaches future outcomes, discovers repeatable market patterns, stores reusable pattern knowledge, and compares new snapshots to historical patterns.
 
-The full nested snapshot is stored as JSON, while important searchable fields are stored as database columns.
+Market Learning Engine v1 includes:
+
+- Statistics DB
+- Snapshot Store
+- Snapshot Collector
+- Outcome Calculator
+- Pattern Discovery
+- Pattern Library
+- Similarity Engine
+- Pipeline Smoke Test
 
 Schema design:
 
 - `docs/MARKET_LEARNING_SCHEMA.md`
 
-Market Learning Engine v1 uses two core tables:
+Database rules:
 
-- `snapshots` for searchable EXOS snapshot records and full snapshot JSON.
-- `outcomes` for future return, drawdown, hit-rate, and label data attached later by `snapshot_id`.
+- `snapshot_id` is the central reference.
+- Important searchable fields are stored as columns.
+- Full nested snapshots are stored as JSON.
+- Queries must avoid loading all snapshots into memory.
 
-The engine must query snapshots by symbol, timeframe, date range, score, and state without loading all snapshots into memory.
+### Strategy Engine
 
-### API Connector
+Planned Phase 3 module for evaluating rules against snapshots, outcomes, patterns, and similarity results.
 
-Prepares structured JSON data for external APIs.
+### Backtest Engine
+
+Planned Phase 3 module for historical strategy simulation.
+
+### Portfolio / Risk Evaluation
+
+Planned Phase 3 module for position sizing, drawdown, risk, and portfolio-level performance.
+
+### Prediction Engine
+
+Planned Phase 4 module for probability estimates based on statistical evidence.
 
 ### AI Layer
 
-Analyzes structured data and produces summaries, scores, and suggestions.
+Planned Phase 5 overlay that explains structured EXOS outputs.
+
+AI does not make decisions.
 
 ## Startup Flow
 
 main.py
-↓
-Application
-↓
-Main Window
-↓
-Managers
-↓
-User Interaction
+-> Application
+-> Main Window
+-> Managers
+-> User Interaction
 
 ## Future Expansion
 
