@@ -7,6 +7,7 @@ from src.database import DatabaseManager
 
 
 REQUIRED_ROW_COUNT = 300
+SQLITE_CACHE_SOURCE = "SQLite Cache"
 
 
 class DataLoadError(Exception):
@@ -28,6 +29,16 @@ class DataManager:
         self._data_provider = data_provider or YahooFinanceDataProvider()
         self._database_manager = database_manager or DatabaseManager()
 
+    def get_cached_historical_data(self, symbol: str) -> HistoricalDataResult:
+        normalized_symbol = symbol.strip().upper()
+        if not normalized_symbol:
+            return HistoricalDataResult(rows=[], source=SQLITE_CACHE_SOURCE)
+
+        local_rows = self._database_manager.get_ohlcv_daily(
+            normalized_symbol, limit=REQUIRED_ROW_COUNT
+        )
+        return HistoricalDataResult(rows=local_rows, source=SQLITE_CACHE_SOURCE)
+
     def get_historical_data(self, symbol: str) -> HistoricalDataResult:
         normalized_symbol = symbol.strip().upper()
         if not normalized_symbol:
@@ -37,7 +48,7 @@ class DataManager:
             normalized_symbol, limit=REQUIRED_ROW_COUNT
         )
         if len(local_rows) >= REQUIRED_ROW_COUNT:
-            return HistoricalDataResult(rows=local_rows, source="Local Database")
+            return HistoricalDataResult(rows=local_rows, source=SQLITE_CACHE_SOURCE)
 
         try:
             provider_rows = self._data_provider.get_historical_data(normalized_symbol)
