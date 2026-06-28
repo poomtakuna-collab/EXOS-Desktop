@@ -1,7 +1,7 @@
 # PROJECT STATUS
 
 Current
-Milestone 4.15 - EXOS Analysis Engine foundation added
+Milestone 4.22 - EXOS Score Engine v1 added
 
 Done
 - Dashboard
@@ -29,6 +29,13 @@ Done
 - EXOS Indicator Snapshot v1 in Developer Panel
 - TradingView-style EMA20/50/200 value labels on the right price axis
 - EXOS Analysis Engine foundation with Indicator Engine v1
+- EXOS EW Engine v1 in Developer Panel snapshot
+- EXOS Volume Pressure Engine v1 in Developer Panel snapshot
+- EXOS Trend Slope Engine v1 in Developer Panel snapshot
+- EXOS Squeeze Engine v1 in Developer Panel snapshot
+- EXOS Market Structure Engine v1 in Developer Panel snapshot
+- EXOS Snapshot Builder v1 nested core_indicators_v1 contract
+- EXOS Score Engine v1 weighted aggregate score
 
 Next
 - Zoom / Pan
@@ -77,7 +84,22 @@ Notes
 - Analysis Engine foundation lives in src/analysis.
 - Indicator Engine v1 calculates EMA20/50/200, price-vs-EMA state, and EMA alignment from selected timeframe rows.
 - Developer Panel indicator snapshot now uses the Analysis Indicator Engine.
-- EXOS EW, Volume Pressure, Trend Slope, Squeeze, BOS, CHoCH, Statistics, Backtest, Prediction, and AI are not implemented yet.
+- EXOS EW Engine v1 calculates normalized EW from SMA5, SMA35, and EMA35.
+- Developer Panel indicator snapshot includes ew, ew_fast, ew_slow, and ew_state.
+- EXOS Volume Pressure Engine v1 calculates volume_pressure and vp_state using buy/sell volume EMA smoothing.
+- Developer Panel indicator snapshot includes volume_pressure and vp_state.
+- EXOS Trend Slope Engine v1 calculates trend_slope and trend_slope_state from EMA20 slope over a 10-candle lookback.
+- Developer Panel indicator snapshot includes trend_slope and trend_slope_state.
+- EXOS Squeeze Engine v1 calculates compression_ratio, compression_score, state, release_probability, and confidence.
+- Developer Panel indicator snapshot includes Squeeze Engine v1 fields.
+- EXOS Market Structure Engine v1 detects simple pivots, HH/HL, LH/LL, range, BOS, and CHOCH states.
+- Developer Panel indicator snapshot includes Market Structure Engine v1 fields.
+- Developer Panel uses market_structure_confidence to avoid colliding with Squeeze confidence.
+- EXOS Snapshot Builder v1 creates the nested core_indicators_v1 contract for future Statistics, Backtest, Prediction, and AI inputs.
+- Developer Panel indicator snapshot includes exos_snapshot while preserving existing flat debug fields.
+- EXOS Score Engine v1 aggregates trend, trend_slope, squeeze, and market_structure scores with 30/20/20/30 weights.
+- EXOS Snapshot Builder v1 now injects score into the nested snapshot.
+- Statistics, Backtest, Prediction, and AI are not implemented yet.
 - Sample OHLC candles are isolated as developer fallback only and are disabled by default.
 - If no cached rows exist for a symbol, the chart shows an empty OHLC message instead of fake candles.
 - Zoom, Pan, Statistics, Backtest, and AI are not implemented yet.
