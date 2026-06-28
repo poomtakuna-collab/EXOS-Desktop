@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from src.core.market_scope import is_supported_market_symbol
+
 
 class DashboardManager:
     def __init__(self, storage_path: Path | None = None) -> None:
@@ -24,6 +26,8 @@ class DashboardManager:
     def add_symbol(self, symbol: str) -> bool:
         normalized_symbol = self._normalize_symbol(symbol)
         if not normalized_symbol:
+            return False
+        if not is_supported_market_symbol(normalized_symbol):
             return False
 
         symbols = self.load_symbols()

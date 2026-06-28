@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.dashboard_manager import DashboardManager
+from src.core.market_scope import MARKET_SCOPE
 from src.core.state_manager import StateManager
 from src.data import DataManager
 from src.gui.chart_workspace import ChartWorkspace
@@ -69,7 +70,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._chart_workspace)
 
     def _create_dashboard_dock(self) -> None:
-        dashboard_dock = QDockWidget("Dashboard", self)
+        dashboard_dock = QDockWidget(f"Dashboard ({MARKET_SCOPE})", self)
         dashboard_dock.setAllowedAreas(Qt.RightDockWidgetArea)
 
         add_button = QPushButton("+", dashboard_dock)
@@ -107,13 +108,16 @@ class MainWindow(QMainWindow):
         self._developer_dock.visibilityChanged.connect(self._sync_developer_mode_action)
 
     def _add_dashboard_symbol(self) -> None:
-        symbol, accepted = QInputDialog.getText(self, "Add Symbol", "Symbol:")
+        symbol, accepted = QInputDialog.getText(
+            self, "Add Symbol", f"{MARKET_SCOPE} Symbol:"
+        )
         if not accepted:
             return
 
         if self._dashboard_manager.add_symbol(symbol):
             self._dashboard_symbols = self._dashboard_manager.load_symbols()
             self._refresh_dashboard_list()
+            self._select_dashboard_list_symbol(symbol)
 
     def _remove_selected_dashboard_symbol(self) -> None:
         selected_item = self._dashboard_list.currentItem()
@@ -132,6 +136,12 @@ class MainWindow(QMainWindow):
             symbol = str(item.get("symbol", "")).strip().upper()
             if symbol:
                 self._dashboard_list.addItem(symbol)
+
+    def _select_dashboard_list_symbol(self, symbol: str) -> None:
+        normalized_symbol = symbol.strip().upper()
+        matching_items = self._dashboard_list.findItems(normalized_symbol, Qt.MatchExactly)
+        if matching_items:
+            self._dashboard_list.setCurrentItem(matching_items[0])
 
     def _select_dashboard_symbol(
         self, current: QListWidgetItem | None, previous: QListWidgetItem | None

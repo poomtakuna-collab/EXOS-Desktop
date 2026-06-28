@@ -4,10 +4,9 @@ from typing import Sequence
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPen
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QToolTip, QWidget
 
 
-CHART_VISIBLE_ROWS = 120
 PRICE_AXIS_WIDTH = 64
 ENABLED_EMA_PERIODS = [20, 50, 200]
 EMA_COLORS = {
@@ -21,10 +20,12 @@ class CandlestickChart(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._rows: list[dict[str, object]] = []
+        self._mouse_position: QPointF | None = None
         self.setMinimumHeight(360)
+        self.setMouseTracking(True)
 
     def set_ohlc_data(self, rows: Sequence[dict[str, object]]) -> None:
-        self._rows = list(rows)[-CHART_VISIBLE_ROWS:]
+        self._rows = list(rows)
         self.update()
 
     def rendered_rows(self) -> list[dict[str, object]]:
@@ -48,6 +49,17 @@ class CandlestickChart(QWidget):
             return
 
         self._draw_candles(painter, price_rect, volume_rect)
+        self._draw_crosshair(painter, price_rect, volume_rect)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        self._mouse_position = event.position()
+        self._update_hover_tooltip(event.globalPosition().toPoint())
+        self.update()
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._mouse_position = None
+        QToolTip.hideText()
+        self.update()
 
     def _chart_rects(self) -> tuple[QRectF, QRectF]:
         margin_left = 16
@@ -217,6 +229,70 @@ class CandlestickChart(QWidget):
         for close in closes[1:]:
             ema_values.append((close - ema_values[-1]) * multiplier + ema_values[-1])
         return ema_values
+
+    def _draw_crosshair(
+        self, painter: QPainter, price_rect: QRectF, volume_rect: QRectF
+    ) -> None:
+        if self._mouse_position is None or not self._rows:
+            return
+
+        x = self._mouse_position.x()
+        y = self._mouse_position.y()
+        chart_bottom = volume_rect.bottom()
+        if x < price_rect.left() or x > price_rect.right():
+            return
+        if y < price_rect.top() or y > chart_bottom:
+            return
+
+        crosshair_pen = QPen(QColor("#8c99a6"), 0.9, Qt.DashLine)
+        painter.setPen(crosshair_pen)
+        painter.drawLine(QPointF(x, price_rect.top()), QPointF(x, chart_bottom))
+
+        if price_rect.top() <= y <= price_rect.bottom():
+            painter.drawLine(QPointF(price_rect.left(), y), QPointF(price_rect.right(), y))
+
+    def _update_hover_tooltip(self, global_position) -> None:
+        if self._mouse_position is None or not self._rows:
+            QToolTip.hideText()
+            return
+
+        price_rect, volume_rect = self._chart_rects()
+        x = self._mouse_position.x()
+        y = self._mouse_position.y()
+        if x < price_rect.left() or x > price_rect.right():
+            QToolTip.hideText()
+            return
+        if y < price_rect.top() or y > volume_rect.bottom():
+            QToolTip.hideText()
+            return
+
+        row_index = self._nearest_row_index(x, price_rect)
+        row = self._rows[row_index]
+        QToolTip.showText(global_position, self._tooltip_text(row_index, row), self)
+
+    def _nearest_row_index(self, x_position: float, price_rect: QRectF) -> int:
+        slot_width = price_rect.width() / len(self._rows)
+        raw_index = int((x_position - price_rect.left()) / slot_width)
+        return min(max(raw_index, 0), len(self._rows) - 1)
+
+    def _tooltip_text(self, row_index: int, row: dict[str, object]) -> str:
+        ema_values_by_period = {
+            period: self._calculate_ema_values(period) for period in ENABLED_EMA_PERIODS
+        }
+        lines = [
+            f"Date: {row.get('date', '')}",
+            f"Open: {float(row['open']):.2f}",
+            f"High: {float(row['high']):.2f}",
+            f"Low: {float(row['low']):.2f}",
+            f"Close: {float(row['close']):.2f}",
+            f"Volume: {self._format_volume(int(row['volume']))}",
+        ]
+        for period in ENABLED_EMA_PERIODS:
+            ema_values = ema_values_by_period[period]
+            ema_value = ema_values[row_index] if row_index < len(ema_values) else None
+            value_text = f"{ema_value:.2f}" if ema_value is not None else ""
+            lines.append(f"EMA{period}: {value_text}")
+        return "\n".join(lines)
 
     def _draw_current_price_line(
         self,

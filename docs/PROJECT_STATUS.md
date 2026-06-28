@@ -1,7 +1,7 @@
 # PROJECT STATUS
 
 Current
-Milestone 4.4.1 - EMA20/50/200 Overlays added
+Milestone 4.10 - Visible rows control added
 
 Done
 - Dashboard
@@ -18,9 +18,15 @@ Done
 - Current price label in reserved price-axis area
 - Price and volume axis labels moved to right side
 - EMA20/50/200 overlays on price chart
+- Mouse crosshair and OHLC/EMA hover tooltip
+- Automatic cache-miss OHLCV loading for selected symbols
+- NASDAQ-only scanner scope guard
+- Timeframe Engine v1 with 1D, 1W, and 1M chart views
+- 10-year daily OHLCV Yahoo Finance fetch depth
+- Visible rows control for 60, 120, 240, and All
 
 Next
-- Timeframe
+- Zoom / Pan
 
 Later
 - Statistics
@@ -31,7 +37,8 @@ Notes
 - Candlestick Chart v1 renders OHLC rows loaded from SQLite Cache through DataManager.
 - Dashboard selection updates StateManager, then ChartWorkspace refreshes the chart.
 - Chart header uses a compact market line and a secondary source/cache/rendered row line.
-- CHART_VISIBLE_ROWS controls the rendered row count and defaults to 120.
+- Visible rows default to 120 and can be changed to 60, 240, or All.
+- Visible row selection is applied after timeframe resampling.
 - Volume panel uses the same rendered rows as the candlestick chart.
 - Green volume bars mean close >= open; red volume bars mean close < open.
 - Market header shows symbol, last close, change, change percent, OHLC, volume, and latest date.
@@ -40,9 +47,21 @@ Notes
 - Current price label is placed beside the chart in the reserved price-axis area.
 - Price and volume axis labels are drawn on the right-side axis area.
 - EMA20, EMA50, and EMA200 are calculated from rendered close prices and drawn only in the price panel.
+- Interaction Layer v1 adds mouse crosshair and nearest-candle tooltip using rendered rows.
+- When selected symbol has no cached rows, ChartWorkspace fetches through DataManager, saves to SQLite, then refreshes from SQLite.
+- MARKET_SCOPE is NASDAQ. Current symbol validation accepts plain 1-5 letter ticker symbols only.
+- SET, NYSE, AMEX, crypto, forex, and suffix-style symbols are not supported yet.
+- 1D uses cached daily rows directly.
+- 1W and 1M are resampled in memory from cached daily rows using OHLCV aggregation rules.
+- EMA20, EMA50, and EMA200 recalculate from the selected timeframe close prices.
+- Header, volume panel, current price line, crosshair, and tooltip use the selected timeframe rows.
+- Yahoo Finance daily downloads request 10 years of history.
+- SQLite remains the source of truth for chart display.
+- Symbols with the old 300-row cache are refreshed when selected because the cache target is now 2500 daily rows.
+- Candles, volume, EMA overlays, current price line, crosshair, tooltip, and header use the selected visible rows.
 - Sample OHLC candles are isolated as developer fallback only and are disabled by default.
 - If no cached rows exist for a symbol, the chart shows an empty OHLC message instead of fake candles.
-- Timeframe, Statistics, Backtest, and AI are not implemented yet.
+- Zoom, Pan, Statistics, Backtest, and AI are not implemented yet.
 
 Last Commit
 Improve developer panel layout

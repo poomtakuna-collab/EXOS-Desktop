@@ -15,20 +15,22 @@ class DataProvider(Protocol):
 
 class YahooFinanceDataProvider:
     source_name = "Yahoo Finance"
+    history_period = "10y"
 
     def get_historical_data(self, symbol: str) -> list[MarketDataRow]:
         import yfinance as yf
 
         ticker = yf.Ticker(symbol)
-        history = ticker.history(period="2y", interval="1d", auto_adjust=False)
+        history = ticker.history(
+            period=self.history_period, interval="1d", auto_adjust=False
+        )
 
         if history.empty:
             return []
 
-        recent_history = history.tail(300)
         rows: list[MarketDataRow] = []
 
-        for date, row in recent_history.iterrows():
+        for date, row in history.iterrows():
             rows.append(
                 {
                     "date": date.date().isoformat(),

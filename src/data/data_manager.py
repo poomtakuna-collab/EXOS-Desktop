@@ -6,7 +6,7 @@ from src.data.data_provider import DataProvider, MarketDataRow, YahooFinanceData
 from src.database import DatabaseManager
 
 
-REQUIRED_ROW_COUNT = 300
+REQUIRED_ROW_COUNT = 2500
 SQLITE_CACHE_SOURCE = "SQLite Cache"
 
 
