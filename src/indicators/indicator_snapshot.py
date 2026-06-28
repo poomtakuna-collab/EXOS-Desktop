@@ -24,10 +24,6 @@ def build_indicator_snapshot(
     indicator_snapshot = calculate_indicator_snapshot(rows)
     ew_snapshot = calculate_ew_snapshot(rows)
     market_structure_snapshot = calculate_market_structure_snapshot(rows)
-    market_structure_snapshot = {
-        **market_structure_snapshot,
-        "market_structure_confidence": market_structure_snapshot["confidence"],
-    }
     squeeze_snapshot = calculate_squeeze_snapshot(rows)
     trend_slope_snapshot = calculate_trend_slope_snapshot(rows)
     volume_pressure_snapshot = calculate_volume_pressure_snapshot(rows)
@@ -40,6 +36,11 @@ def build_indicator_snapshot(
         or volume_pressure_snapshot is None
     ):
         return None
+
+    market_structure_snapshot = {
+        **market_structure_snapshot,
+        "market_structure_confidence": market_structure_snapshot["confidence"],
+    }
 
     return {
         "symbol": symbol,

@@ -99,6 +99,7 @@ Notes
 - Developer Panel indicator snapshot includes exos_snapshot while preserving existing flat debug fields.
 - EXOS Score Engine v1 aggregates trend, trend_slope, squeeze, and market_structure scores with 30/20/20/30 weights.
 - EXOS Snapshot Builder v1 now injects score into the nested snapshot.
+- Core Indicators v1 is complete through Snapshot Builder and Score Engine.
 - Statistics, Backtest, Prediction, and AI are not implemented yet.
 - Sample OHLC candles are isolated as developer fallback only and are disabled by default.
 - If no cached rows exist for a symbol, the chart shows an empty OHLC message instead of fake candles.
