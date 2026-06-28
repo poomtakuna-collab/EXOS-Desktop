@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Brain v1 Completed
+
+- Frozen EXOS Brain v1 architecture.
+- Completed analysis pipeline:
+  Market Data → Core Indicators → Snapshot → Statistics → Outcome → Pattern Discovery → Pattern Library → Similarity → Probability → Prediction.
+- Future enhancements should extend the pipeline rather than modifying existing engine contracts unless fixing a verified bug.
+
 ## Market Learning Engine v1
 
 - Added Statistics DB schema helpers.

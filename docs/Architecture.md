@@ -8,6 +8,25 @@ AI is an optional analysis layer. The application must remain fully functional w
 
 Core order:
 
+EXOS Brain v1:
+
+Market Data
+→ Core Indicators
+→ Snapshot
+→ Statistics
+→ Outcome
+→ Pattern Discovery
+→ Pattern Library
+→ Similarity
+→ Probability
+→ Prediction
+
+EXOS Brain v1 is frozen.
+
+Future enhancements should extend the pipeline rather than modifying existing engine contracts unless fixing a verified bug.
+
+Expanded order:
+
 Market Data
 -> Core Indicators
 -> Snapshot
@@ -16,8 +35,11 @@ Market Data
 -> Pattern Discovery
 -> Pattern Library
 -> Similarity
+-> Probability
+-> Price Projection
+-> Target Zone
+-> Risk Zone
 -> Strategy
--> Prediction
 -> AI
 
 ## Layered Architecture
@@ -30,7 +52,7 @@ GUI, windows, panels, menus, tables, and charts.
 
 ### Business Layer
 
-Core indicators, snapshot building, scoring, statistics, market learning, strategy, backtest, and trade analysis.
+Core indicators, snapshot building, scoring, statistics, market learning, probability, prediction, strategy, backtest, and trade analysis.
 
 ### Data Layer
 
@@ -106,25 +128,46 @@ Database rules:
 
 ### Strategy Engine
 
-Planned Phase 3 module for evaluating rules against snapshots, outcomes, patterns, and similarity results.
+Planned Phase 4 module for evaluating rules against snapshots, outcomes, patterns, similarity results, probability outputs, and prediction outputs.
 
 ### Backtest Engine
 
-Planned Phase 3 module for historical strategy simulation.
+Planned Phase 4 module for historical strategy simulation.
 
 ### Portfolio / Risk Evaluation
 
-Planned Phase 3 module for position sizing, drawdown, risk, and portfolio-level performance.
+Planned Phase 4 module for position sizing, drawdown, risk, and portfolio-level performance.
+
+### Probability Engine
+
+Phase 3 module for converting matched historical patterns into evidence-based probability outputs.
+
+Probability Engine v1 outputs expected return, upside probability, approximate downside probability, expected gain/drawdown, confidence, and evidence count.
+
+EXOS does not output BUY, SELL, or HOLD recommendations.
 
 ### Prediction Engine
 
-Planned Phase 4 module for probability estimates based on statistical evidence.
+Phase 3 module for converting Probability Engine outputs into deterministic price projections.
+
+Prediction flow:
+
+Probability
+-> Price Projection
+-> Target Zone
+-> Risk Zone
+
+Prediction Engine v1 outputs expected 5D / 10D / 20D prices, target zone, risk zone, confidence, and best pattern metadata.
+
+EXOS does not add a recommendation layer.
 
 ### AI Layer
 
 Planned Phase 5 overlay that explains structured EXOS outputs.
 
 AI does not make decisions.
+
+AI does not make buy/sell/hold recommendations.
 
 ## Startup Flow
 

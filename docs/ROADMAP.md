@@ -16,14 +16,34 @@ Its purpose is to:
 - Calculate indicators
 - Build investment statistics
 - Discover repeatable market patterns
+- Estimate evidence-based probabilities
+- Project probability-derived price zones
 - Backtest strategies
 - Evaluate portfolio risk
-- Estimate future probabilities
 - Explain results using AI
 
 The primary trading system is POOM+.
 
 Market scope is limited to NASDAQ.
+
+## EXOS Brain v1
+
+Status: Complete and frozen.
+
+Architecture:
+
+Market Data
+→ Core Indicators
+→ Snapshot
+→ Statistics
+→ Outcome
+→ Pattern Discovery
+→ Pattern Library
+→ Similarity
+→ Probability
+→ Prediction
+
+Future enhancements should extend this pipeline rather than modifying existing engine contracts unless fixing a verified bug.
 
 ## Phase 1 - Core Indicators
 
@@ -80,13 +100,42 @@ Schema:
 
 - `docs/MARKET_LEARNING_SCHEMA.md`
 
-## Phase 3 - Strategy / Backtest
+## Phase 3 - Probability Engine
+
+Status: Started.
+
+Goal:
+
+- Convert matched historical patterns into probability-style outputs and probability-derived price projections.
+
+Probability outputs are evidence-based metrics, not buy/sell recommendations.
+
+Prediction outputs are price projections and zones, not buy/sell recommendations.
+
+Implemented:
+
+- Probability Engine v1
+- Weighted probability calculation from similar patterns
+- Expected return and risk metrics
+- Safe defaults when no evidence exists
+- Prediction Engine v1
+- Probability-derived expected prices
+- Target zone
+- Risk zone
+
+Planned:
+
+- Probability / Prediction validation
+- Probability and prediction report integration
+- Scenario summaries
+
+## Phase 4 - Strategy / Backtest
 
 Status: Not Started.
 
 Goal:
 
-- Use snapshots, outcomes, patterns, and similarity results to evaluate strategy rules.
+- Use snapshots, outcomes, patterns, similarity, and probability outputs to evaluate strategy rules.
 
 Planned:
 
@@ -95,22 +144,7 @@ Planned:
 - Portfolio / Risk Evaluation
 - Entry / Exit Rules
 - Position Management
-- Performance Reports
-
-## Phase 4 - Prediction
-
-Status: Not Started.
-
-Goal:
-
-- Estimate future market probabilities using statistical evidence.
-
-Planned:
-
-- Probability Model
-- Historical Similarity Search
-- Scenario Generation
-- Confidence Score
+- Strategy performance reports
 
 ## Phase 5 - AI Analysis / Overlay
 
@@ -118,9 +152,11 @@ Status: Not Started.
 
 Goal:
 
-- Explain structured EXOS statistics to the user.
+- Explain structured EXOS statistics and probability outputs to the user.
 
 AI will not make decisions.
+
+AI will not produce buy/sell/hold recommendations.
 
 AI may:
 
@@ -128,6 +164,13 @@ AI may:
 - Summarize statistics
 - Compare historical situations
 - Produce investment reports
+
+## Later Research
+
+Planned:
+
+- Deeper scenario modeling
+- More advanced probability calibration
 
 ## Later UI Work
 
@@ -141,8 +184,9 @@ AI may:
 - SQLite is the source of truth.
 - Historical data must be reproducible.
 - Statistics come before strategy.
-- Strategy and backtest come before prediction.
-- Prediction comes before AI explanation.
+- Probability comes before strategy.
+- Strategy and backtest come before AI explanation.
 - AI explains; it does not guess.
+- EXOS outputs probability, evidence, and price zones, not buy/sell recommendations.
 - Keep the architecture modular.
 - Prioritize correctness over feature count.

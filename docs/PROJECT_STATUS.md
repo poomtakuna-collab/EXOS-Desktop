@@ -2,13 +2,36 @@
 
 ## Current
 
-Market Learning Engine v1 is complete.
+EXOS Brain v1 is complete and frozen.
+
+Prediction Engine v1 is implemented.
+
+Market Learning Engine v1 remains complete.
 
 Pipeline smoke test passed:
 
 - `tests/test_market_learning_pipeline.py`
 
 ## Architecture Summary
+
+EXOS Brain v1:
+
+Market Data
+→ Core Indicators
+→ Snapshot
+→ Statistics
+→ Outcome
+→ Pattern Discovery
+→ Pattern Library
+→ Similarity
+→ Probability
+→ Prediction
+
+This architecture is frozen.
+
+Future enhancements should extend the pipeline rather than modifying existing engine contracts unless fixing a verified bug.
+
+Detailed flow:
 
 Market Data
 -> Core Indicators
@@ -18,11 +41,33 @@ Market Data
 -> Pattern Discovery
 -> Pattern Library
 -> Similarity
+-> Probability
+-> Price Projection
+-> Target Zone
+-> Risk Zone
 -> Strategy
--> Prediction
 -> AI
 
 ## Completed
+
+### Brain v1 Completed
+
+Status: Complete and frozen.
+
+EXOS Brain v1 freezes the completed analysis pipeline:
+
+- Market Data
+- Core Indicators
+- Snapshot
+- Statistics
+- Outcome
+- Pattern Discovery
+- Pattern Library
+- Similarity
+- Probability
+- Prediction
+
+Future enhancements should extend this pipeline rather than modifying existing engine contracts unless fixing a verified bug.
 
 ### Core Indicators v1
 
@@ -65,18 +110,61 @@ Key rules:
 - Pattern Discovery is deterministic statistics only.
 - Similarity is deterministic scoring only.
 
+### Probability Engine v1
+
+Status: Implemented.
+
+Probability Engine v1 converts similar historical patterns into evidence-based probability outputs.
+
+It outputs:
+
+- Expected 5D / 10D / 20D returns
+- Probability of 5% and 10% upside within 10D
+- Approximate 5% downside probability within 10D
+- Expected 10D max gain and drawdown
+- Confidence
+- Evidence count
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+### Prediction Engine v1
+
+Status: Implemented.
+
+Prediction Engine v1 derives price projections only from Probability Engine outputs.
+
+Flow:
+
+Probability
+-> Price Projection
+-> Target Zone
+-> Risk Zone
+
+It outputs:
+
+- Expected 5D / 10D / 20D prices
+- 10D expected return
+- Target zone
+- Risk zone
+- Confidence
+- Best matching pattern metadata
+
+It does not output BUY, SELL, or HOLD recommendations.
+
 ## Next
 
 Phase 3:
 
-- Strategy Engine
-- Backtest Engine
-- Portfolio / Risk Evaluation
+- Strengthen Probability / Prediction validation
+- Add probability and prediction report integration later
+- Prepare Strategy Engine design
 
 ## Later
 
+- Strategy Engine
+- Backtest Engine
+- Portfolio / Risk Evaluation
 - Pattern Discovery reports / UI integration
-- Prediction Engine
 - AI Analysis / Overlay
 - Zoom / Pan improvements
 
@@ -85,9 +173,8 @@ Phase 3:
 - Strategy Engine
 - Backtest Engine
 - Portfolio / Risk Evaluation
-- Prediction Engine
 - AI Analysis / Overlay
-- UI reports for Market Learning output
+- UI reports for Market Learning and Prediction output
 
 ## Run
 

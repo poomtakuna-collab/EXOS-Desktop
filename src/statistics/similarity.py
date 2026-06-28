@@ -81,8 +81,13 @@ def find_similar_patterns(
                 "similarity_score": similarity["similarity_score"],
                 "confidence": pattern.get("confidence"),
                 "sample_count": pattern.get("sample_count"),
+                "average_5d_return": pattern.get("average_5d_return"),
                 "average_10d_return": pattern.get("average_10d_return"),
                 "average_20d_return": pattern.get("average_20d_return"),
+                "hit_5pct_rate": pattern.get("hit_5pct_rate"),
+                "hit_10pct_rate": pattern.get("hit_10pct_rate"),
+                "average_max_gain": pattern.get("average_max_gain"),
+                "average_drawdown": pattern.get("average_drawdown"),
                 "dominant_label": pattern.get("dominant_label"),
             }
         )

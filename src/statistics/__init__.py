@@ -24,6 +24,11 @@ from src.statistics.pattern_library import (
     load_pattern_library,
     rebuild_pattern_library,
 )
+from src.statistics.probability import (
+    calculate_probability_from_matches,
+    predict_probability_for_snapshot,
+)
+from src.statistics.prediction import build_prediction, predict_snapshot
 from src.statistics.similarity import (
     calculate_similarity,
     find_best_match,
@@ -36,7 +41,9 @@ __all__ = [
     "CREATE_PATTERNS_TABLE_SQL",
     "CREATE_SNAPSHOTS_TABLE_SQL",
     "REQUIRED_INDEX_SQL",
+    "calculate_probability_from_matches",
     "calculate_similarity",
+    "build_prediction",
     "collect_snapshot",
     "collect_snapshots_for_series",
     "calculate_outcome_for_snapshot",
@@ -53,6 +60,8 @@ __all__ = [
     "label_10d",
     "load_pattern_library",
     "prepare_snapshot_record",
+    "predict_probability_for_snapshot",
+    "predict_snapshot",
     "rebuild_pattern_library",
     "summarize_factor_distribution",
     "summarize_pattern_statistics",
