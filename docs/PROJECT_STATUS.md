@@ -1,7 +1,7 @@
 # PROJECT STATUS
 
 Current
-Milestone 4.10 - Visible rows control added
+Milestone 4.12 - Improved right-side axis labels
 
 Done
 - Dashboard
@@ -24,6 +24,8 @@ Done
 - Timeframe Engine v1 with 1D, 1W, and 1M chart views
 - 10-year daily OHLCV Yahoo Finance fetch depth
 - Visible rows control for 60, 120, 240, and All
+- Dark Theme v1 for standard PySide6 widgets
+- Improved price and volume axis labels
 
 Next
 - Zoom / Pan
@@ -59,6 +61,11 @@ Notes
 - SQLite remains the source of truth for chart display.
 - Symbols with the old 300-row cache are refreshed when selected because the cache target is now 2500 daily rows.
 - Candles, volume, EMA overlays, current price line, crosshair, tooltip, and header use the selected visible rows.
+- Dark Theme v1 is centralized in src/gui/theme.py and applied once from Application startup.
+- Candlestick chart drawing colors are unchanged for now.
+- Price axis labels use multiple right-side scale marks aligned to horizontal grid lines.
+- Price axis labels prefer rounded values and avoid the current price label area.
+- Volume axis labels show max, mid, and 0 on the right side.
 - Sample OHLC candles are isolated as developer fallback only and are disabled by default.
 - If no cached rows exist for a symbol, the chart shows an empty OHLC message instead of fake candles.
 - Zoom, Pan, Statistics, Backtest, and AI are not implemented yet.

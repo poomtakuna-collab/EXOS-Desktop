@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Sequence
 
 from PySide6.QtCore import QPointF, QRectF, Qt
@@ -90,10 +91,6 @@ class CandlestickChart(QWidget):
         painter.setPen(grid_pen)
         painter.drawRect(chart_rect)
 
-        for index in range(1, 4):
-            y = chart_rect.top() + chart_rect.height() * index / 4
-            painter.drawLine(QPointF(chart_rect.left(), y), QPointF(chart_rect.right(), y))
-
     def _draw_empty_state(self, painter: QPainter, chart_rect: QRectF) -> None:
         painter.setPen(QColor("#b8c2cc"))
         painter.drawText(chart_rect, Qt.AlignCenter, "No OHLC data available")
@@ -161,13 +158,19 @@ class CandlestickChart(QWidget):
 
         self._draw_ema_overlays(painter, price_rect, low_price, price_range, slot_width)
         self._draw_ema_legend(painter, price_rect)
-        painter.setPen(QColor("#b8c2cc"))
-        self._draw_axis_label(painter, price_rect, price_rect.top(), f"{high_price:.2f}")
-        self._draw_axis_label(painter, price_rect, price_rect.bottom(), f"{low_price:.2f}")
-        self._draw_axis_label(
-            painter, volume_rect, volume_rect.top(), self._format_volume(max_volume)
+        current_price = float(self._rows[-1]["close"])
+        current_price_y = self._price_to_y(
+            current_price, low_price, price_range, price_rect
         )
-        self._draw_axis_label(painter, volume_rect, volume_rect.bottom(), "0")
+        self._draw_price_axis(
+            painter,
+            price_rect,
+            low_price,
+            high_price,
+            price_range,
+            current_price_y,
+        )
+        self._draw_volume_axis(painter, volume_rect, max_volume)
         self._draw_current_price_line(painter, price_rect, low_price, price_range)
 
     def _draw_axis_label(
@@ -181,6 +184,105 @@ class CandlestickChart(QWidget):
         )
         painter.setPen(QColor("#b8c2cc"))
         painter.drawText(label_rect, Qt.AlignVCenter | Qt.AlignLeft, text)
+
+    def _draw_price_axis(
+        self,
+        painter: QPainter,
+        chart_rect: QRectF,
+        low_price: float,
+        high_price: float,
+        price_range: float,
+        current_price_y: float,
+    ) -> None:
+        ticks = self._price_axis_ticks(low_price, high_price)
+        label_gap = 18
+        for price in ticks:
+            y = self._price_to_y(price, low_price, price_range, chart_rect)
+            self._draw_grid_line(painter, chart_rect, y)
+            if abs(y - current_price_y) < label_gap:
+                continue
+            self._draw_axis_label(
+                painter,
+                chart_rect,
+                y,
+                self._format_price_label(price, low_price, high_price),
+            )
+
+    def _draw_volume_axis(
+        self, painter: QPainter, chart_rect: QRectF, max_volume: int
+    ) -> None:
+        ticks = dict.fromkeys((max_volume, max_volume // 2, 0))
+        for volume in ticks:
+            normalized = volume / max_volume if max_volume else 0.0
+            y = chart_rect.bottom() - normalized * chart_rect.height()
+            self._draw_grid_line(painter, chart_rect, y)
+            self._draw_axis_label(painter, chart_rect, y, self._format_volume(volume))
+
+    def _draw_grid_line(
+        self, painter: QPainter, chart_rect: QRectF, y_position: float
+    ) -> None:
+        painter.setPen(QPen(QColor("#26313a"), 1.0))
+        painter.drawLine(
+            QPointF(chart_rect.left(), y_position),
+            QPointF(chart_rect.right(), y_position),
+        )
+
+    def _price_axis_ticks(self, low_price: float, high_price: float) -> list[float]:
+        if high_price <= low_price:
+            return [low_price]
+
+        price_range = high_price - low_price
+        step = self._nice_number(price_range / 4, should_round=True)
+        first_tick = math.ceil(low_price / step) * step
+        last_tick = math.floor(high_price / step) * step
+
+        ticks = [low_price]
+        tick = first_tick
+        while tick <= last_tick:
+            if low_price < tick < high_price:
+                ticks.append(tick)
+            tick += step
+        ticks.append(high_price)
+
+        return sorted(set(round(value, 8) for value in ticks))
+
+    def _nice_number(self, value: float, should_round: bool) -> float:
+        if value <= 0:
+            return 1.0
+
+        exponent = math.floor(math.log10(value))
+        fraction = value / 10**exponent
+        if should_round:
+            if fraction < 1.5:
+                nice_fraction = 1
+            elif fraction < 3:
+                nice_fraction = 2
+            elif fraction < 7:
+                nice_fraction = 5
+            else:
+                nice_fraction = 10
+        elif fraction <= 1:
+            nice_fraction = 1
+        elif fraction <= 2:
+            nice_fraction = 2
+        elif fraction <= 5:
+            nice_fraction = 5
+        else:
+            nice_fraction = 10
+
+        return nice_fraction * 10**exponent
+
+    def _format_price_label(
+        self, price: float, low_price: float, high_price: float
+    ) -> str:
+        is_boundary = price in {low_price, high_price}
+        if is_boundary and not price.is_integer():
+            return f"{price:.2f}"
+        if abs(price) >= 100 or price.is_integer():
+            return f"{price:.0f}"
+        if abs(price) >= 10:
+            return f"{price:.1f}"
+        return f"{price:.2f}"
 
     def _draw_ema_overlays(
         self,

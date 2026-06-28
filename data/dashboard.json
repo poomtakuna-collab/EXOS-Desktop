@@ -6,7 +6,12 @@
       "priority": 0
     },
     {
-      "symbol": "TXN",
+      "symbol": "CG",
+      "note": "",
+      "priority": 0
+    },
+    {
+      "symbol": "TMUS",
       "note": "",
       "priority": 0
     }
