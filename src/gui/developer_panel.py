@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from src.core.state_manager import StateManager
@@ -25,6 +27,9 @@ class DeveloperPanel(QWidget):
         source = self._state_manager.market_data_source
         last_load_time = self._format_load_time(self._state_manager.last_load_time)
         status = self._state_manager.status
+        indicator_snapshot = self._format_indicator_snapshot(
+            self._state_manager.indicator_snapshot
+        )
 
         self._content_label.setText(
             "Developer Panel\n\n"
@@ -40,6 +45,9 @@ class DeveloperPanel(QWidget):
             "Performance\n"
             "--------------------------------\n"
             f"{self._format_row('Load Time', last_load_time)}\n\n"
+            "Indicator Snapshot\n"
+            "--------------------------------\n"
+            f"{indicator_snapshot}\n\n"
             "Status\n"
             "--------------------------------\n"
             f"{status}"
@@ -53,3 +61,11 @@ class DeveloperPanel(QWidget):
             return ""
 
         return f"{last_load_time:.3f} sec"
+
+    def _format_indicator_snapshot(
+        self, snapshot: dict[str, object] | None
+    ) -> str:
+        if not snapshot:
+            return ""
+
+        return json.dumps(snapshot, indent=2)

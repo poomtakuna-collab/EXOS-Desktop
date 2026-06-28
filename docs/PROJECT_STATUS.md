@@ -1,7 +1,7 @@
 # PROJECT STATUS
 
 Current
-Milestone 4.12 - Improved right-side axis labels
+Milestone 4.15 - EXOS Analysis Engine foundation added
 
 Done
 - Dashboard
@@ -26,6 +26,9 @@ Done
 - Visible rows control for 60, 120, 240, and All
 - Dark Theme v1 for standard PySide6 widgets
 - Improved price and volume axis labels
+- EXOS Indicator Snapshot v1 in Developer Panel
+- TradingView-style EMA20/50/200 value labels on the right price axis
+- EXOS Analysis Engine foundation with Indicator Engine v1
 
 Next
 - Zoom / Pan
@@ -66,6 +69,15 @@ Notes
 - Price axis labels use multiple right-side scale marks aligned to horizontal grid lines.
 - Price axis labels prefer rounded values and avoid the current price label area.
 - Volume axis labels show max, mid, and 0 on the right side.
+- Indicator Snapshot v1 uses selected symbol, NASDAQ market scope, selected timeframe, and the latest completed timeframe candle.
+- Indicator Snapshot v1 includes OHLCV, EMA20/50/200, price-vs-EMA status, and EMA alignment.
+- Indicator Snapshot v1 is displayed in the Developer Panel for now.
+- EMA20, EMA50, and EMA200 display latest value labels on the right price axis.
+- EMA value labels match EMA line colors and adjust vertically to reduce overlap.
+- Analysis Engine foundation lives in src/analysis.
+- Indicator Engine v1 calculates EMA20/50/200, price-vs-EMA state, and EMA alignment from selected timeframe rows.
+- Developer Panel indicator snapshot now uses the Analysis Indicator Engine.
+- EXOS EW, Volume Pressure, Trend Slope, Squeeze, BOS, CHoCH, Statistics, Backtest, Prediction, and AI are not implemented yet.
 - Sample OHLC candles are isolated as developer fallback only and are disabled by default.
 - If no cached rows exist for a symbol, the chart shows an empty OHLC message instead of fake candles.
 - Zoom, Pan, Statistics, Backtest, and AI are not implemented yet.

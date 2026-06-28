@@ -171,6 +171,9 @@ class CandlestickChart(QWidget):
             current_price_y,
         )
         self._draw_volume_axis(painter, volume_rect, max_volume)
+        self._draw_ema_value_labels(
+            painter, price_rect, low_price, price_range, current_price_y
+        )
         self._draw_current_price_line(painter, price_rect, low_price, price_range)
 
     def _draw_axis_label(
@@ -331,6 +334,106 @@ class CandlestickChart(QWidget):
         for close in closes[1:]:
             ema_values.append((close - ema_values[-1]) * multiplier + ema_values[-1])
         return ema_values
+
+    def _draw_ema_value_labels(
+        self,
+        painter: QPainter,
+        price_rect: QRectF,
+        low_price: float,
+        price_range: float,
+        current_price_y: float,
+    ) -> None:
+        label_height = 18
+        label_positions: list[tuple[int, float, float]] = []
+        for period in ENABLED_EMA_PERIODS:
+            ema_values = self._calculate_ema_values(period)
+            if not ema_values:
+                continue
+
+            ema_value = ema_values[-1]
+            y_position = self._price_to_y(
+                ema_value, low_price, price_range, price_rect
+            )
+            label_positions.append((period, ema_value, y_position))
+
+        adjusted_positions = self._adjust_axis_label_positions(
+            [position[2] for position in label_positions],
+            label_height=label_height,
+            chart_rect=price_rect,
+            reserved_positions=[current_price_y],
+        )
+
+        for (period, ema_value, _), label_y in zip(label_positions, adjusted_positions):
+            self._draw_value_tag(
+                painter=painter,
+                chart_rect=price_rect,
+                y_position=label_y,
+                text=f"{ema_value:.2f}",
+                color=self._ema_color(period),
+                label_height=label_height,
+            )
+
+    def _adjust_axis_label_positions(
+        self,
+        positions: list[float],
+        label_height: float,
+        chart_rect: QRectF,
+        reserved_positions: list[float] | None = None,
+    ) -> list[float]:
+        if not positions:
+            return []
+
+        minimum_gap = label_height + 2
+        indexed_positions = sorted(enumerate(positions), key=lambda item: item[1])
+        adjusted: list[tuple[int, float]] = []
+        reserved = reserved_positions or []
+
+        for original_index, position in indexed_positions:
+            label_y = self._bounded_label_y(position, label_height, chart_rect)
+            if adjusted:
+                label_y = max(label_y, adjusted[-1][1] + minimum_gap)
+            for reserved_position in reserved:
+                reserved_y = self._bounded_label_y(
+                    reserved_position, label_height, chart_rect
+                )
+                if abs(label_y - reserved_y) < minimum_gap:
+                    label_y = reserved_y + minimum_gap
+            label_y = min(label_y, chart_rect.bottom() - label_height)
+            adjusted.append((original_index, label_y))
+
+        for reverse_index in range(len(adjusted) - 2, -1, -1):
+            current_index, current_y = adjusted[reverse_index]
+            next_y = adjusted[reverse_index + 1][1]
+            if next_y - current_y < minimum_gap:
+                adjusted[reverse_index] = (
+                    current_index,
+                    max(chart_rect.top(), next_y - minimum_gap),
+                )
+
+        return [
+            label_y
+            for _, label_y in sorted(adjusted, key=lambda item: item[0])
+        ]
+
+    def _draw_value_tag(
+        self,
+        painter: QPainter,
+        chart_rect: QRectF,
+        y_position: float,
+        text: str,
+        color: QColor,
+        label_height: float,
+    ) -> None:
+        label_rect = QRectF(
+            chart_rect.right() + 4,
+            y_position,
+            PRICE_AXIS_WIDTH - 8,
+            label_height,
+        )
+        painter.fillRect(label_rect, QColor("#101418"))
+        painter.setPen(QPen(color, 1.0))
+        painter.drawRect(label_rect)
+        painter.drawText(label_rect, Qt.AlignCenter, text)
 
     def _draw_crosshair(
         self, painter: QPainter, price_rect: QRectF, volume_rect: QRectF

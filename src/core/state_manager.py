@@ -8,6 +8,7 @@ class StateManager:
         self.market_data_source: str = ""
         self.last_load_time: float | None = None
         self.status: str = "Ready"
+        self.indicator_snapshot: dict[str, object] | None = None
 
     def set_current_symbol(self, symbol: str | None) -> None:
         normalized_symbol = symbol.strip().upper() if symbol else ""
@@ -30,10 +31,15 @@ class StateManager:
         self.market_data_rows = 0
         self.market_data_source = ""
         self.last_load_time = None
+        self.indicator_snapshot = None
         self.status = status or "Ready"
+
+    def set_indicator_snapshot(self, snapshot: dict[str, object] | None) -> None:
+        self.indicator_snapshot = snapshot
 
     def clear_market_data_state(self) -> None:
         self.market_data_rows = 0
         self.market_data_source = ""
         self.last_load_time = None
+        self.indicator_snapshot = None
         self.status = "Ready"

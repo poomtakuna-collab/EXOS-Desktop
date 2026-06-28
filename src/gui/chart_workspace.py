@@ -4,7 +4,7 @@ from collections import OrderedDict
 from datetime import date
 from time import perf_counter
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from src.core.state_manager import StateManager
@@ -16,6 +16,7 @@ from src.data import (
     MarketDataRow,
 )
 from src.gui.candlestick_chart import CandlestickChart
+from src.indicators import build_indicator_snapshot
 
 
 SAMPLE_FALLBACK_SOURCE = "Sample Fallback"
@@ -26,6 +27,8 @@ VISIBLE_ROW_OPTIONS = (60, 120, 240, None)
 
 
 class ChartWorkspace(QWidget):
+    data_changed = Signal()
+
     def __init__(
         self,
         data_manager: DataManager | None = None,
@@ -106,6 +109,7 @@ class ChartWorkspace(QWidget):
             self._detail_label.setText("")
             self._chart.clear()
             self._state_manager.clear_market_data_state()
+            self.data_changed.emit()
             return
 
         self._title_label.setText("")
@@ -178,6 +182,7 @@ class ChartWorkspace(QWidget):
             source=source,
             last_load_time=load_time,
         )
+        self._state_manager.set_indicator_snapshot(None)
         self._chart.clear()
         self._market_header_label.setText("")
         self._detail_label.setText(
@@ -190,6 +195,7 @@ class ChartWorkspace(QWidget):
                 extra_status=message,
             )
         )
+        self.data_changed.emit()
 
     def _show_historical_data(
         self, historical_data: HistoricalDataResult, last_load_time: float
@@ -201,6 +207,13 @@ class ChartWorkspace(QWidget):
             source=historical_data.source,
             last_load_time=last_load_time,
         )
+        self._state_manager.set_indicator_snapshot(
+            build_indicator_snapshot(
+                symbol=self._state_manager.current_symbol or "",
+                timeframe=self._timeframe,
+                rows=timeframe_rows,
+            )
+        )
         self._chart.set_ohlc_data(visible_rows)
         self._market_header_label.setText(
             self._get_market_header(
@@ -208,6 +221,7 @@ class ChartWorkspace(QWidget):
                 rows=visible_rows,
             )
         )
+        self.data_changed.emit()
         self._detail_label.setText(
             self._get_display_status(
                 symbol=self._state_manager.current_symbol or "",
@@ -251,6 +265,7 @@ class ChartWorkspace(QWidget):
                 extra_status=f"Data status: {message}",
             )
         )
+        self.data_changed.emit()
 
     def _get_market_header(self, symbol: str, rows: list[MarketDataRow]) -> str:
         if not rows:

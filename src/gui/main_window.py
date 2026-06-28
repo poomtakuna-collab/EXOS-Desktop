@@ -46,6 +46,7 @@ class MainWindow(QMainWindow):
         self._create_central_workspace()
         self._create_dashboard_dock()
         self._create_developer_dock()
+        self._chart_workspace.data_changed.connect(self._developer_panel.refresh)
         self._update_current_symbol_views()
 
     def _create_menu_bar(self) -> None:
