@@ -78,7 +78,7 @@ py -m src.main
 
 instead of:
 
-python -m src.main
+py -m src.main
 
 unless cross-platform compatibility is specifically required.
 
