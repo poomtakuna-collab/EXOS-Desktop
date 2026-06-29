@@ -131,7 +131,7 @@ Planned:
 
 ## Phase 4 - Strategy / Backtest
 
-Status: Strategy Engine v1 initial implementation started. Backtest Engine not implemented.
+Status: Strategy Engine v1, in-memory Backtest Framework v1, and Backtest Data Layer interface skeletons implemented. Database-backed Backtest not implemented.
 
 Goal:
 
@@ -143,10 +143,29 @@ Implemented:
 - Strategy input/output contracts
 - Initial deterministic strategy scoring
 - Strategy validation tests
+- Backtest contracts
+- Backtest types
+- Simulation rules
+- Replay Engine
+- Metrics Aggregator
+- Backtest Pipeline
+- Backtest Report
+- Backtest unit tests
+- Backtest data-layer package skeleton
+- SnapshotQuery contract
+- SnapshotLoader / OutcomeLoader / FutureRowsLoader interfaces
+- BacktestDataset / BacktestDatasetBuilder interfaces
+- Backtest data-layer skeleton tests
 
 Planned:
 
-- Backtest Engine
+- Database-backed Backtest
+- SQLite-backed SnapshotLoader implementation
+- SQLite-backed OutcomeLoader implementation
+- SQLite-backed FutureRowsLoader implementation
+- SQL queries
+- Historical dataset construction
+- Historical replay from stored datasets
 - Portfolio / Risk Evaluation
 - Entry / Exit Rules
 - Position Management

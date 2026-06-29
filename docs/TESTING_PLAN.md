@@ -2,7 +2,7 @@
 
 Testing plan for EXOS Desktop developer infrastructure.
 
-This document describes the current test coverage, missing tests, proposed test structure, and long-term regression strategy before Backtest Engine implementation begins.
+This document describes the current test coverage, missing tests, proposed test structure, and long-term regression strategy before database-backed Backtest and Portfolio implementation begins.
 
 ## Current Test Coverage
 
@@ -11,6 +11,11 @@ Current automated coverage includes:
 - `tests/smoke/test_market_learning_pipeline.py`
 - `tests/unit/test_strategy_engine.py`
 - `tests/regression/test_strategy_contract.py`
+- `tests/unit/test_backtest_engine.py`
+- `tests/unit/test_backtest_metrics.py`
+- `tests/unit/test_backtest_pipeline.py`
+- `tests/unit/test_backtest_report.py`
+- `tests/unit/test_backtest_data_skeleton.py`
 
 Covered flow:
 
@@ -45,6 +50,31 @@ The Strategy Engine tests verify:
 - StrategyResult public shape
 - no BUY / SELL / HOLD output
 
+The Backtest Framework tests verify:
+
+- target hit replay
+- stop hit replay
+- target and stop in the same candle
+- timeout handling
+- missing data handling
+- invalid input handling
+- deterministic replay
+- stable SimulationResult shape
+- metrics aggregation
+- skipped / insufficient-data aggregation
+- expectancy and drawdown calculations
+- Backtest Pipeline orchestration
+- deterministic Backtest Report output
+- stable BacktestReport shape
+- Backtest Data Layer public imports
+- SnapshotQuery defaults
+- BacktestDataset defaults
+- loader and builder methods remain explicit skeletons
+
+Current test count:
+
+- 55 tests
+
 Current gaps:
 
 - No dedicated unit tests for Core Indicators v1.
@@ -55,7 +85,9 @@ Current gaps:
 - No regression fixtures for frozen engine contracts.
 - No GUI tests.
 - No integration tests using the on-disk SQLite database.
-- No Backtest tests yet.
+- No database-backed Backtest tests yet.
+- No SQLite-backed SnapshotLoader / OutcomeLoader / FutureRowsLoader tests yet.
+- No historical BacktestDataset construction tests yet.
 
 ## Proposed Test Structure
 
@@ -205,15 +237,20 @@ Reason:
 
 - GUI tests are useful, but Strategy Engine readiness depends first on deterministic engine and data tests.
 
-### `src/strategy` and Future `src/backtest`
+### `src/strategy` and `src/backtest`
 
 Missing:
 
 - More granular Strategy score component tests.
 - Snapshot-aware Strategy scoring tests when snapshot dimensions are added.
 - Strategy integration tests with Probability and Prediction outputs.
-- backtest execution tests.
-- backtest persistence tests.
+- SQLite-backed Backtest Data Layer tests.
+- SnapshotLoader SQL/loading tests.
+- OutcomeLoader SQL/loading tests.
+- FutureRowsLoader SQL/loading tests.
+- BacktestDatasetBuilder historical construction tests.
+- Database-backed Backtest tests.
+- Backtest persistence tests.
 
 Priority:
 
@@ -237,7 +274,9 @@ Reason:
 10. DataManager cache/provider tests.
 11. Timeframe aggregation tests.
 12. Strategy Engine v1 integration tests.
-13. Backtest Engine integration tests.
+13. Backtest Framework integration tests.
+14. SQLite-backed Backtest Data Layer unit tests.
+15. Database-backed Backtest integration tests.
 
 ## Regression Testing Strategy
 
@@ -276,7 +315,8 @@ Future smoke tests:
 
 - Probability / Prediction smoke test.
 - Strategy Evaluation smoke test from Probability / Prediction outputs.
-- Backtest Pipeline smoke test.
+- Backtest Pipeline smoke test from stored-like fixtures.
+- Database-backed Backtest smoke test.
 
 Smoke tests should be fast, deterministic, and based on fake or fixture data.
 
@@ -292,11 +332,11 @@ Unit tests should use:
 - no network calls
 - no GUI event loop unless specifically testing GUI behavior
 
-Unit tests should be added before implementing Backtest Engine.
+Unit tests should be added before implementing database-backed Backtest or Portfolio Engine.
 
-## Pre-Backtest Regression Checklist
+## Pre-DB-Backtest Regression Checklist
 
-Before Backtest Engine implementation begins, add or verify regression coverage for the following areas.
+Before database-backed Backtest implementation begins, add or verify regression coverage for the following areas.
 
 ### Probability Engine
 
@@ -332,6 +372,24 @@ Before Backtest Engine implementation begins, add or verify regression coverage 
 - Trade grade, entry quality, and risk rating always use valid enum values.
 - Output does not contain BUY, SELL, or HOLD.
 
+### Backtest Framework
+
+- `SimulationResult` shape remains stable.
+- `BacktestResult` shape remains stable.
+- `BacktestReport` shape remains stable.
+- Replay remains deterministic for fixed future rows.
+- Metrics aggregation remains deterministic for fixed simulation results.
+- Pipeline remains deterministic for fixed BacktestInput records.
+- Backtest report comments remain rule-based and deterministic.
+
+### Backtest Data Layer
+
+- `SnapshotQuery` shape remains stable.
+- `SnapshotLoader`, `OutcomeLoader`, and `FutureRowsLoader` public methods remain importable.
+- `BacktestDataset` and `BacktestDatasetBuilder` shapes remain stable.
+- Skeleton methods remain explicit until SQLite-backed behavior is implemented.
+- Future SQLite-backed tests verify deterministic ordering and no live data access.
+
 ## Future Integration Tests
 
 Integration tests should verify cross-module behavior.
@@ -343,7 +401,9 @@ Planned integration coverage:
 - statistics database initialization on disk.
 - snapshot collection to outcome calculation to pattern rebuild.
 - probability and prediction from stored pattern library.
-- Strategy Engine to Backtest Engine once Phase 4 begins.
+- Strategy Engine to Backtest Framework.
+- Backtest Data Layer from stored snapshots/outcomes to BacktestInput.
+- Database-backed Backtest from stored dataset to report.
 
 Integration tests should use temporary directories or in-memory databases and should not require external services.
 
@@ -373,4 +433,4 @@ Run all tests:
 py -m unittest discover -s tests
 ```
 
-The test suite should remain fast enough to run before every Strategy Engine change.
+The test suite should remain fast enough to run before every Strategy or Backtest change.

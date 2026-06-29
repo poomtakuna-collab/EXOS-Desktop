@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## Backtest Data Layer Skeleton
+
+- Added `src/backtest/data/` package skeleton.
+- Added `SnapshotQuery`.
+- Added `SnapshotLoader`, `OutcomeLoader`, and `FutureRowsLoader` public interfaces.
+- Added `BacktestDataset` and `BacktestDatasetBuilder` public interfaces.
+- Added Backtest data-layer skeleton unit tests.
+- Data-layer implementations intentionally raise `NotImplementedError`.
+- SQLite-backed loading, SQL queries, historical dataset construction, DB-backed Backtest execution, Portfolio Evaluation, and AI overlay are not implemented yet.
+
+## Backtest Framework v1
+
+- Added Backtest contracts.
+- Added Backtest types.
+- Added Backtest Simulation Rules documentation.
+- Added deterministic single-trade Replay Engine.
+- Added Metrics Aggregator.
+- Added Backtest Pipeline.
+- Added deterministic Backtest Report layer.
+- Added Backtest unit tests.
+- Backtest Framework v1 is in-memory only.
+- Database-backed Backtest, Snapshot Loader, Outcome Loader, Dataset Builder, historical replay from stored datasets, Portfolio Evaluation, UI integration, and AI overlay are not implemented yet.
+
 ## Pre-Backtest Stabilization
 
 - Added Architecture Audit v2.

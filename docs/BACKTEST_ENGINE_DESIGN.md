@@ -2,9 +2,11 @@
 
 Design document for EXOS Backtest Engine v1.
 
-This document defines architecture and contracts before implementation begins.
+This document defines architecture and contracts for Backtest Engine v1.
 
-Backtest Engine is not implemented yet.
+In-memory Backtest Framework v1 is implemented.
+
+Database-backed Backtest is not implemented yet.
 
 ## 1. Purpose
 
@@ -23,6 +25,28 @@ Backtest Engine should answer:
 Backtest Engine must be deterministic.
 
 Backtest Engine must not output BUY, SELL, or HOLD.
+
+Implemented in-memory components:
+
+- Backtest contracts
+- Backtest types
+- Simulation rules
+- Replay Engine
+- Metrics Aggregator
+- Backtest Pipeline
+- Backtest Report
+- Unit Tests
+
+Not implemented yet:
+
+- Database-backed Backtest
+- Snapshot Loader
+- Outcome Loader
+- Dataset Builder
+- Historical replay from stored datasets
+- Portfolio Evaluation
+- UI integration
+- AI overlay
 
 ## 2. Inputs
 
@@ -145,7 +169,7 @@ StrategyResult must be produced deterministically from `StrategyInput`.
 
 ## 3. Outputs
 
-Backtest Engine v1 should produce structured performance outputs.
+Backtest Engine v1 produces structured performance outputs in memory.
 
 ### BacktestResult
 
@@ -166,6 +190,18 @@ Planned fields:
 - assumptions
 - created timestamp
 - metrics summary
+
+Current in-memory `BacktestResult` fields:
+
+- total trades
+- winning trades
+- losing trades
+- win rate
+- average return
+- average drawdown
+- expectancy
+- max drawdown
+- notes
 
 ### Trade Simulation Summary
 
@@ -258,7 +294,14 @@ Planned fields:
 
 ## 4. Responsibilities
 
-Backtest Engine v1 should:
+Backtest Engine v1 currently:
+
+- Replays one StrategyResult against one future OHLCV sequence.
+- Aggregates multiple replay results.
+- Runs a pure in-memory pipeline.
+- Builds a deterministic report object.
+
+Database-backed Backtest later should:
 
 - Replay historical snapshots.
 - Apply Strategy Engine deterministically.
@@ -301,7 +344,7 @@ Decision direction:
 
 Open:
 
-- Whether Backtest requires all snapshots to be precomputed or can report missing snapshots.
+- Whether database-backed Backtest requires all snapshots to be precomputed or can report missing snapshots.
 
 ### Timeframe Handling
 
@@ -349,7 +392,11 @@ Decision direction:
 
 Open:
 
-- Whether v1 stores StrategyResult outputs immediately or returns them in memory first.
+- Whether database-backed Backtest stores StrategyResult outputs immediately or returns them in memory first.
+
+Current:
+
+- In-memory Backtest Framework receives StrategyResult inside `BacktestInput`.
 
 ### Database Schema Impact
 
@@ -432,9 +479,8 @@ UI should read structured BacktestResult data instead of recalculating backtest 
 
 Before implementation begins, answer:
 
-- What exact BacktestInput contract should be used?
-- What exact BacktestResult contract should be used?
-- Should Backtest v1 simulate trades or evaluate setups only?
+- What exact DB-backed BacktestInput construction path should be used?
+- What additional metadata should be added to BacktestResult before persistence?
 - Which outcome horizon is the default comparison target?
 - Are outcome rows required, or can OHLCV rows alone drive actual results?
 - How are entry and exit timing rules represented?
@@ -442,7 +488,7 @@ Before implementation begins, answer:
 - How is strategy version recorded?
 - How is backtest version recorded?
 - Where does Backtest schema live?
-- Are StrategyResult outputs persisted in v1?
+- Are StrategyResult outputs persisted in database-backed Backtest?
 - Should weekly/monthly timeframe support wait until aggregation is moved out of GUI?
 - What minimum fixtures are required before implementation?
 
