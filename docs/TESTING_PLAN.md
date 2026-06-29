@@ -10,6 +10,7 @@ Current automated coverage includes:
 
 - `tests/smoke/test_market_learning_pipeline.py`
 - `tests/smoke/test_analysis_pipeline.py`
+- `tests/smoke/test_analysis_service.py`
 - `tests/unit/test_strategy_engine.py`
 - `tests/regression/test_strategy_contract.py`
 - `tests/unit/test_backtest_engine.py`
@@ -22,8 +23,13 @@ Current automated coverage includes:
 - `tests/unit/test_sqlite_outcome_loader.py`
 - `tests/unit/test_sqlite_future_rows_loader.py`
 - `tests/unit/test_sqlite_backtest_dataset_builder.py`
+- `tests/unit/test_sqlite_data_source.py`
 - `tests/unit/test_analysis_pipeline_contracts.py`
+- `tests/unit/test_analysis_service.py`
+- `tests/unit/test_data_source_contracts.py`
+- `tests/unit/test_memory_data_source.py`
 - `tests/integration/test_strategy_backtest_pipeline.py`
+- `tests/integration/test_sqlite_data_source_analysis_service.py`
 - `tests/integration/test_sqlite_backtest_read_only_runner.py`
 
 Covered flow:
@@ -141,10 +147,47 @@ The Backtest Framework tests verify:
 - Analysis Pipeline smoke test verifies full deterministic in-memory flow through report output
 - Analysis Pipeline smoke test verifies no AI, network, or broker imports
 - `analyze_symbol` explicitly raises `NotImplementedError` when no rows are supplied until latest snapshot loading is implemented
+- Data Source public imports are stable
+- Data Source contracts are immutable dataclasses
+- default `DataSourceConfig` values are stable
+- `MarketDataSource` exposes read-only load methods only
+- Data Source contracts do not import AI, network, or broker modules
+- `MemoryDataSource` loads matching OHLCV rows
+- `MemoryDataSource` future rows return rows after the snapshot date only
+- `MemoryDataSource` filters by symbol, timeframe, start date, end date, limit, and horizon
+- `MemoryDataSource` ordering is deterministic by symbol, timeframe, and date
+- `MemoryDataSource` empty results are deterministic
+- `MemoryDataSource` is read-only and returns copied rows
+- `MemoryDataSource` does not import AI, network, or broker modules
+- `SQLiteDataSource` loads existing `ohlcv_daily` rows only
+- `SQLiteDataSource` uses deterministic ordering
+- `SQLiteDataSource` filters by symbol, start date, end date, limit, and 1D timeframe
+- `SQLiteDataSource` reuses Backtest Data Layer future-row loading behavior
+- `SQLiteDataSource` returns deterministic empty results
+- `SQLiteDataSource` missing table failures are clear
+- `SQLiteDataSource` does not create tables, initialize schema, or modify database contents
+- `SQLiteDataSource` does not import AI, network, or broker modules
+- Analysis Service returns `AnalysisResult`
+- Analysis Service populates Snapshot, Probability, Prediction, and Strategy from deterministic MemoryDataSource fixtures
+- Analysis Service populates Backtest when future rows are available
+- Analysis Service output is deterministic
+- Analysis Service output does not emit BUY / SELL / HOLD
+- Analysis Service does not import AI, network, or broker modules
+- Analysis Service report generation returns both `AnalysisResult` and `AnalysisReport`
+- Analysis Service report symbol and timeframe match the analysis result
+- Analysis Service full pipeline report statuses are populated
+- Analysis Service report output is deterministic
+- Analysis Service report output does not emit BUY / SELL / HOLD
+- Analysis Service report generation does not import AI, network, or broker modules
+- Analysis Service smoke test verifies deterministic application-layer flow through `analyze_symbol_with_report`
+- Analysis Service smoke test uses deterministic MemoryDataSource OHLCV, similar-pattern-shaped, and future-row fixtures
+- Analysis Service smoke test verifies complete report statuses, deterministic output, no BUY / SELL / HOLD, and no AI/network/broker imports
+- SQLiteDataSource integration test verifies SQLiteDataSource -> AnalysisService -> Analysis Pipeline -> Analysis Report using in-memory SQLite
+- SQLiteDataSource integration test verifies deterministic output, complete report statuses, no BUY / SELL / HOLD, and no AI/network/broker imports
 
 Current test count:
 
-- 120 tests
+- 162 tests
 
 Current gaps:
 
@@ -276,6 +319,74 @@ Reason:
 
 - Data loading should remain replaceable and predictable.
 
+### `src/data_source`
+
+Implemented:
+
+- Public imports.
+- Immutable contract shapes.
+- Default `DataSourceConfig`.
+- Request/result defaults.
+- `MarketDataSource` read-only protocol shape.
+- `MemoryDataSource` deterministic in-memory adapter.
+- `SQLiteDataSource` deterministic read-only SQLite adapter.
+- OHLCV and future-row loading from copied in-memory rows.
+- Filtering by symbol, timeframe, date range, limit, and future horizon.
+- Deterministic ordering by symbol, timeframe, and date.
+- Read-only row-copy behavior.
+- SQLite OHLCV loading from existing `ohlcv_daily` records.
+- SQLite future-row loading through existing Backtest Data Layer behavior.
+- SQLite missing table coverage.
+- SQLite read-only behavior coverage.
+- SQLiteDataSource to Analysis Service integration coverage.
+- No AI, network, or broker imports.
+
+Missing:
+
+- On-disk SQLite integration tests.
+- Additional SQLite edge-case tests for malformed rows.
+- Analysis Pipeline latest snapshot loading integration tests.
+
+Priority:
+
+- High when SQLite-backed application wiring expands.
+
+Reason:
+
+- Data Source v1 should become the stable boundary between stored market data and orchestration layers without modifying frozen Brain v1, Strategy, Backtest, or Analysis Pipeline v1 contracts.
+
+### `src/application`
+
+Implemented:
+
+- Analysis Service public import.
+- `AnalysisService` accepts `MarketDataSource`.
+- Optional default `PipelineConfig`.
+- `analyze_symbol(symbol, timeframe="1D")` returns `AnalysisResult`.
+- `analyze_symbol_with_report(symbol, timeframe="1D")` returns immutable `AnalysisServiceResult`.
+- Existing `build_analysis_report` integration.
+- OHLCV loading through `MarketDataSource.load_ohlcv`.
+- Future-row loading through `MarketDataSource.load_future_rows` when Backtest is enabled.
+- Existing `AnalysisRequest` construction without modifying Analysis Pipeline v1 contracts.
+- Deterministic MemoryDataSource-backed service tests.
+- Deterministic report-generation service tests.
+- No BUY / SELL / HOLD output.
+- No AI, network, or broker imports.
+
+Missing:
+
+- SQLite-backed Data Source service tests.
+- Application-layer error handling policy tests.
+- UI wiring tests.
+
+Priority:
+
+- High when SQLite Data Source implementation starts.
+
+Reason:
+
+- Application services should wire stable lower-level contracts without changing frozen engine or pipeline contracts.
+
 ### `src/core`
 
 Missing:
@@ -391,7 +502,8 @@ Reason:
 15. Database-backed Backtest integration tests.
 16. Backtest persistence schema and round-trip tests.
 17. Analysis Pipeline orchestration contract tests.
-18. AI overlay explanation tests with deterministic fixtures.
+18. Data Source v1 adapter tests.
+19. AI overlay explanation tests with deterministic fixtures.
 
 ## Regression Testing Strategy
 
@@ -426,6 +538,7 @@ Current smoke test:
 
 - Market Learning Pipeline smoke test.
 - Analysis Pipeline full deterministic in-memory flow smoke test.
+- Analysis Service full deterministic application-layer smoke test.
 
 Future smoke tests:
 

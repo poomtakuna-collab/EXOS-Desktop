@@ -1,5 +1,68 @@
 # CHANGELOG
 
+## SQLiteDataSource v1
+
+- Added `src/data_source/sqlite_source.py`.
+- Added `SQLiteDataSource` as a read-only implementation of the existing `MarketDataSource` protocol.
+- Implemented `load_ohlcv` for existing SQLite `ohlcv_daily` rows with deterministic symbol/date ordering, symbol filtering, date-range filtering, 1D timeframe validation, and optional limits.
+- Implemented `load_future_rows` by reusing the existing Backtest Data Layer `SQLiteFutureRowsLoader` for standard future-row query behavior.
+- Supported optional deterministic fixture role columns for separating current OHLCV rows from future rows in in-memory tests.
+- Exported `SQLiteDataSource` from `src.data_source`.
+- Added in-memory SQLite unit tests for deterministic ordering, filters, future rows, empty results, missing tables, read-only behavior, and no AI/network/broker imports.
+- Added in-memory SQLite integration coverage for `SQLiteDataSource -> AnalysisService -> Analysis Pipeline -> Analysis Report`.
+- Verified no table creation, schema initialization, database writes, live data, broker access, network access, AI calls, or frozen Analysis Pipeline contract changes.
+
+## Analysis Service Smoke Coverage
+
+- Added `tests/smoke/test_analysis_service.py`.
+- Added deterministic application-layer smoke coverage for `AnalysisService.analyze_symbol_with_report`.
+- Used `MemoryDataSource` with deterministic OHLCV rows, similar-pattern-shaped rows, and future rows.
+- Verified `AnalysisServiceResult`, populated `AnalysisResult`, populated `AnalysisReport`, complete full-pipeline report statuses, deterministic fixed-input output, no BUY / SELL / HOLD output, and no AI/network/broker imports.
+- No new service behavior, Analysis Pipeline contract changes, SQLite source implementation, live data, broker access, or AI calls were introduced.
+
+## Analysis Service Report Generation
+
+- Added immutable `AnalysisServiceResult` contract.
+- Added `AnalysisService.analyze_symbol_with_report(symbol, timeframe="1D")`.
+- Reused existing `AnalysisService.analyze_symbol` and existing `build_analysis_report`.
+- Exported `AnalysisServiceResult` from `src.application`.
+- Added unit tests for result/report return shape, report symbol/timeframe matching the result, populated full pipeline report statuses, deterministic output, no BUY / SELL / HOLD output, and no AI/network/broker imports.
+- Analysis Pipeline v1 contracts, SQLite source implementation, live data, broker access, and AI calls remain unchanged and not implemented.
+
+## Analysis Service v1
+
+- Added `src/application/` package.
+- Added `AnalysisService` for application-layer wiring from `MarketDataSource` to existing Analysis Pipeline v1.
+- Added `analyze_symbol(symbol, timeframe="1D")`.
+- Loaded OHLCV rows through `MarketDataSource.load_ohlcv`.
+- Loaded future rows through `MarketDataSource.load_future_rows` when Backtest is enabled and current rows are available.
+- Built existing `AnalysisRequest` values and called existing `analysis_pipeline.analyze_symbol`.
+- Added unit tests using `MemoryDataSource` only.
+- Verified `AnalysisResult` output, populated Snapshot / Probability / Prediction / Strategy, Backtest population from future rows, deterministic output, no BUY / SELL / HOLD output, and no AI/network/broker imports.
+- SQLite source implementation, live data, broker access, AI calls, and Analysis Pipeline v1 contract changes remain not implemented.
+
+## MemoryDataSource
+
+- Added `src/data_source/memory_source.py`.
+- Added `MemoryDataSource` for deterministic read-only in-memory market data loading.
+- Exported `MemoryDataSource` from `src.data_source`.
+- Implemented `load_ohlcv` with symbol, timeframe, start date, end date, and limit filtering.
+- Implemented `load_future_rows` with symbol, timeframe, snapshot-date, and horizon filtering.
+- Enforced deterministic ordering by symbol, timeframe, and date.
+- Returned copied rows so callers cannot mutate stored source rows.
+- Kept rows marked with `row_type`, `source_role`, or `data_role` of `future` out of normal OHLCV loads while allowing them in future-row loads for deterministic service fixtures.
+- Added unit tests for matching loads, future rows after snapshot date, filters, ordering, empty results, read-only behavior, and no AI/network/broker imports.
+- SQLite source implementation and direct Analysis Pipeline contract changes remain not implemented.
+
+## Data Source v1 Contract Skeleton
+
+- Added `src/data_source/` package.
+- Added immutable public contracts: `MarketDataRequest`, `MarketDataResult`, `FutureRowsRequest`, `FutureRowsResult`, and `DataSourceConfig`.
+- Added `MarketDataSource` public protocol with read-only `load_ohlcv` and `load_future_rows` methods.
+- Added public exports for the Data Source contracts.
+- Added unit tests for public imports, immutable dataclass shapes, default config values, request/result defaults, protocol shape, and no AI/network/broker imports.
+- SQLite source implementation, Analysis Pipeline wiring, live data fetching, broker access, and AI calls remain not implemented.
+
 ## Analysis Pipeline Smoke Coverage
 
 - Added `tests/smoke/test_analysis_pipeline.py`.

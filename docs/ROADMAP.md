@@ -181,7 +181,7 @@ Planned:
 
 ## Phase 5 - AI Analysis / Overlay
 
-Status: Contract skeleton started.
+Status: Deterministic Analysis Pipeline implementation complete through report layer. AI overlay is not implemented.
 
 Goal:
 
@@ -204,14 +204,43 @@ Implemented:
 - `AnalysisRequest`
 - `AnalysisResult`
 - `PipelineConfig`
-- `analyze_symbol` public API placeholder
-- Unit tests for imports, contract shapes, defaults, and placeholder behavior
+- `analyze_symbol` deterministic orchestration from request-provided rows
+- Snapshot, Probability, Prediction, Strategy, request-row Backtest, and Analysis Report steps
+- Unit and smoke tests for deterministic output, optional steps, no recommendations, and no AI/network/broker imports
 
 Not implemented:
 
-- Pipeline orchestration
 - AI analysis
-- Brain v1 / Probability / Prediction / Strategy / Backtest integration
+- Latest snapshot loading
+- DB-backed Backtest orchestration
+
+## Phase 6 - Data Source v1
+
+Status: Contract skeleton, deterministic memory source, read-only SQLite source, and application service wiring started.
+
+Goal:
+
+- Provide a stable read-only boundary for loading market data into future orchestration layers.
+
+Implemented:
+
+- `src/data_source/` package
+- `DataSourceConfig`
+- `MarketDataRequest`
+- `MarketDataResult`
+- `FutureRowsRequest`
+- `FutureRowsResult`
+- `MarketDataSource` protocol with read-only load methods
+- Unit tests for public imports, immutable dataclass shapes, defaults, protocol shape, and no AI/network/broker imports
+- `MemoryDataSource` deterministic read-only test adapter
+- `SQLiteDataSource` read-only adapter over existing `ohlcv_daily` rows
+- `AnalysisService` application-layer wiring from `MarketDataSource` to existing Analysis Pipeline v1
+
+Not implemented:
+
+- Direct Analysis Pipeline contract changes
+- Live data fetching
+- AI analysis
 
 ## EXOS Brain v2 - Context Engine
 

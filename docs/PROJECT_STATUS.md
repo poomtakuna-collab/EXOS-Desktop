@@ -34,12 +34,17 @@ Read-only DB-backed Backtest orchestration is implemented.
 
 Analysis Pipeline deterministic report layer is implemented.
 
+Data Source v1 public contracts, deterministic memory source, and read-only SQLite source are implemented.
+
+Analysis Service v1 is implemented.
+
 Market Learning Engine v1 remains complete.
 
 Pipeline smoke test passed:
 
 - `tests/smoke/test_market_learning_pipeline.py`
 - `tests/smoke/test_analysis_pipeline.py`
+- `tests/smoke/test_analysis_service.py`
 
 Architecture Audit v2 completed:
 
@@ -409,7 +414,85 @@ Current tests:
 - `tests/unit/test_analysis_pipeline_contracts.py`
 - `tests/smoke/test_analysis_pipeline.py`
 
+### Data Source v1
+
+Status: Public contracts, deterministic memory source, and read-only SQLite source implemented.
+
+Data Source v1 starts Phase 6 with immutable contracts and a read-only public protocol:
+
+- `DataSourceConfig`
+- `MarketDataRequest`
+- `MarketDataResult`
+- `FutureRowsRequest`
+- `FutureRowsResult`
+- `MarketDataSource`
+
+`MarketDataSource` describes read-only loading methods only:
+
+- `load_ohlcv`
+- `load_future_rows`
+
+`SQLiteDataSource` is implemented as a read-only adapter over existing `ohlcv_daily` rows.
+
+Data Source is connected to Analysis Pipeline through Analysis Service v1 only.
+
+It does not call AI, live data, network paths, broker paths, or legacy data providers.
+
+`MemoryDataSource` is available for deterministic testing and future application-layer wiring.
+
+It is initialized with in-memory rows, filters by symbol, timeframe, and date range, respects request limits and future-row horizons, returns deterministic ordering by symbol, timeframe, and date, and returns copied rows without mutating stored rows.
+
+`SQLiteDataSource` loads deterministic OHLCV rows from existing SQLite `ohlcv_daily` records, reuses the Backtest Data Layer `SQLiteFutureRowsLoader` for standard future-row loading, supports optional deterministic fixture role columns for separating current and future rows in tests, and never creates tables, initializes schema, or writes database contents.
+
+Current tests:
+
+- `tests/unit/test_data_source_contracts.py`
+- `tests/unit/test_memory_data_source.py`
+- `tests/unit/test_sqlite_data_source.py`
+- `tests/integration/test_sqlite_data_source_analysis_service.py`
+
+### Analysis Service v1
+
+Status: Implemented.
+
+Analysis Service v1 provides an application-layer boundary from `MarketDataSource` to the existing Analysis Pipeline v1.
+
+It accepts:
+
+- `MarketDataSource`
+- optional default `PipelineConfig`
+
+It exposes:
+
+- `analyze_symbol(symbol: str, timeframe: str = "1D")`
+- `analyze_symbol_with_report(symbol: str, timeframe: str = "1D")`
+
+The service loads OHLCV rows from `MarketDataSource.load_ohlcv`, optionally loads future rows from `MarketDataSource.load_future_rows` when Backtest is enabled and rows are available, builds an existing `AnalysisRequest`, calls existing `analysis_pipeline.analyze_symbol`, and returns `AnalysisResult`.
+
+`analyze_symbol_with_report` uses the existing service `analyze_symbol` method and existing `build_analysis_report` function, returning immutable `AnalysisServiceResult` with:
+
+- `analysis_result`
+- `analysis_report`
+
+It does not modify Analysis Pipeline v1 contracts.
+
+It does not implement SQLite source access.
+
+It does not call AI, live data, network paths, or broker paths.
+
+Current tests:
+
+- `tests/unit/test_analysis_service.py`
+- `tests/smoke/test_analysis_service.py`
+
 ## Next
+
+Data Source preparation:
+
+- Use `MemoryDataSource` for deterministic application-layer wiring tests
+- Expand SQLiteDataSource coverage only through read-only adapters
+- Keep source adapters separate from Analysis Pipeline internals
+- Keep live data, broker access, and AI out of Data Source v1 contract tests
 
 Analysis Pipeline preparation:
 
@@ -459,7 +542,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 120 tests
+- 162 tests
 
 ## History
 
