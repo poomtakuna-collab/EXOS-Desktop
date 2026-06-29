@@ -118,3 +118,34 @@ Reason:
 Consequence:
 
 Phase 4 Strategy / Backtest work should be additive. New modules should consume existing snapshots, outcomes, patterns, similarity results, probability outputs, and prediction outputs without changing frozen upstream contracts unless a verified bug is found.
+
+## ADR-007: Context Engine as Future Brain v2 Layer
+
+Status: Accepted.
+
+Decision:
+
+Sector, market, industry, relative strength, and optional macro context should be implemented later as a separate deterministic Context Engine / Market Context Layer.
+
+Context should not be hardcoded into Strategy Engine v1.
+
+Reason:
+
+- A stock may pass stock-level EXOS conditions while its sector ETF or broader market context is weak.
+- Context is important, but it should not modify frozen Brain v1 contracts.
+- Context Engine should remain deterministic structured market data analysis, not AI.
+- Context should be independently testable and toggleable.
+- Backtest should prove whether each context layer improves results before it becomes part of default evaluation.
+
+Consequence:
+
+Future Context Engine outputs may be consumed by Probability, Strategy, Backtest, Portfolio / Risk, or AI reports after the Backtest foundation exists.
+
+Backtest should eventually compare:
+
+- Brain v1 only
+- Brain v1 + Sector Context
+- Brain v1 + Market Context
+- Brain v1 + Sector + Industry Context
+
+Context layers must extend the pipeline rather than modifying completed v1 engine contracts.

@@ -171,12 +171,61 @@ AI may:
 - Compare historical situations
 - Produce investment reports
 
+## EXOS Brain v2 - Context Engine
+
+Status: Not Implemented.
+
+Goal:
+
+- Add deterministic market context around stock-level EXOS analysis.
+
+Context Engine should help EXOS understand the environment around a stock:
+
+- Market Context
+- Sector Context
+- Industry Context
+- Relative Strength
+- Optional Macro Context
+
+Example future flow:
+
+Market
+-> Sector
+-> Industry
+-> Stock
+-> Snapshot
+-> Probability
+-> Prediction
+-> Strategy
+-> Backtest
+
+Design:
+
+- Context Engine is not AI.
+- Context Engine is structured market data analysis.
+- Context outputs should be deterministic.
+- Context layers should be optional and independently testable.
+- Context Engine should extend Brain v1 rather than modifying frozen Brain v1 contracts.
+- Context Engine should come after Brain v1, Backtest, and Portfolio / Risk foundations are stable.
+
+Future Backtest should compare:
+
+- Brain v1 only
+- Brain v1 + Sector Context
+- Brain v1 + Market Context
+- Brain v1 + Sector + Industry Context
+
+Purpose:
+
+- Prove whether each context layer improves results before making it part of default strategy evaluation.
+
 ## Later Research
 
 Planned:
 
 - Deeper scenario modeling
 - More advanced probability calibration
+- Context Engine calibration after Backtest can measure context-layer value
 
 ## Later UI Work
 
@@ -193,6 +242,7 @@ Planned:
 - Probability comes before strategy.
 - Strategy and backtest come before AI explanation.
 - AI explains; it does not guess.
+- Context Engine is deterministic structured analysis, not AI.
 - EXOS outputs probability, evidence, and price zones, not buy/sell recommendations.
 - Keep the architecture modular.
 - Prioritize correctness over feature count.

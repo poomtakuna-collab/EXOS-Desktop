@@ -132,7 +132,35 @@ Recommended direction:
 - Avoid network calls and AI calls during Backtest execution.
 - Keep Backtest deterministic for fixed inputs.
 
-## 8. Decisions Required Before Implementation
+## 8. Future Context Layer Comparisons
+
+Decision needed later:
+
+- Backtest should eventually support comparing runs with optional context layers enabled or disabled.
+
+Context layers are not implemented yet.
+
+Future examples:
+
+- Strategy only
+- Strategy + Sector Context
+- Strategy + Market Context
+- Strategy + Sector + Industry Context
+
+Purpose:
+
+- Measure whether each Context Engine layer improves results before making it part of default evaluation.
+- Keep Context Engine deterministic, optional, and testable.
+- Avoid hardcoding sector or market context into Strategy Engine v1.
+
+Open questions:
+
+- How should context layer versions be recorded in backtest assumptions?
+- Should context outputs be persisted by `snapshot_id`, symbol/date, or a separate context id?
+- Should context be consumed by Probability, Strategy, Backtest, or all of them?
+- What fixtures are required to prove context-layer behavior?
+
+## 9. Decisions Required Before Implementation
 
 Before Backtest Engine code is added, decide:
 
@@ -145,5 +173,6 @@ Before Backtest Engine code is added, decide:
 - Required run assumptions.
 - Reproducibility metadata.
 - Minimum test fixtures.
+- Whether v1 explicitly records context layers as disabled.
 
 Backtest should remain additive and should consume existing EXOS outputs without modifying frozen upstream contracts.
