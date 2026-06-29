@@ -2,9 +2,11 @@
 
 Simulation rules for Backtest Engine v1.
 
-This document defines deterministic replay assumptions before Backtest Engine implementation begins.
+This document defines deterministic replay assumptions for Backtest Engine v1.
 
-Backtest simulation logic is not implemented yet.
+In-memory Backtest simulation logic is implemented.
+
+Database-backed simulation is not implemented yet.
 
 ## Purpose
 
@@ -38,7 +40,7 @@ The simulation must not:
 - change StrategyResult
 - use random behavior
 
-Every skipped record should include a deterministic reason.
+Every skipped or insufficient-data record should include a deterministic reason.
 
 ## Simulation Scope
 
@@ -81,7 +83,7 @@ Required data:
 
 If entry price is missing, zero, or invalid:
 
-- status: `SKIPPED`
+- status: `INSUFFICIENT_DATA`
 - exit reason: `INSUFFICIENT_DATA`
 
 ## Exit Rule
@@ -189,6 +191,8 @@ Simulation v1 does not implement a separate breakeven stop.
 
 Breakeven trades should not be counted as wins or losses unless a later reporting rule explicitly chooses to include them.
 
+Breakeven trades are included in `completed_trades` / `total_trades` and exposed separately as `breakeven_trades`.
+
 ## Missing Data Handling
 
 Missing required data results in:
@@ -205,7 +209,15 @@ Missing required data includes:
 - not enough rows to evaluate the configured horizon
 - missing high/low/close fields required for target, stop, or timeout checks
 
-Backtest should record skipped counts and notes.
+Backtest records skipped counts as `skipped_trades` and preserves deterministic notes.
+
+The metrics aggregator also exposes:
+
+- `attempted_trades`
+- `completed_trades`
+- `breakeven_trades`
+
+`total_trades` remains a backward-compatible completed-trade count.
 
 ## Simulation Contracts
 
@@ -218,7 +230,9 @@ Backtest Simulation v1 uses these public contract concepts:
 - `TradeOutcome`
 - `ExitReason`
 
-These contracts define the vocabulary for future replay logic. They do not implement replay behavior.
+These contracts define the vocabulary for replay logic.
+
+The current in-memory Replay Engine and Metrics Aggregator implement these contracts without database access.
 
 ## Conservative Same-Window Rule
 

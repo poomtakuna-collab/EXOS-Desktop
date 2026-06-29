@@ -194,14 +194,26 @@ Planned fields:
 Current in-memory `BacktestResult` fields:
 
 - total trades
+- attempted trades
+- completed trades
 - winning trades
 - losing trades
+- skipped trades
+- breakeven trades
 - win rate
 - average return
 - average drawdown
 - expectancy
 - max drawdown
 - notes
+
+Count semantics:
+
+- `attempted_trades` counts every `SimulationResult` supplied to the metrics aggregator.
+- `completed_trades` counts `SimulationStatus.SUCCESS` records.
+- `total_trades` is retained as a backward-compatible alias for completed trades.
+- `skipped_trades` counts non-success simulations, including insufficient-data records.
+- `breakeven_trades` counts completed breakeven simulations and is not included in win or loss counts.
 
 ### Trade Simulation Summary
 
@@ -214,6 +226,7 @@ Planned fields:
 - total simulated trades or evaluated setups
 - eligible setups
 - skipped setups
+- breakeven setups
 - average strategy score
 - average evidence count
 - average expected reward

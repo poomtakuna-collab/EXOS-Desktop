@@ -54,6 +54,17 @@ class BacktestResult:
     expectancy: float
     max_drawdown: float
     notes: list[str] = field(default_factory=list)
+    attempted_trades: int = 0
+    completed_trades: int = 0
+    skipped_trades: int = 0
+    breakeven_trades: int = 0
+
+    def __post_init__(self) -> None:
+        completed_trades = self.completed_trades or self.total_trades
+        attempted_trades = self.attempted_trades or completed_trades + self.skipped_trades
+
+        object.__setattr__(self, "completed_trades", completed_trades)
+        object.__setattr__(self, "attempted_trades", attempted_trades)
 
 
 @dataclass(frozen=True)
@@ -67,3 +78,14 @@ class BacktestReport:
     risk_comment: str
     quality_comment: str
     notes: list[str] = field(default_factory=list)
+    attempted_trades: int = 0
+    completed_trades: int = 0
+    skipped_trades: int = 0
+    breakeven_trades: int = 0
+
+    def __post_init__(self) -> None:
+        completed_trades = self.completed_trades or self.total_trades
+        attempted_trades = self.attempted_trades or completed_trades + self.skipped_trades
+
+        object.__setattr__(self, "completed_trades", completed_trades)
+        object.__setattr__(self, "attempted_trades", attempted_trades)

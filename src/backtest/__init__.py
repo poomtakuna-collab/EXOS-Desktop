@@ -6,6 +6,7 @@ from src.backtest.contracts import (
     SimulationResult,
     SimulationRule,
 )
+from src.backtest.db_runner import SQLiteBacktestRun, run_sqlite_backtest_read_only
 from src.backtest.engine import replay_trade
 from src.backtest.metrics import analyze_backtest_results
 from src.backtest.pipeline import run_backtest
@@ -21,9 +22,11 @@ __all__ = [
     "SimulationResult",
     "SimulationRule",
     "SimulationStatus",
+    "SQLiteBacktestRun",
     "TradeOutcome",
     "analyze_backtest_results",
     "build_backtest_report",
     "replay_trade",
     "run_backtest",
+    "run_sqlite_backtest_read_only",
 ]

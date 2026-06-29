@@ -9,6 +9,10 @@ from src.backtest.data import (
     BacktestDatasetBuilder,
     FutureRowsLoader,
     OutcomeLoader,
+    SQLiteBacktestDatasetBuilder,
+    SQLiteFutureRowsLoader,
+    SQLiteOutcomeLoader,
+    SQLiteSnapshotLoader,
     SnapshotLoader,
     SnapshotQuery,
 )
@@ -19,6 +23,10 @@ class BacktestDataSkeletonTest(unittest.TestCase):
         self.assertIs(SnapshotLoader, SnapshotLoader)
         self.assertIs(OutcomeLoader, OutcomeLoader)
         self.assertIs(FutureRowsLoader, FutureRowsLoader)
+        self.assertIs(SQLiteFutureRowsLoader, SQLiteFutureRowsLoader)
+        self.assertIs(SQLiteOutcomeLoader, SQLiteOutcomeLoader)
+        self.assertIs(SQLiteSnapshotLoader, SQLiteSnapshotLoader)
+        self.assertIs(SQLiteBacktestDatasetBuilder, SQLiteBacktestDatasetBuilder)
         self.assertIs(BacktestDatasetBuilder, BacktestDatasetBuilder)
         self.assertIs(BacktestDataset, BacktestDataset)
         self.assertIs(SnapshotQuery, SnapshotQuery)
@@ -26,10 +34,12 @@ class BacktestDataSkeletonTest(unittest.TestCase):
     def test_snapshot_query_defaults_are_stable(self) -> None:
         query = SnapshotQuery()
 
+        self.assertIsNone(query.symbol)
         self.assertEqual(query.symbols, ())
         self.assertIsNone(query.timeframe)
         self.assertIsNone(query.start_date)
         self.assertIsNone(query.end_date)
+        self.assertIsNone(query.limit)
         self.assertIsNone(query.minimum_exos_score)
         self.assertIsNone(query.trend_state)
         self.assertIsNone(query.squeeze_state)

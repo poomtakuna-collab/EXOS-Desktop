@@ -14,15 +14,19 @@ def build_backtest_report(backtest_result: BacktestResult) -> BacktestReport:
         risk_comment=_risk_comment(backtest_result),
         quality_comment=_quality_comment(backtest_result),
         notes=list(backtest_result.notes),
+        attempted_trades=backtest_result.attempted_trades,
+        completed_trades=backtest_result.completed_trades,
+        skipped_trades=backtest_result.skipped_trades,
+        breakeven_trades=backtest_result.breakeven_trades,
     )
 
 
 def _summary(backtest_result: BacktestResult) -> str:
-    if backtest_result.total_trades <= 0:
+    if backtest_result.completed_trades <= 0:
         return "No completed backtest trades available."
 
     return (
-        f"{backtest_result.total_trades} completed trades, "
+        f"{backtest_result.completed_trades} completed trades, "
         f"{round(backtest_result.win_rate, 2)}% win rate, "
         f"{round(backtest_result.average_return, 2)}% average return."
     )
@@ -30,7 +34,7 @@ def _summary(backtest_result: BacktestResult) -> str:
 
 def _risk_comment(backtest_result: BacktestResult) -> str:
     max_drawdown = backtest_result.max_drawdown
-    if backtest_result.total_trades <= 0:
+    if backtest_result.completed_trades <= 0:
         return "Risk unavailable because no completed trades were evaluated."
     if max_drawdown <= -15:
         return "High drawdown risk observed."
@@ -40,7 +44,7 @@ def _risk_comment(backtest_result: BacktestResult) -> str:
 
 
 def _quality_comment(backtest_result: BacktestResult) -> str:
-    if backtest_result.total_trades <= 0:
+    if backtest_result.completed_trades <= 0:
         return "Quality unavailable because no completed trades were evaluated."
     if backtest_result.win_rate >= 60 and backtest_result.expectancy > 0:
         return "Backtest quality is strong for this sample."

@@ -131,7 +131,7 @@ Planned:
 
 ## Phase 4 - Strategy / Backtest
 
-Status: Strategy Engine v1, in-memory Backtest Framework v1, and Backtest Data Layer interface skeletons implemented. Database-backed Backtest not implemented.
+Status: Strategy Engine v1, in-memory Backtest Framework v1, Backtest integration coverage, SQLite-backed Backtest Data Layer, DB-backed Backtest design, and read-only DB-backed Backtest orchestration implemented. Backtest persistence is not implemented.
 
 Goal:
 
@@ -156,16 +156,24 @@ Implemented:
 - SnapshotLoader / OutcomeLoader / FutureRowsLoader interfaces
 - BacktestDataset / BacktestDatasetBuilder interfaces
 - Backtest data-layer skeleton tests
+- Strategy-to-Backtest integration test
+- DB-backed Backtest persistence and loading path design
+- SQLite-backed SnapshotLoader
+- SQLite-backed OutcomeLoader
+- SQLite-backed FutureRowsLoader
+- SQLite-backed BacktestDatasetBuilder
+- Read-only DB-backed Backtest orchestration
+
+Design docs:
+
+- `docs/BACKTEST_DB_DESIGN.md`
 
 Planned:
 
-- Database-backed Backtest
-- SQLite-backed SnapshotLoader implementation
-- SQLite-backed OutcomeLoader implementation
-- SQLite-backed FutureRowsLoader implementation
-- SQL queries
-- Historical dataset construction
-- Historical replay from stored datasets
+- Backtest persistence
+- Backtest-owned persistence tables
+- Persisted BacktestRun / BacktestEvaluation / BacktestTradeResult writes
+- Historical replay result persistence from stored datasets
 - Portfolio / Risk Evaluation
 - Entry / Exit Rules
 - Position Management

@@ -18,6 +18,10 @@ class BacktestMetricsTest(unittest.TestCase):
 
         _assert_valid_backtest_result(self, result)
         self.assertEqual(result.total_trades, 0)
+        self.assertEqual(result.attempted_trades, 0)
+        self.assertEqual(result.completed_trades, 0)
+        self.assertEqual(result.skipped_trades, 0)
+        self.assertEqual(result.breakeven_trades, 0)
         self.assertEqual(result.win_rate, 0.0)
         self.assertEqual(result.average_return, 0.0)
         self.assertTrue(any("No simulation results" in note for note in result.notes))
@@ -32,6 +36,10 @@ class BacktestMetricsTest(unittest.TestCase):
 
         _assert_valid_backtest_result(self, result)
         self.assertEqual(result.total_trades, 2)
+        self.assertEqual(result.attempted_trades, 2)
+        self.assertEqual(result.completed_trades, 2)
+        self.assertEqual(result.skipped_trades, 0)
+        self.assertEqual(result.breakeven_trades, 0)
         self.assertEqual(result.winning_trades, 2)
         self.assertEqual(result.losing_trades, 0)
         self.assertEqual(result.win_rate, 100.0)
@@ -47,6 +55,10 @@ class BacktestMetricsTest(unittest.TestCase):
 
         _assert_valid_backtest_result(self, result)
         self.assertEqual(result.total_trades, 2)
+        self.assertEqual(result.attempted_trades, 2)
+        self.assertEqual(result.completed_trades, 2)
+        self.assertEqual(result.skipped_trades, 0)
+        self.assertEqual(result.breakeven_trades, 0)
         self.assertEqual(result.winning_trades, 0)
         self.assertEqual(result.losing_trades, 2)
         self.assertEqual(result.win_rate, 0.0)
@@ -63,6 +75,10 @@ class BacktestMetricsTest(unittest.TestCase):
 
         _assert_valid_backtest_result(self, result)
         self.assertEqual(result.total_trades, 3)
+        self.assertEqual(result.attempted_trades, 3)
+        self.assertEqual(result.completed_trades, 3)
+        self.assertEqual(result.skipped_trades, 0)
+        self.assertEqual(result.breakeven_trades, 0)
         self.assertEqual(result.winning_trades, 2)
         self.assertEqual(result.losing_trades, 1)
         self.assertEqual(result.win_rate, 66.6667)
@@ -78,6 +94,10 @@ class BacktestMetricsTest(unittest.TestCase):
 
         _assert_valid_backtest_result(self, result)
         self.assertEqual(result.total_trades, 2)
+        self.assertEqual(result.attempted_trades, 2)
+        self.assertEqual(result.completed_trades, 2)
+        self.assertEqual(result.skipped_trades, 0)
+        self.assertEqual(result.breakeven_trades, 1)
         self.assertEqual(result.winning_trades, 1)
         self.assertEqual(result.losing_trades, 0)
         self.assertEqual(result.win_rate, 100.0)
@@ -106,6 +126,10 @@ class BacktestMetricsTest(unittest.TestCase):
 
         _assert_valid_backtest_result(self, result)
         self.assertEqual(result.total_trades, 1)
+        self.assertEqual(result.attempted_trades, 3)
+        self.assertEqual(result.completed_trades, 1)
+        self.assertEqual(result.skipped_trades, 2)
+        self.assertEqual(result.breakeven_trades, 0)
         self.assertEqual(result.win_rate, 100.0)
         self.assertTrue(
             any("Skipped / insufficient-data simulations: 2" in note for note in result.notes)
@@ -162,6 +186,10 @@ class BacktestMetricsTest(unittest.TestCase):
             set(result.__dict__),
             {
                 "total_trades",
+                "attempted_trades",
+                "completed_trades",
+                "skipped_trades",
+                "breakeven_trades",
                 "winning_trades",
                 "losing_trades",
                 "win_rate",
@@ -181,6 +209,15 @@ def _assert_valid_backtest_result(
 ) -> None:
     test_case.assertIsInstance(result, BacktestResult)
     test_case.assertGreaterEqual(result.total_trades, 0)
+    test_case.assertGreaterEqual(result.attempted_trades, 0)
+    test_case.assertGreaterEqual(result.completed_trades, 0)
+    test_case.assertGreaterEqual(result.skipped_trades, 0)
+    test_case.assertGreaterEqual(result.breakeven_trades, 0)
+    test_case.assertEqual(result.total_trades, result.completed_trades)
+    test_case.assertEqual(
+        result.attempted_trades,
+        result.completed_trades + result.skipped_trades,
+    )
     test_case.assertGreaterEqual(result.winning_trades, 0)
     test_case.assertGreaterEqual(result.losing_trades, 0)
     test_case.assertGreaterEqual(result.win_rate, 0.0)

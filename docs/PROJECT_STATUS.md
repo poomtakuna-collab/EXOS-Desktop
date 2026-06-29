@@ -14,7 +14,23 @@ In-memory Backtest Framework v1 is implemented.
 
 Backtest unit tests are implemented.
 
+Backtest Framework integration coverage is implemented.
+
 Backtest Data Layer interface skeletons are implemented.
+
+Backtest DB persistence and loading path design is documented.
+
+Backtest DB schema skeleton is implemented.
+
+SQLite-backed SnapshotLoader is implemented.
+
+SQLite-backed OutcomeLoader is implemented.
+
+SQLite-backed FutureRowsLoader is implemented.
+
+SQLite-backed BacktestDatasetBuilder is implemented.
+
+Read-only DB-backed Backtest orchestration is implemented.
 
 Market Learning Engine v1 remains complete.
 
@@ -216,16 +232,55 @@ Backtest Framework v1 includes:
 - Backtest Pipeline
 - Backtest Report
 - Unit Tests
+- Integration Test
+
+BacktestResult count semantics are explicit:
+
+- `attempted_trades` counts all simulation results supplied to metrics.
+- `completed_trades` counts successful completed simulations.
+- `total_trades` remains a backward-compatible alias for completed trades.
+- `skipped_trades` counts skipped or insufficient-data simulations.
+- `breakeven_trades` counts completed breakeven simulations separately from wins and losses.
 
 Backtest Data Layer skeleton includes:
 
 - `src/backtest/data/`
 - `SnapshotQuery`
 - `SnapshotLoader`
+- `SQLiteSnapshotLoader`
 - `OutcomeLoader`
+- `SQLiteOutcomeLoader`
 - `FutureRowsLoader`
+- `SQLiteFutureRowsLoader`
 - `BacktestDataset`
 - `BacktestDatasetBuilder`
+- `SQLiteBacktestDatasetBuilder`
+
+Backtest DB design is documented in:
+
+- `docs/BACKTEST_DB_DESIGN.md`
+
+The design defines:
+
+- `BacktestRun`
+- `BacktestEvaluation`
+- `BacktestTradeResult`
+- `BacktestAssumptions`
+- Backtest-owned persistence tables
+- SQLite loader direction for snapshots, outcomes, and future rows
+- snapshot_id continuity rules
+- deterministic ordering rules
+- skipped and insufficient-data persistence rules
+
+Backtest DB schema skeleton includes:
+
+- `src/backtest/db/`
+- `initialize_backtest_schema`
+- `backtest_runs`
+- `backtest_assumptions`
+- `backtest_evaluations`
+- `backtest_trade_results`
+- in-memory SQLite schema tests
 
 Current flow:
 
@@ -236,11 +291,47 @@ BacktestInput
 -> BacktestResult
 -> Backtest Report
 
-It does not access the database.
+The core Backtest Framework flow remains in-memory.
 
-It does not load stored datasets.
+Read-only SQLite orchestration can now load stored snapshots, outcomes, and future rows into `BacktestDataset`.
 
-The data-layer skeleton does not execute SQL or construct historical datasets yet.
+The read-only SQLite orchestration path is:
+
+SnapshotQuery
+-> SQLiteBacktestDatasetBuilder
+-> BacktestDataset
+-> run_backtest
+-> BacktestResult
+-> BacktestReport
+
+`SQLiteSnapshotLoader` reads existing `snapshots` rows only.
+
+It supports deterministic filters for symbol, timeframe, date range, and limit.
+
+`SQLiteOutcomeLoader` reads existing `outcomes` rows only.
+
+It loads outcomes by snapshot_id list and orders deterministically by snapshot_id and outcome_id.
+
+`SQLiteFutureRowsLoader` reads existing `ohlcv_daily` rows only.
+
+It loads 1D future rows after snapshot date, respects horizon, and groups rows by snapshot_id.
+
+`SQLiteBacktestDatasetBuilder` composes the SQLite loaders and builds `BacktestDataset`.
+
+It does not execute replay or aggregate backtest results.
+
+Read-only DB-backed Backtest orchestration:
+
+- builds a dataset with `SQLiteBacktestDatasetBuilder`
+- runs existing `run_backtest`
+- builds existing `BacktestReport`
+- preserves dataset skipped records
+- does not persist results
+- does not initialize schema
+
+The DB schema skeleton creates Backtest-owned tables only.
+
+It does not implement DB-backed persistence.
 
 It does not implement portfolio evaluation.
 
@@ -253,6 +344,13 @@ Current tests:
 - `tests/unit/test_backtest_pipeline.py`
 - `tests/unit/test_backtest_report.py`
 - `tests/unit/test_backtest_data_skeleton.py`
+- `tests/unit/test_backtest_db_schema.py`
+- `tests/unit/test_sqlite_snapshot_loader.py`
+- `tests/unit/test_sqlite_outcome_loader.py`
+- `tests/unit/test_sqlite_future_rows_loader.py`
+- `tests/unit/test_sqlite_backtest_dataset_builder.py`
+- `tests/integration/test_strategy_backtest_pipeline.py`
+- `tests/integration/test_sqlite_backtest_read_only_runner.py`
 
 ## Next
 
@@ -260,16 +358,13 @@ DB-backed Backtest preparation:
 
 - Strengthen Probability / Prediction validation
 - Add upstream regression tests before database-backed Backtest
-- Implement SQLite-backed Backtest Data Layer loaders
+- Implement Backtest-owned persistence tables from `docs/BACKTEST_DB_DESIGN.md`
+- Implement Backtest persistence for read-only SQLite run outputs
 - Keep Strategy and Backtest v1 deterministic and additive
 
 ## Later
 
 - Database-backed Backtest
-- SQLite-backed Snapshot Loader implementation
-- SQLite-backed Outcome Loader implementation
-- Future OHLCV rows loader implementation
-- Historical Dataset Builder implementation
 - Historical replay from stored datasets
 - Portfolio / Risk Evaluation
 - Pattern Discovery reports / UI integration
@@ -278,12 +373,10 @@ DB-backed Backtest preparation:
 
 ## Not Implemented Yet
 
-- Database-backed Backtest
-- SQLite-backed loading
-- SQL queries
-- Historical dataset construction
-- DB-backed Backtest execution
-- Historical replay from stored datasets
+- Database-backed Backtest persistence
+- SQL-backed Backtest loaders
+- Persisted DB-backed Backtest execution
+- Historical replay persistence from stored datasets
 - Portfolio / Risk Evaluation
 - UI Backtest reports
 - AI Analysis / Overlay
@@ -301,7 +394,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 55 tests
+- 97 tests
 
 ## History
 

@@ -61,6 +61,10 @@ def analyze_backtest_results(
         expectancy=_average(returns),
         max_drawdown=min(drawdowns) if drawdowns else 0.0,
         notes=notes,
+        attempted_trades=len(simulation_results),
+        completed_trades=len(completed_results),
+        skipped_trades=skipped_count,
+        breakeven_trades=len(breakeven_results),
     )
 
 

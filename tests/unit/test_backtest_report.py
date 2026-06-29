@@ -11,6 +11,10 @@ class BacktestReportTest(unittest.TestCase):
 
         _assert_valid_backtest_report(self, report)
         self.assertEqual(report.summary, "No completed backtest trades available.")
+        self.assertEqual(report.attempted_trades, 0)
+        self.assertEqual(report.completed_trades, 0)
+        self.assertEqual(report.skipped_trades, 0)
+        self.assertEqual(report.breakeven_trades, 0)
         self.assertIn("unavailable", report.risk_comment)
         self.assertIn("unavailable", report.quality_comment)
 
@@ -29,6 +33,7 @@ class BacktestReportTest(unittest.TestCase):
 
         _assert_valid_backtest_report(self, report)
         self.assertIn("10 completed trades", report.summary)
+        self.assertEqual(report.completed_trades, 10)
         self.assertIn("strong", report.quality_comment)
         self.assertIn("limited", report.risk_comment)
 
@@ -53,12 +58,33 @@ class BacktestReportTest(unittest.TestCase):
         report = build_backtest_report(
             _backtest_result(
                 total_trades=1,
+                attempted_trades=3,
+                completed_trades=1,
+                skipped_trades=2,
                 notes=["Skipped / insufficient-data simulations: 2"],
             )
         )
 
         _assert_valid_backtest_report(self, report)
+        self.assertEqual(report.attempted_trades, 3)
+        self.assertEqual(report.completed_trades, 1)
+        self.assertEqual(report.skipped_trades, 2)
         self.assertIn("Skipped / insufficient-data simulations: 2", report.notes)
+
+    def test_breakeven_count_is_structured(self) -> None:
+        report = build_backtest_report(
+            _backtest_result(
+                total_trades=2,
+                attempted_trades=2,
+                completed_trades=2,
+                winning_trades=1,
+                breakeven_trades=1,
+                win_rate=100.0,
+            )
+        )
+
+        _assert_valid_backtest_report(self, report)
+        self.assertEqual(report.breakeven_trades, 1)
 
     def test_deterministic_report_output(self) -> None:
         backtest_result = _backtest_result(
@@ -84,6 +110,10 @@ class BacktestReportTest(unittest.TestCase):
             {
                 "summary",
                 "total_trades",
+                "attempted_trades",
+                "completed_trades",
+                "skipped_trades",
+                "breakeven_trades",
                 "win_rate",
                 "average_return",
                 "expectancy",
@@ -103,6 +133,11 @@ def _assert_valid_backtest_report(
     test_case.assertIsInstance(report, BacktestReport)
     test_case.assertIsInstance(report.summary, str)
     test_case.assertGreaterEqual(report.total_trades, 0)
+    test_case.assertGreaterEqual(report.attempted_trades, 0)
+    test_case.assertGreaterEqual(report.completed_trades, 0)
+    test_case.assertGreaterEqual(report.skipped_trades, 0)
+    test_case.assertGreaterEqual(report.breakeven_trades, 0)
+    test_case.assertEqual(report.total_trades, report.completed_trades)
     test_case.assertGreaterEqual(report.win_rate, 0.0)
     test_case.assertLessEqual(report.win_rate, 100.0)
     test_case.assertIsInstance(report.risk_comment, str)
@@ -120,6 +155,10 @@ def _backtest_result(
     expectancy: float = 0.0,
     max_drawdown: float = 0.0,
     notes: list[str] | None = None,
+    attempted_trades: int = 0,
+    completed_trades: int = 0,
+    skipped_trades: int = 0,
+    breakeven_trades: int = 0,
 ) -> BacktestResult:
     return BacktestResult(
         total_trades=total_trades,
@@ -131,6 +170,10 @@ def _backtest_result(
         expectancy=expectancy,
         max_drawdown=max_drawdown,
         notes=notes or [],
+        attempted_trades=attempted_trades,
+        completed_trades=completed_trades,
+        skipped_trades=skipped_trades,
+        breakeven_trades=breakeven_trades,
     )
 
 
