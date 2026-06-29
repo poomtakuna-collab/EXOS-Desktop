@@ -9,6 +9,7 @@ This document describes the current test coverage, missing tests, proposed test 
 Current automated coverage includes:
 
 - `tests/smoke/test_market_learning_pipeline.py`
+- `tests/smoke/test_analysis_pipeline.py`
 - `tests/unit/test_strategy_engine.py`
 - `tests/regression/test_strategy_contract.py`
 - `tests/unit/test_backtest_engine.py`
@@ -21,6 +22,7 @@ Current automated coverage includes:
 - `tests/unit/test_sqlite_outcome_loader.py`
 - `tests/unit/test_sqlite_future_rows_loader.py`
 - `tests/unit/test_sqlite_backtest_dataset_builder.py`
+- `tests/unit/test_analysis_pipeline_contracts.py`
 - `tests/integration/test_strategy_backtest_pipeline.py`
 - `tests/integration/test_sqlite_backtest_read_only_runner.py`
 
@@ -117,10 +119,32 @@ The Backtest Framework tests verify:
 - Read-only SQLite Backtest runner does not write to the database
 - Read-only SQLite Backtest runner does not call AI, live data, network, or broker paths
 - Read-only SQLite Backtest runner does not emit BUY / SELL / HOLD output
+- Analysis Pipeline public imports are stable
+- Analysis Pipeline contracts are immutable dataclasses
+- default `PipelineConfig` values are stable
+- `analyze_symbol` builds snapshots from deterministic fake OHLCV rows
+- `analyze_symbol` computes Probability from deterministic similar-pattern fixtures
+- `analyze_symbol` computes Prediction from Probability and the latest deterministic close
+- `analyze_symbol` computes Strategy from Snapshot, Probability, and Prediction
+- `analyze_symbol` runs Backtest from request-provided deterministic future rows
+- Analysis Pipeline results keep Backtest empty/default when future rows are not supplied
+- Analysis Pipeline output does not emit BUY / SELL / HOLD
+- Analysis Pipeline execution does not import AI, network, or broker modules
+- Analysis Pipeline output is deterministic for fixed inputs
+- Analysis Pipeline Strategy can be skipped with config
+- Analysis Pipeline Backtest can be skipped with config
+- Analysis Report summarizes snapshot-only results deterministically
+- Analysis Report summarizes full pipeline results deterministically
+- Analysis Report handles missing Backtest cleanly
+- Analysis Report output does not emit BUY / SELL / HOLD
+- Analysis Report execution does not import AI, network, or broker modules
+- Analysis Pipeline smoke test verifies full deterministic in-memory flow through report output
+- Analysis Pipeline smoke test verifies no AI, network, or broker imports
+- `analyze_symbol` explicitly raises `NotImplementedError` when no rows are supplied until latest snapshot loading is implemented
 
 Current test count:
 
-- 97 tests
+- 120 tests
 
 Current gaps:
 
@@ -132,6 +156,8 @@ Current gaps:
 - No regression fixtures for frozen engine contracts.
 - No GUI tests.
 - No integration tests using the on-disk SQLite database.
+- No Analysis Pipeline latest snapshot loading tests yet.
+- No Analysis Pipeline DB-backed Backtest orchestration tests yet.
 - No database-backed Backtest persistence tests yet.
 - No Backtest persistence write/read round-trip tests yet.
 
@@ -306,6 +332,46 @@ Reason:
 
 - Strategy Engine and Backtest Engine should be implemented test-first from their documented contracts.
 
+### `src/analysis_pipeline`
+
+Implemented:
+
+- Public imports.
+- Immutable contract shapes.
+- Default `PipelineConfig`.
+- Snapshot result from deterministic fake OHLCV rows.
+- Probability result from deterministic similar-pattern fixtures.
+- Prediction result from Probability and latest deterministic close.
+- Strategy result from Snapshot, Probability, and Prediction.
+- Backtest result and report from request-provided deterministic future rows.
+- Empty/default Backtest field when request future rows are not supplied.
+- No BUY / SELL / HOLD output.
+- No AI, network, or broker imports.
+- Deterministic output for fixed inputs.
+- Optional Strategy skip config.
+- Optional Backtest skip config.
+- Deterministic Analysis Report from snapshot-only result.
+- Deterministic Analysis Report from full pipeline result.
+- Missing Backtest report handling.
+- Analysis Report no BUY / SELL / HOLD output.
+- Analysis Report no AI, network, or broker imports.
+- Explicit placeholder exception for `analyze_symbol` when request rows are missing.
+
+Missing:
+
+- Analysis Pipeline latest snapshot loading tests.
+- Analysis Pipeline DB-backed Backtest orchestration tests.
+- Integration tests with Brain v1, Probability, Prediction, Strategy, and Backtest outputs.
+- AI overlay tests.
+
+Priority:
+
+- High when Phase 5 implementation starts.
+
+Reason:
+
+- Phase 5 should remain additive and should not modify frozen Brain v1, Probability, Prediction, Strategy, or Backtest contracts.
+
 ## Priority Order
 
 1. Snapshot contract regression tests.
@@ -324,6 +390,8 @@ Reason:
 14. SQLite-backed Backtest Data Layer unit tests.
 15. Database-backed Backtest integration tests.
 16. Backtest persistence schema and round-trip tests.
+17. Analysis Pipeline orchestration contract tests.
+18. AI overlay explanation tests with deterministic fixtures.
 
 ## Regression Testing Strategy
 
@@ -357,12 +425,10 @@ Smoke tests verify that major flows still work end to end.
 Current smoke test:
 
 - Market Learning Pipeline smoke test.
+- Analysis Pipeline full deterministic in-memory flow smoke test.
 
 Future smoke tests:
 
-- Probability / Prediction smoke test.
-- Strategy Evaluation smoke test from Probability / Prediction outputs.
-- Backtest Pipeline smoke test from stored-like fixtures.
 - Database-backed Backtest smoke test.
 
 Smoke tests should be fast, deterministic, and based on fake or fixture data.

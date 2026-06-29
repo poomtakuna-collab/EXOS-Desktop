@@ -32,11 +32,14 @@ SQLite-backed BacktestDatasetBuilder is implemented.
 
 Read-only DB-backed Backtest orchestration is implemented.
 
+Analysis Pipeline deterministic report layer is implemented.
+
 Market Learning Engine v1 remains complete.
 
 Pipeline smoke test passed:
 
 - `tests/smoke/test_market_learning_pipeline.py`
+- `tests/smoke/test_analysis_pipeline.py`
 
 Architecture Audit v2 completed:
 
@@ -352,7 +355,68 @@ Current tests:
 - `tests/integration/test_strategy_backtest_pipeline.py`
 - `tests/integration/test_sqlite_backtest_read_only_runner.py`
 
+### Analysis Pipeline
+
+Status: Snapshot + Probability + Prediction + Strategy + request-row Backtest + deterministic report implementation.
+
+Analysis Pipeline Phase 5 has started with public contracts and deterministic execution through:
+
+- `AnalysisRequest`
+- `AnalysisResult`
+- `PipelineConfig`
+- `analyze_symbol`
+- `AnalysisReport`
+- `build_analysis_report`
+
+`analyze_symbol` can build a snapshot from request-provided OHLCV rows using the existing Core Indicator / Snapshot Builder path.
+
+It can then compute Probability and Prediction from request-provided similar-pattern fixtures using existing public Probability Engine and Prediction Engine APIs.
+
+It can then compute Strategy using the existing public Strategy Engine API.
+
+It can optionally run Backtest from request-provided deterministic future rows using existing public Backtest APIs:
+
+- `BacktestInput`
+- `run_backtest`
+- `build_backtest_report`
+
+`analyze_symbol` still raises `NotImplementedError` when no OHLCV rows are supplied because latest snapshot loading is not implemented yet.
+
+The Analysis Pipeline does not yet call AI, live data, broker paths, network paths, SQLite, DB-backed Backtest runners, or the database.
+
+Backtest remains empty/default unless deterministic future rows are supplied on the request.
+
+Backtest output includes:
+
+- Backtest result
+- Backtest report
+
+Analysis Report summarizes:
+
+- Symbol
+- Timeframe
+- Snapshot status
+- Probability status
+- Prediction status
+- Strategy status
+- Backtest status
+- Notes
+
+The Analysis Report is deterministic and rule-based only.
+
+Current tests:
+
+- `tests/unit/test_analysis_pipeline_contracts.py`
+- `tests/smoke/test_analysis_pipeline.py`
+
 ## Next
+
+Analysis Pipeline preparation:
+
+- Define deterministic orchestration boundaries without modifying frozen Brain v1 contracts
+- Add latest snapshot loading without live network access
+- Keep AI behavior additive
+- Keep DB-backed Backtest orchestration separate from request-row Backtest
 
 DB-backed Backtest preparation:
 
@@ -373,8 +437,9 @@ DB-backed Backtest preparation:
 
 ## Not Implemented Yet
 
+- Analysis Pipeline latest snapshot loading
+- Analysis Pipeline DB-backed Backtest orchestration
 - Database-backed Backtest persistence
-- SQL-backed Backtest loaders
 - Persisted DB-backed Backtest execution
 - Historical replay persistence from stored datasets
 - Portfolio / Risk Evaluation
@@ -394,7 +459,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 97 tests
+- 120 tests
 
 ## History
 

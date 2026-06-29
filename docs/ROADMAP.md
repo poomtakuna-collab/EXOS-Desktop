@@ -181,7 +181,7 @@ Planned:
 
 ## Phase 5 - AI Analysis / Overlay
 
-Status: Not Started.
+Status: Contract skeleton started.
 
 Goal:
 
@@ -197,6 +197,21 @@ AI may:
 - Summarize statistics
 - Compare historical situations
 - Produce investment reports
+
+Implemented:
+
+- Analysis Pipeline package skeleton
+- `AnalysisRequest`
+- `AnalysisResult`
+- `PipelineConfig`
+- `analyze_symbol` public API placeholder
+- Unit tests for imports, contract shapes, defaults, and placeholder behavior
+
+Not implemented:
+
+- Pipeline orchestration
+- AI analysis
+- Brain v1 / Probability / Prediction / Strategy / Backtest integration
 
 ## EXOS Brain v2 - Context Engine
 

@@ -1,5 +1,74 @@
 # CHANGELOG
 
+## Analysis Pipeline Smoke Coverage
+
+- Added `tests/smoke/test_analysis_pipeline.py`.
+- Added deterministic full in-memory smoke coverage for `analyze_symbol` and `build_analysis_report`.
+- Used fake OHLCV rows, similar-pattern fixtures, and future rows.
+- Verified populated Snapshot, Probability, Prediction, Strategy, Backtest, and Analysis Report output.
+- Verified no BUY / SELL / HOLD output, no AI/network/broker imports, and deterministic fixed-input behavior.
+- No new Analysis Pipeline behavior or existing engine contract changes were introduced.
+
+## Analysis Pipeline Deterministic Report Layer
+
+- Added `src/analysis_pipeline/report.py`.
+- Added immutable `AnalysisReport` contract.
+- Added `build_analysis_report` for deterministic, rule-based summaries of Analysis Pipeline results.
+- Report output summarizes symbol, timeframe, snapshot status, probability status, prediction status, strategy status, backtest status, and notes.
+- Added public exports for `AnalysisReport` and `build_analysis_report`.
+- Added tests for snapshot-only reports, full pipeline reports, missing Backtest handling, no BUY / SELL / HOLD output, deterministic fixed-output behavior, and no AI/network/broker imports.
+- Report generation does not call AI, live data, network access, broker access, SQLite, or DB-backed Backtest runners.
+
+## Analysis Pipeline Request-Row Backtest Step
+
+- Updated `analyze_symbol` to optionally run Backtest after Strategy.
+- Used existing public Backtest APIs: `BacktestInput`, `run_backtest`, and `build_backtest_report`.
+- Added deterministic request-provided future rows to `AnalysisRequest`.
+- Populated `AnalysisResult.backtest` with Backtest result and report dictionaries when future rows are supplied.
+- Kept Backtest empty/default when future rows are not supplied.
+- Added tests for the full Snapshot -> Probability -> Prediction -> Strategy -> Backtest flow.
+- Added tests for Backtest population, empty/default Backtest behavior, no BUY / SELL / HOLD output, no AI/network/broker imports, deterministic fixed-input output, and optional Backtest skipping.
+- SQLite, DB-backed Backtest runners, AI analysis, live data, network access, broker access, and database access remain not implemented in Analysis Pipeline.
+
+## Analysis Pipeline Strategy Step
+
+- Updated `analyze_symbol` to compute Strategy after Snapshot, Probability, and Prediction.
+- Used the existing public Strategy Engine API.
+- Populated `AnalysisResult.strategy` when Strategy is enabled and upstream outputs are present.
+- Kept Backtest empty/default.
+- Added tests for populated snapshot, probability, prediction, and strategy outputs.
+- Added tests for Backtest remaining empty/default, no BUY / SELL / HOLD output, no AI/network/broker imports, deterministic fixed-input output, and optional Strategy skipping.
+- Latest snapshot loading, Backtest execution, AI analysis, live data, network access, broker access, and database access remain not implemented in Analysis Pipeline.
+
+## Analysis Pipeline Probability + Prediction Step
+
+- Updated `analyze_symbol` to compute Probability and Prediction after building the snapshot.
+- Used existing public Probability Engine and Prediction Engine APIs.
+- Added optional deterministic similar-pattern fixtures to `AnalysisRequest`.
+- Added `PipelineConfig` switches for Probability and Prediction.
+- Kept Strategy and Backtest fields empty/default.
+- Added deterministic tests for populated snapshot, populated probability, populated prediction, Strategy and Backtest defaults, no BUY / SELL / HOLD output, no AI/network/broker imports, and stable fixed-input output.
+- Latest snapshot loading, Strategy orchestration, Backtest execution, AI analysis, live data, network access, broker access, and database access remain not implemented in Analysis Pipeline.
+
+## Analysis Pipeline Snapshot-Only Step
+
+- Updated `analyze_symbol` to build snapshot-only `AnalysisResult` values from request-provided OHLCV rows.
+- Reused the existing Core Indicator / Snapshot Builder path without changing frozen Brain v1 engine contracts.
+- Added request, config, and metadata fields to `AnalysisResult`.
+- Added optional request OHLCV rows to `AnalysisRequest`.
+- Kept Probability, Prediction, Strategy, and Backtest fields empty/default.
+- Added deterministic fake-OHLCV unit tests for snapshot output, downstream defaults, no BUY / SELL / HOLD output, and no AI/network/broker imports.
+- Latest snapshot loading, Probability, Prediction, Strategy, Backtest, AI analysis, live data, network access, broker access, and database access remain not implemented in Analysis Pipeline.
+
+## Analysis Pipeline Contract Skeleton
+
+- Added `src/analysis_pipeline/` package.
+- Added immutable public contracts: `AnalysisRequest`, `AnalysisResult`, and `PipelineConfig`.
+- Added `analyze_symbol` public API placeholder.
+- Added unit tests for public imports, contract shapes, default config, result defaults, request defaults, and explicit placeholder behavior.
+- `analyze_symbol` intentionally raises `NotImplementedError`.
+- Pipeline orchestration, AI analysis, Brain v1 integration, Probability integration, Prediction integration, Strategy integration, and Backtest integration are not implemented yet.
+
 ## Read-only SQLite Backtest Runner
 
 - Added read-only DB-backed Backtest orchestration.
