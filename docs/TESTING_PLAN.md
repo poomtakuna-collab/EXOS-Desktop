@@ -2,13 +2,15 @@
 
 Testing plan for EXOS Desktop developer infrastructure.
 
-This document describes the current test coverage, missing tests, proposed test structure, and long-term regression strategy before Strategy Engine implementation begins.
+This document describes the current test coverage, missing tests, proposed test structure, and long-term regression strategy before Backtest Engine implementation begins.
 
 ## Current Test Coverage
 
-Current automated coverage is limited to one smoke test:
+Current automated coverage includes:
 
 - `tests/smoke/test_market_learning_pipeline.py`
+- `tests/unit/test_strategy_engine.py`
+- `tests/regression/test_strategy_contract.py`
 
 Covered flow:
 
@@ -24,7 +26,24 @@ fake OHLCV rows
 -> find_similar_patterns
 ```
 
-This verifies the happy path for Market Learning v1 using an in-memory SQLite database.
+The smoke test verifies the happy path for Market Learning v1 using an in-memory SQLite database.
+
+The Strategy Engine tests verify:
+
+- valid StrategyInput returns StrategyResult
+- score bounds
+- empty probability input
+- empty prediction input
+- missing optional fields
+- low confidence scenarios
+- high confidence scenarios
+- zero evidence
+- high evidence
+- score boundary behavior
+- reward/risk edge cases
+- malformed numeric values
+- StrategyResult public shape
+- no BUY / SELL / HOLD output
 
 Current gaps:
 
@@ -36,7 +55,7 @@ Current gaps:
 - No regression fixtures for frozen engine contracts.
 - No GUI tests.
 - No integration tests using the on-disk SQLite database.
-- No Strategy / Backtest tests yet.
+- No Backtest tests yet.
 
 ## Proposed Test Structure
 
@@ -186,15 +205,13 @@ Reason:
 
 - GUI tests are useful, but Strategy Engine readiness depends first on deterministic engine and data tests.
 
-### Future `src/strategy` and `src/backtest`
+### `src/strategy` and Future `src/backtest`
 
 Missing:
 
-- Strategy score formula tests.
-- trade grade threshold tests.
-- risk rating threshold tests.
-- reward/risk estimate tests.
-- no BUY / SELL / HOLD output tests.
+- More granular Strategy score component tests.
+- Snapshot-aware Strategy scoring tests when snapshot dimensions are added.
+- Strategy integration tests with Probability and Prediction outputs.
 - backtest execution tests.
 - backtest persistence tests.
 
@@ -219,7 +236,7 @@ Reason:
 9. DatabaseManager integration tests.
 10. DataManager cache/provider tests.
 11. Timeframe aggregation tests.
-12. Strategy Engine v1 contract tests.
+12. Strategy Engine v1 integration tests.
 13. Backtest Engine integration tests.
 
 ## Regression Testing Strategy
@@ -242,6 +259,8 @@ Regression tests should verify:
 - deterministic outputs remain stable for fixed inputs
 - no recommendation output is introduced by Probability or Prediction
 - `snapshot_id` remains stable for the same symbol, timeframe, and date
+- StrategyResult shape remains stable before Backtest consumes it
+- StrategyResult does not emit BUY / SELL / HOLD
 
 Regression tests should not depend on live market data or network access.
 
@@ -256,7 +275,7 @@ Current smoke test:
 Future smoke tests:
 
 - Probability / Prediction smoke test.
-- Strategy Evaluation smoke test.
+- Strategy Evaluation smoke test from Probability / Prediction outputs.
 - Backtest Pipeline smoke test.
 
 Smoke tests should be fast, deterministic, and based on fake or fixture data.
@@ -273,7 +292,45 @@ Unit tests should use:
 - no network calls
 - no GUI event loop unless specifically testing GUI behavior
 
-Unit tests should be added before implementing Strategy Engine v1.
+Unit tests should be added before implementing Backtest Engine.
+
+## Pre-Backtest Regression Checklist
+
+Before Backtest Engine implementation begins, add or verify regression coverage for the following areas.
+
+### Probability Engine
+
+- Empty match list returns safe default probability output.
+- Zero-weight matches return safe default probability output.
+- Weighted evidence produces deterministic expected returns.
+- Confidence remains within expected bounds.
+- Evidence count is stable for fixed matches.
+- Output does not contain BUY, SELL, or HOLD.
+
+### Prediction Engine
+
+- Empty or zero-confidence probability output returns safe price defaults.
+- Positive expected return produces ordered target and risk zones.
+- Negative expected return remains deterministic and bounded.
+- Best pattern metadata passes through.
+- Output does not contain BUY, SELL, or HOLD.
+
+### Market Learning Pipeline
+
+- Snapshot insert keeps stable `snapshot_id`.
+- Duplicate snapshot upsert preserves the central snapshot reference.
+- Outcome calculation skips rows without enough future data.
+- Pattern discovery remains deterministic for fixed fixtures.
+- Similarity results are ordered deterministically.
+
+### Strategy Engine
+
+- StrategyInput accepts snapshot, probability, and prediction structures without invoking upstream engines.
+- StrategyResult shape remains stable.
+- Reward/risk estimate keys remain stable.
+- Score remains within 0 to 100.
+- Trade grade, entry quality, and risk rating always use valid enum values.
+- Output does not contain BUY, SELL, or HOLD.
 
 ## Future Integration Tests
 

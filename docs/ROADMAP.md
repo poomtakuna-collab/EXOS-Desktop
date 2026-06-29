@@ -131,15 +131,21 @@ Planned:
 
 ## Phase 4 - Strategy / Backtest
 
-Status: Not Started.
+Status: Strategy Engine v1 initial implementation started. Backtest Engine not implemented.
 
 Goal:
 
 - Use snapshots, outcomes, patterns, similarity, and probability outputs to evaluate strategy rules.
 
-Planned:
+Implemented:
 
 - Strategy Engine
+- Strategy input/output contracts
+- Initial deterministic strategy scoring
+- Strategy validation tests
+
+Planned:
+
 - Backtest Engine
 - Portfolio / Risk Evaluation
 - Entry / Exit Rules

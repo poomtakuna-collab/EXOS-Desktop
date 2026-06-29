@@ -6,11 +6,19 @@ EXOS Brain v1 is complete and frozen.
 
 Prediction Engine v1 is implemented.
 
+Strategy Engine v1 initial implementation is implemented.
+
+Strategy validation tests are implemented.
+
 Market Learning Engine v1 remains complete.
 
 Pipeline smoke test passed:
 
-- `tests/test_market_learning_pipeline.py`
+- `tests/smoke/test_market_learning_pipeline.py`
+
+Architecture Audit v2 completed:
+
+- `docs/ARCHITECTURE_AUDIT_V2.md`
 
 ## Architecture Summary
 
@@ -46,6 +54,7 @@ Market Data
 -> Target Zone
 -> Risk Zone
 -> Strategy
+-> Backtest
 -> AI
 
 ## Completed
@@ -151,17 +160,49 @@ It outputs:
 
 It does not output BUY, SELL, or HOLD recommendations.
 
+### Strategy Engine v1
+
+Status: Initial implementation.
+
+Strategy Engine v1 consumes existing structured EXOS outputs:
+
+- Snapshot
+- Probability Engine output
+- Prediction Engine output
+
+It outputs:
+
+- Strategy score
+- Trade grade
+- Entry quality
+- Risk rating
+- Reward/risk estimate
+- Notes
+
+It does not calculate indicators.
+
+It does not discover patterns.
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+Current tests:
+
+- `tests/unit/test_strategy_engine.py`
+- `tests/regression/test_strategy_contract.py`
+
 ## Next
 
-Phase 3:
+Pre-Backtest stabilization:
 
 - Strengthen Probability / Prediction validation
-- Add probability and prediction report integration later
-- Prepare Strategy Engine design
+- Add upstream regression tests before Backtest implementation
+- Finalize Backtest decision notes
+- Keep Strategy Engine v1 deterministic and additive
 
 ## Later
 
-- Strategy Engine
 - Backtest Engine
 - Portfolio / Risk Evaluation
 - Pattern Discovery reports / UI integration
@@ -170,7 +211,6 @@ Phase 3:
 
 ## Not Implemented Yet
 
-- Strategy Engine
 - Backtest Engine
 - Portfolio / Risk Evaluation
 - AI Analysis / Overlay
@@ -184,7 +224,7 @@ Application:
 
 Pipeline smoke test:
 
-- `py -m unittest discover -s tests -p test_market_learning_pipeline.py`
+- `py -m unittest discover -s tests`
 
 ## History
 

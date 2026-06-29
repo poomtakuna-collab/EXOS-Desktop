@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## Pre-Backtest Stabilization
+
+- Added Architecture Audit v2.
+- Added Backtest decision preparation notes.
+- Clarified Strategy reward/risk estimate contract with typed fields.
+- Updated project status and roadmap for Strategy Engine v1 initial implementation.
+- Confirmed Backtest Engine remains not implemented.
+
+## Strategy Engine v1 Initial Implementation
+
+- Added `src/strategy` package.
+- Added Strategy input/output contracts.
+- Added Strategy grade, risk, and entry-quality enums.
+- Added deterministic `analyze_strategy` implementation.
+- Added Strategy Engine unit tests.
+- Added Strategy contract regression tests.
+- Strategy Engine v1 does not call AI, load market data, access the database, or output BUY / SELL / HOLD.
+
 ## Brain v1 Completed
 
 - Frozen EXOS Brain v1 architecture.
