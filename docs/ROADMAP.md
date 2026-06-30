@@ -102,7 +102,7 @@ Schema:
 
 ## Phase 3 - Probability Engine
 
-Status: Started.
+Status: Implemented through probability, prediction, projection, zone, and prediction summary layers.
 
 Goal:
 
@@ -120,18 +120,19 @@ Implemented:
 - Safe defaults when no evidence exists
 - Prediction Engine v1
 - Probability-derived expected prices
+- Price Projection Engine v1
 - Target zone
 - Risk zone
+- Prediction Summary Engine v1
+- Similar Pattern Resolver bridge coverage
 
 Planned:
 
-- Probability / Prediction validation
-- Probability and prediction report integration
 - Scenario summaries
 
 ## Phase 4 - Strategy / Backtest
 
-Status: Strategy Engine v1, in-memory Backtest Framework v1, Backtest integration coverage, SQLite-backed Backtest Data Layer, DB-backed Backtest design, and read-only DB-backed Backtest orchestration implemented. Backtest persistence is not implemented.
+Status: Strategy Engine v1, in-memory Backtest Framework v1, Backtest & Validation v1, SQLite-backed Backtest Data Layer, DB-backed Backtest design, read-only DB-backed Backtest orchestration, and Backtest Persistence v1 direct persistence path implemented.
 
 Goal:
 
@@ -163,6 +164,17 @@ Implemented:
 - SQLite-backed FutureRowsLoader
 - SQLite-backed BacktestDatasetBuilder
 - Read-only DB-backed Backtest orchestration
+- Backtest Result Engine v1
+- Trade Outcome Model v1
+- Trade Simulator v1
+- Backtest Runner v1
+- Validation Report Engine v1
+- Backtest Persistence v1 contracts
+- Backtest Persistence v1 schema constants
+- SQLite Backtest Persistence Writer v1
+- SQLite Backtest Persistence Reader v1 direct lookup/list reads
+- Backtest Persistence Orchestrator v1
+- Backtest Runner -> Validation Report -> Persistence -> Reader smoke coverage
 
 Design docs:
 
@@ -170,14 +182,12 @@ Design docs:
 
 Planned:
 
-- Backtest persistence
-- Backtest-owned persistence tables
-- Persisted BacktestRun / BacktestEvaluation / BacktestTradeResult writes
 - Historical replay result persistence from stored datasets
 - Portfolio / Risk Evaluation
 - Entry / Exit Rules
 - Position Management
 - Strategy performance reports
+- Advanced Backtest Persistence report/query APIs as a separate additive layer
 
 ## Phase 5 - AI Analysis / Overlay
 
@@ -212,11 +222,11 @@ Not implemented:
 
 - AI analysis
 - Latest snapshot loading
-- DB-backed Backtest orchestration
+- Analysis Pipeline DB-backed Backtest orchestration
 
 ## Phase 6 - Data Source v1
 
-Status: Contract skeleton, deterministic memory source, read-only SQLite source, and application service wiring started.
+Status: Public contracts, deterministic memory source, read-only SQLite source, and Analysis Service v1 application wiring implemented.
 
 Goal:
 

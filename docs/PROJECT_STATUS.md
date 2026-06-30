@@ -14,6 +14,10 @@ In-memory Backtest Framework v1 is implemented.
 
 Backtest unit tests are implemented.
 
+Backtest & Validation v1 is implemented.
+
+Backtest Persistence v1 direct persistence path is implemented.
+
 Backtest Framework integration coverage is implemented.
 
 Backtest Data Layer interface skeletons are implemented.
@@ -58,40 +62,7 @@ Architecture Audit v3 completed:
 
 ## Architecture Summary
 
-EXOS Brain v1:
-
-Market Data
-→ Core Indicators
-→ Snapshot
-→ Statistics
-→ Outcome
-→ Pattern Discovery
-→ Pattern Library
-→ Similarity
-→ Probability
-→ Prediction
-
-This architecture is frozen.
-
-Future enhancements should extend the pipeline rather than modifying existing engine contracts unless fixing a verified bug.
-
-Detailed flow:
-
-Market Data
--> Core Indicators
--> Snapshot
--> Statistics DB
--> Outcome
--> Pattern Discovery
--> Pattern Library
--> Similarity
--> Probability
--> Price Projection
--> Target Zone
--> Risk Zone
--> Strategy
--> Backtest
--> AI
+Architecture details are maintained in `docs/Architecture.md`.
 
 ## Completed
 
@@ -414,7 +385,7 @@ Current tests:
 
 ### Backtest Framework v1
 
-Status: In-memory framework implemented.
+Status: Backtest Framework v1, Backtest & Validation v1, and Backtest Persistence v1 direct path implemented.
 
 Backtest Framework v1 includes:
 
@@ -427,6 +398,16 @@ Backtest Framework v1 includes:
 - Backtest Report
 - Unit Tests
 - Integration Test
+- Backtest Result Engine v1
+- Trade Outcome Model v1
+- Trade Simulator v1
+- Backtest Runner v1
+- Validation Report Engine v1
+- Backtest Persistence v1 contracts
+- Backtest Persistence v1 schema constants
+- SQLite Backtest Persistence Writer v1
+- SQLite Backtest Persistence Reader v1 direct lookup/list reads
+- Backtest Persistence Orchestrator v1
 
 BacktestResult count semantics are explicit:
 
@@ -441,21 +422,19 @@ Backtest & Validation v1 contract notes:
 - Same-candle simulator rule: when target and stop are both hit in one OHLCV row, stop wins.
 - Frozen `profit_factor` behavior: `profit_factor` may be `float("inf")` for all-winning runs.
 
-Backtest Persistence v1 contract design is implemented as model contracts only:
+Backtest Persistence v1 direct path is implemented:
 
 - `BacktestRunRecord`
 - `BacktestEvaluationRecord`
 - `BacktestTradeResultRecord`
-
-These records define deterministic fields for future persistence wiring.
-
-They do not write to SQLite.
-
-They do not implement DB-backed persistence.
+- Persistence schema constants for `backtest_runs`, `backtest_evaluations`, and `backtest_trade_results`
+- SQLite writer functions
+- SQLite reader functions for direct lookup/list reads
+- Persistence orchestrator from `BacktestRunV1` and `ValidationReportV1`
 
 Persistence Reader v1 is intentionally limited to direct lookup/list reads.
 
-Future Backtest Persistence report/query APIs must be added as a separate additive layer.
+Advanced Backtest Persistence report/query APIs are not implemented.
 
 Backtest Data Layer skeleton includes:
 
@@ -544,9 +523,9 @@ Read-only DB-backed Backtest orchestration:
 - does not persist results
 - does not initialize schema
 
-The DB schema skeleton creates Backtest-owned tables only.
+The older DB schema skeleton creates Backtest-owned tables only.
 
-It does not implement DB-backed persistence.
+The Backtest Persistence v1 direct path writes and reads the v1 persistence records through SQLite.
 
 It does not implement portfolio evaluation.
 
@@ -558,6 +537,16 @@ Current tests:
 - `tests/unit/test_backtest_metrics.py`
 - `tests/unit/test_backtest_pipeline.py`
 - `tests/unit/test_backtest_report.py`
+- `tests/unit/test_backtest_result_engine.py`
+- `tests/unit/test_trade_outcome.py`
+- `tests/unit/test_trade_simulator.py`
+- `tests/unit/test_backtest_runner.py`
+- `tests/unit/test_validation_report.py`
+- `tests/unit/test_backtest_persistence_contracts.py`
+- `tests/unit/test_backtest_persistence_schema.py`
+- `tests/unit/test_backtest_persistence_writer.py`
+- `tests/unit/test_backtest_persistence_reader.py`
+- `tests/unit/test_backtest_persistence_orchestrator.py`
 - `tests/unit/test_backtest_data_skeleton.py`
 - `tests/unit/test_backtest_db_schema.py`
 - `tests/unit/test_sqlite_snapshot_loader.py`
@@ -566,6 +555,14 @@ Current tests:
 - `tests/unit/test_sqlite_backtest_dataset_builder.py`
 - `tests/integration/test_strategy_backtest_pipeline.py`
 - `tests/integration/test_sqlite_backtest_read_only_runner.py`
+- `tests/smoke/test_backtest_result_generation.py`
+- `tests/smoke/test_trade_outcome_backtest_result_bridge.py`
+- `tests/smoke/test_trade_simulator_backtest_result_bridge.py`
+- `tests/smoke/test_backtest_runner_full_path.py`
+- `tests/smoke/test_backtest_runner_validation_report_bridge.py`
+- `tests/smoke/test_backtest_persistence_writer.py`
+- `tests/smoke/test_backtest_persistence_reader_writer.py`
+- `tests/smoke/test_backtest_persistence_orchestrator_full_path.py`
 
 ### Analysis Pipeline
 
@@ -728,47 +725,13 @@ Current tests:
 - `tests/unit/test_analysis_service.py`
 - `tests/smoke/test_analysis_service.py`
 
-## Next
-
-Data Source preparation:
-
-- Use `MemoryDataSource` for deterministic application-layer wiring tests
-- Expand SQLiteDataSource coverage only through read-only adapters
-- Keep source adapters separate from Analysis Pipeline internals
-- Keep live data, broker access, and AI out of Data Source v1 contract tests
-
-Analysis Pipeline preparation:
-
-- Define deterministic orchestration boundaries without modifying frozen Brain v1 contracts
-- Add latest snapshot loading without live network access
-- Keep AI behavior additive
-- Keep DB-backed Backtest orchestration separate from request-row Backtest
-
-DB-backed Backtest preparation:
-
-- Strengthen Probability / Prediction validation
-- Add upstream regression tests before database-backed Backtest
-- Implement Backtest-owned persistence tables from `docs/BACKTEST_DB_DESIGN.md`
-- Implement Backtest persistence for read-only SQLite run outputs
-- Keep Strategy and Backtest v1 deterministic and additive
-
-## Later
-
-- Database-backed Backtest
-- Historical replay from stored datasets
-- Portfolio / Risk Evaluation
-- Pattern Discovery reports / UI integration
-- AI Analysis / Overlay
-- Zoom / Pan improvements
-
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
 - Analysis Pipeline DB-backed Backtest orchestration
-- Database-backed Backtest persistence
-- Persisted DB-backed Backtest execution
 - Historical replay persistence from stored datasets
 - Portfolio / Risk Evaluation
+- Advanced Backtest Persistence report/query APIs
 - UI Backtest reports
 - AI Analysis / Overlay
 - UI reports for Market Learning and Prediction output
@@ -785,7 +748,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 234 tests
+- 317 tests
 
 ## History
 
