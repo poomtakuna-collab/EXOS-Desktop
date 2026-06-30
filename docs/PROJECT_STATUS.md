@@ -441,6 +441,22 @@ Backtest & Validation v1 contract notes:
 - Same-candle simulator rule: when target and stop are both hit in one OHLCV row, stop wins.
 - Frozen `profit_factor` behavior: `profit_factor` may be `float("inf")` for all-winning runs.
 
+Backtest Persistence v1 contract design is implemented as model contracts only:
+
+- `BacktestRunRecord`
+- `BacktestEvaluationRecord`
+- `BacktestTradeResultRecord`
+
+These records define deterministic fields for future persistence wiring.
+
+They do not write to SQLite.
+
+They do not implement DB-backed persistence.
+
+Persistence Reader v1 is intentionally limited to direct lookup/list reads.
+
+Future Backtest Persistence report/query APIs must be added as a separate additive layer.
+
 Backtest Data Layer skeleton includes:
 
 - `src/backtest/data/`
