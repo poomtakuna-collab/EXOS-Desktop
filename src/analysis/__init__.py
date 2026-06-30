@@ -17,6 +17,14 @@ from src.analysis.price_projection_engine import (
     EMPTY_PRICE_PROJECTION,
     calculate_price_projection,
 )
+from src.analysis.prediction_summary_engine import (
+    EMPTY_PREDICTION_SUMMARY,
+    build_prediction_summary,
+)
+from src.analysis.risk_zone_engine import (
+    EMPTY_RISK_ZONE,
+    calculate_risk_zone,
+)
 from src.analysis.squeeze import (
     SqueezeAnalysis,
     analyze_squeeze,
@@ -59,6 +67,8 @@ __all__ = [
     "EMA_PERIODS",
     "EMPTY_PROBABILITY_SUMMARY",
     "EMPTY_PRICE_PROJECTION",
+    "EMPTY_PREDICTION_SUMMARY",
+    "EMPTY_RISK_ZONE",
     "EMPTY_TARGET_ZONE",
     "COMPONENT_WEIGHTS",
     "DEFAULT_TOP_K",
@@ -79,6 +89,7 @@ __all__ = [
     "analyze_score",
     "analyze_squeeze",
     "build_exos_snapshot",
+    "build_prediction_summary",
     "calculate_ema_values",
     "calculate_ew_snapshot",
     "calculate_indicator_snapshot",
@@ -86,6 +97,7 @@ __all__ = [
     "calculate_market_structure_snapshot",
     "calculate_probability_summary",
     "calculate_price_projection",
+    "calculate_risk_zone",
     "calculate_squeeze_snapshot",
     "calculate_target_zone",
     "calculate_trend_slope_snapshot",

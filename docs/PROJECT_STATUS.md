@@ -187,6 +187,11 @@ Prediction Engine v1 derives price projections only from Probability Engine outp
 
 The additive Analysis Price Projection Engine v1 can also derive deterministic price projection ranges directly from resolver matches or probability-compatible historical match rows.
 
+Prediction chain naming note:
+
+- Similar Pattern Resolver output uses `similarity`.
+- `similarity_score` is accepted only for legacy / probability-compatible match rows.
+
 Flow:
 
 Probability
@@ -270,6 +275,46 @@ Current tests:
 
 - `tests/unit/test_target_zone_engine.py`
 - `tests/smoke/test_price_projection_target_zone_bridge.py`
+
+### Risk Zone Engine v1
+
+Status: Implemented.
+
+Risk Zone Engine v1 consumes Price Projection Engine output and derives deterministic conservative, base, and aggressive risk levels from downside projection data.
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+It does not modify existing Prediction Engine contracts.
+
+Current tests:
+
+- `tests/unit/test_risk_zone_engine.py`
+- `tests/smoke/test_price_projection_risk_zone_bridge.py`
+
+### Prediction Summary Engine v1
+
+Status: Implemented.
+
+Prediction Summary Engine v1 consumes Probability Engine, Price Projection Engine, Target Zone Engine, and Risk Zone Engine outputs and returns one deterministic prediction summary object.
+
+Prediction Summary metadata precedence:
+
+- Probability metadata wins when present.
+- If probability metadata is unavailable, projection / zone metadata is used.
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+It does not implement Strategy Engine behavior.
+
+Current tests:
+
+- `tests/unit/test_prediction_summary_engine.py`
+- `tests/smoke/test_full_prediction_summary_chain.py`
+- `tests/smoke/test_pattern_library_prediction_summary_bridge.py`
 
 ### Backtest Framework v1
 
@@ -623,7 +668,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 191 tests
+- 208 tests
 
 ## History
 
