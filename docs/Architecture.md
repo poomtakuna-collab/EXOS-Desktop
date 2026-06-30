@@ -239,6 +239,7 @@ Package-level `__init__` exports are convenience facades. An exported name is av
 
 - Frozen: existing request/result/config/report contracts that callers already depend on.
 - Canonical v1: `analyze_symbol_with_canonical_brain()`, backed by Canonical Brain Adapter v1 and `src.analysis` Brain v1 engines for probability and prediction.
+- Canonical v2: `analyze_symbol_v2()`, backed by Canonical Brain Adapter v1, v2-local Strategy / Backtest / Validation adapters, and opt-in Backtest Persistence v1 delegation.
 - Supporting: report building and adapters that translate data-source rows into deterministic analysis outputs.
 - Legacy: `analyze_symbol()` and other orchestration paths that rely on older statistics probability/prediction helpers unless explicitly aligned with the canonical Brain v1 path.
 - Future/experimental: additive pipeline versions that route through canonical Brain v1 engines without mutating frozen contracts.
@@ -261,6 +262,194 @@ Similar Pattern Resolver
 The opt-in canonical path returns `CanonicalAnalysisResultV1`, not `AnalysisResult`. This is intentional: canonical `Prediction Summary` is nested and carries probability, projection, target zone, and risk zone sections, so it does not map cleanly to the older flat `AnalysisResult.prediction` shape.
 
 The legacy statistics probability/prediction helpers remain available for compatibility. New orchestration should prefer `analyze_symbol_with_canonical_brain()` when canonical Brain v1 probability/prediction output is required. Any future config switch should be introduced only after both paths remain explicitly named, tested, and documented.
+
+## Analysis Pipeline v2 Foundation
+
+Analysis Pipeline v2 is implemented as an additive canonical orchestration layer, not a replacement for `analyze_symbol()`.
+
+Public entry point:
+
+- `analyze_symbol_v2()`
+
+Result contract:
+
+- `CanonicalAnalysisResultV2`
+
+The v2 pipeline keeps the canonical Brain output as a first-class nested result and adds downstream Strategy, Backtest / Validation, optional Persistence, metadata, and notes around it. It does not force canonical Prediction Summary into the older flat `AnalysisResult.prediction` field.
+
+Implemented v2 flow:
+
+MarketDataSource / request-provided rows
+-> AnalysisRequest-compatible normalized rows
+-> Canonical Brain Adapter v1
+-> Strategy Engine v1
+-> Backtest / Validation v1
+-> optional Backtest Persistence v1
+-> CanonicalAnalysisResultV2
+
+### Inputs
+
+The v2 entry point accepts an explicit request object rather than overloading the existing `AnalysisRequest` contract.
+
+Request contract:
+
+- `AnalysisPipelineV2Request`
+
+Required fields:
+
+- `symbol`
+- `config`
+
+Optional fields:
+
+- `ohlcv_rows`
+- `future_rows`
+- `similar_patterns`
+- `data_source`
+- `start_date`
+- `end_date`
+- `limit`
+- `persist_results`
+- `persistence_connection`
+- `run_id`
+- `run_name`
+
+Data loading rule:
+
+- If `ohlcv_rows` are supplied, v2 uses those rows directly.
+- If `ohlcv_rows` are absent and `data_source` is supplied, v2 calls `MarketDataSource.load_ohlcv()` with `MarketDataRequest`.
+- If Backtest is enabled and `future_rows` are supplied, v2 uses those rows directly.
+- If Backtest is enabled, `future_rows` are absent, `data_source` is supplied, and a snapshot date can be derived from the loaded OHLCV rows, v2 calls `MarketDataSource.load_future_rows()` with `FutureRowsRequest`.
+- If no rows can be loaded, v2 returns a safe result with notes rather than calling legacy snapshot-loading paths implicitly.
+
+### Canonical Brain Adapter
+
+v2 calls `build_canonical_brain_analysis()` and preserves the full `CanonicalBrainAdapterResult`.
+
+The adapter remains responsible for:
+
+- Snapshot construction from OHLCV rows.
+- Similar Pattern Resolver.
+- Probability Engine.
+- Price Projection.
+- Target Zone.
+- Risk Zone.
+- Prediction Summary.
+
+v2 does not reimplement those steps. It normalizes loaded rows into an `AnalysisRequest` only so the existing adapter can be reused.
+
+### Strategy Layer
+
+If Strategy is enabled and the canonical Brain output includes usable snapshot, probability, and prediction data, v2 calls `analyze_strategy()` with `StrategyInput`.
+
+The Strategy input is derived from canonical Brain output:
+
+- `snapshot`: `canonical_brain.snapshot`
+- `probability`: `canonical_brain.probability`
+- `prediction`: a Strategy-compatible projection dictionary derived from canonical Brain projection / target zone / risk zone / prediction summary
+
+The derivation is an explicit v2-local adapter step because Strategy Engine v1 currently expects flat keys such as expected return and zone fields, while Canonical Brain Adapter v1 preserves nested prediction summary sections.
+
+### Backtest / Validation
+
+Backtest remains optional and deterministic.
+
+v2 uses the existing request-row Backtest Framework compatibility path only when deterministic future rows are available:
+
+- Build one `BacktestInput` from canonical snapshot, canonical probability, Strategy result, and future rows.
+- Call existing `run_backtest()`.
+- Call existing `build_backtest_report()`.
+
+v2 also builds a direct Backtest & Validation v1 run through an explicit adapter from v2 strategy/backtest setup data to trade setup rows:
+
+- `run_backtest_v1()`
+- `build_validation_report()`
+
+v2 does not call DB-backed Backtest orchestration by default. DB-backed replay remains a separate explicit workflow until its result and persistence semantics are intentionally aligned with v2.
+
+### Optional Persistence
+
+The opt-in Persistence Adapter is implemented as a v2-local adapter. `analyze_symbol_v2()` does not write persistence records directly.
+
+v2 persists only when all are true:
+
+- Persistence is enabled by `persist_results=True`.
+- A SQLite connection is supplied on the v2 request.
+- `CanonicalAnalysisResultV2.backtest_run` is a valid `BacktestRunV1`.
+- `CanonicalAnalysisResultV2.validation_report` is a valid `ValidationReportV1`.
+- The run has already been produced by v2 Backtest / Validation flow from deterministic future rows.
+
+The v2 persistence adapter maps only this valid direct validation pair:
+
+BacktestRunV1
++ ValidationReportV1
++ v2 request metadata
+-> `persist_backtest_run_v1()`
+-> `BacktestPersistenceSummaryV1`
+
+The adapter passes through:
+
+- `connection`: the explicit SQLite connection supplied by the request
+- `backtest_run`: `CanonicalAnalysisResultV2.backtest_run`
+- `validation_report`: `CanonicalAnalysisResultV2.validation_report`
+- `run_id`: explicit request `run_id`, or deterministic v2 fallback `analysis-pipeline-v2:{symbol}:{timeframe}`
+- `run_name`: explicit request `run_name`
+- `symbols_json`: JSON list containing the v2 request symbol
+- `timeframe`: v2 request timeframe
+- `start_date`: v2 request start date or first loaded OHLCV row date
+- `end_date`: v2 request end date or latest loaded OHLCV row date
+- `snapshot_query_json`: JSON metadata describing v2 source mode, row counts, future row counts, and canonical adapter name
+- `created_at`: left empty to preserve deterministic tests
+
+The adapter does not inspect or mutate Backtest Persistence v1 records directly. It calls `persist_backtest_run_v1()` and returns its `BacktestPersistenceSummaryV1` as the v2 `persistence` field.
+
+Persistence must not run strategy, simulation, data loading, AI, broker behavior, or live-data behavior.
+
+Persistence ineligibility is explicit and non-fatal. If the opt-in flag is false, no persistence is attempted. If the flag is true but the connection is missing, the run or validation report is missing, future rows were unavailable, or Backtest / Validation was skipped, v2 returns a result with `persistence` as `None` and a deterministic note explaining why persistence was skipped.
+
+Implemented persistence request flag:
+
+- `persist_results: bool = False`
+
+`persistence_connection` alone should not trigger writes. The connection and `persist_results=True` should both be required.
+
+### Outputs
+
+`CanonicalAnalysisResultV2` should include:
+
+- request metadata
+- normalized config
+- symbol
+- timeframe
+- data source metadata
+- loaded row counts
+- canonical Brain adapter result
+- Strategy result or `None`
+- Backtest result/report or `None`
+- Validation report or `None`
+- Persistence summary or `None`
+- metadata
+- notes
+
+The result should keep dataclass objects intact where practical. Serialization for UI, reports, or API display should be a separate adapter/reporting concern.
+
+### Legacy And Supporting Boundaries
+
+The following should remain legacy/supporting:
+
+- `analyze_symbol()` and `AnalysisResult`
+- older `src.statistics` probability/prediction helper wiring inside `analyze_symbol()`
+- request-row in-memory Backtest Framework compatibility path
+- DB-backed Backtest dataset runner until explicitly selected by a separate workflow
+- older `src.data` / `src.database` paths outside the `MarketDataSource` boundary
+
+The following should remain canonical/supporting for v2:
+
+- `MarketDataSource` as the preferred read-only data-loading boundary
+- `build_canonical_brain_analysis()` as the canonical Brain adapter call
+- `analyze_strategy()` as the Strategy Engine v1 call
+- existing Backtest APIs only through explicit adapter steps
+- Backtest Persistence v1 only as an opt-in persistence boundary
 
 ## Dependency Direction
 

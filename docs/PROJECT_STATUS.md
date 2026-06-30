@@ -40,6 +40,10 @@ Analysis Pipeline deterministic report layer is implemented.
 
 Analysis Pipeline opt-in canonical Brain v1 entry point is implemented.
 
+Analysis Pipeline v2 foundation is implemented.
+
+Analysis Pipeline v2 opt-in Persistence Adapter is implemented.
+
 Data Source v1 public contracts, deterministic memory source, and read-only SQLite source are implemented.
 
 Analysis Service v1 is implemented.
@@ -568,9 +572,9 @@ Current tests:
 
 ### Analysis Pipeline
 
-Status: Snapshot + Probability + Prediction + Strategy + request-row Backtest + deterministic report implementation.
+Status: v1 legacy/supporting path, Canonical Brain Adapter v1 opt-in path, and Analysis Pipeline v2 foundation implemented.
 
-Analysis Pipeline Phase 5 has started with public contracts and deterministic execution through:
+Analysis Pipeline public contracts and deterministic execution include:
 
 - `AnalysisRequest`
 - `AnalysisResult`
@@ -578,10 +582,15 @@ Analysis Pipeline Phase 5 has started with public contracts and deterministic ex
 - `analyze_symbol`
 - `analyze_symbol_with_canonical_brain`
 - `CanonicalAnalysisResultV1`
+- `AnalysisPipelineV2Request`
+- `CanonicalAnalysisResultV2`
+- `analyze_symbol_v2`
 - `AnalysisReport`
 - `build_analysis_report`
 
-`analyze_symbol` can build a snapshot from request-provided OHLCV rows using the existing Core Indicator / Snapshot Builder path.
+`analyze_symbol` remains the legacy/supporting Analysis Pipeline entry point.
+
+It can build a snapshot from request-provided OHLCV rows using the existing Core Indicator / Snapshot Builder path.
 
 It can then compute Probability and Prediction from request-provided similar-pattern fixtures using existing public Probability Engine and Prediction Engine APIs.
 
@@ -606,13 +615,57 @@ Similar Pattern Resolver
 
 It returns `CanonicalAnalysisResultV1` because canonical Prediction Summary is nested and does not map cleanly to the older flat `AnalysisResult.prediction` shape.
 
+Canonical Brain Adapter v1 is implemented.
+
+It provides the shared adapter used by `analyze_symbol_with_canonical_brain()` and `analyze_symbol_v2()`.
+
+It runs:
+
+Similar Pattern Resolver
+-> Probability Engine
+-> Price Projection
+-> Target Zone
+-> Risk Zone
+-> Prediction Summary
+
+Analysis Pipeline v2 is implemented as an additive canonical orchestration layer.
+
+It accepts `AnalysisPipelineV2Request` and returns `CanonicalAnalysisResultV2`.
+
+It supports:
+
+- request-provided OHLCV rows
+- optional `MarketDataSource` OHLCV loading
+- request-provided deterministic future rows
+- optional `MarketDataSource.load_future_rows`
+- Canonical Brain Adapter v1
+- local Strategy Engine v1 adaptation
+- local Backtest Framework v1 adaptation
+- local direct Backtest & Validation v1 adaptation
+- opt-in Backtest Persistence v1 delegation
+
+The v2 Opt-in Persistence Adapter is implemented.
+
+It persists only when all are true:
+
+- `persist_results=True`
+- a SQLite `persistence_connection` is supplied
+- v2 has produced a valid `BacktestRunV1`
+- v2 has produced a valid `ValidationReportV1`
+
+It delegates to existing `persist_backtest_run_v1()` and stores `BacktestPersistenceSummaryV1` in `CanonicalAnalysisResultV2.persistence`.
+
+If persistence is not eligible, v2 leaves `persistence` as `None` and adds a deterministic skip note.
+
 `analyze_symbol` remains legacy/supporting and unchanged. It continues to use the older statistics probability/prediction helper path for compatibility.
 
 `analyze_symbol` still raises `NotImplementedError` when no OHLCV rows are supplied because latest snapshot loading is not implemented yet.
 
-The Analysis Pipeline does not yet call AI, live data, broker paths, network paths, SQLite, DB-backed Backtest runners, or the database.
+The legacy `analyze_symbol` path does not call AI, live data, broker paths, network paths, SQLite, DB-backed Backtest runners, or the database.
 
-Backtest remains empty/default unless deterministic future rows are supplied on the request.
+Analysis Pipeline v2 does not call AI, live data, broker paths, network paths, or DB-backed Backtest runners. Its optional SQLite interaction is limited to explicit opt-in delegation to Backtest Persistence v1.
+
+Backtest remains empty/default unless deterministic future rows are supplied on the request or loaded by v2 through `MarketDataSource.load_future_rows`.
 
 Backtest output includes:
 
@@ -637,9 +690,11 @@ Current tests:
 - `tests/unit/test_analysis_pipeline_contracts.py`
 - `tests/unit/test_canonical_brain_adapter.py`
 - `tests/unit/test_canonical_pipeline.py`
+- `tests/unit/test_analysis_pipeline_v2.py`
 - `tests/smoke/test_analysis_pipeline.py`
 - `tests/smoke/test_canonical_brain_adapter.py`
 - `tests/smoke/test_canonical_pipeline_entry_point.py`
+- `tests/smoke/test_analysis_pipeline_v2.py`
 
 ### Similar Pattern Resolver v1
 
@@ -771,7 +826,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 317 tests
+- 343 tests
 
 ## History
 
