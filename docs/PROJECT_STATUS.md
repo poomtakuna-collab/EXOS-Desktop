@@ -436,6 +436,11 @@ BacktestResult count semantics are explicit:
 - `skipped_trades` counts skipped or insufficient-data simulations.
 - `breakeven_trades` counts completed breakeven simulations separately from wins and losses.
 
+Backtest & Validation v1 contract notes:
+
+- Same-candle simulator rule: when target and stop are both hit in one OHLCV row, stop wins.
+- Frozen `profit_factor` behavior: `profit_factor` may be `float("inf")` for all-winning runs.
+
 Backtest Data Layer skeleton includes:
 
 - `src/backtest/data/`
