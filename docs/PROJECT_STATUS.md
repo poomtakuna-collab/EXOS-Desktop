@@ -40,6 +40,8 @@ Analysis Service v1 is implemented.
 
 Market Learning Engine v1 remains complete.
 
+Similar Pattern Resolver v1 is implemented as an additive pure analysis engine.
+
 Pipeline smoke test passed:
 
 - `tests/smoke/test_market_learning_pipeline.py`
@@ -159,6 +161,8 @@ Status: Implemented.
 
 Probability Engine v1 converts similar historical patterns into evidence-based probability outputs.
 
+The additive Analysis Probability Engine v1 consumes Similar Pattern Resolver output directly and produces deterministic positive, negative, and neutral probability summaries from matched historical outcomes.
+
 It outputs:
 
 - Expected 5D / 10D / 20D returns
@@ -170,11 +174,18 @@ It outputs:
 
 It does not output BUY, SELL, or HOLD recommendations.
 
+Current tests:
+
+- `tests/unit/test_probability_engine.py`
+- `tests/smoke/test_similarity_probability_bridge.py`
+
 ### Prediction Engine v1
 
 Status: Implemented.
 
 Prediction Engine v1 derives price projections only from Probability Engine outputs.
+
+The additive Analysis Price Projection Engine v1 can also derive deterministic price projection ranges directly from resolver matches or probability-compatible historical match rows.
 
 Flow:
 
@@ -225,6 +236,40 @@ Current tests:
 
 - `tests/unit/test_strategy_engine.py`
 - `tests/regression/test_strategy_contract.py`
+
+### Price Projection Engine v1
+
+Status: Implemented.
+
+Price Projection Engine v1 consumes resolver matches or probability-compatible historical match rows and calculates deterministic expected prices plus upside and downside ranges from historical outcome fields.
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+It does not modify existing Prediction Engine contracts.
+
+Current tests:
+
+- `tests/unit/test_price_projection_engine.py`
+- `tests/smoke/test_similarity_price_projection_bridge.py`
+
+### Target Zone Engine v1
+
+Status: Implemented.
+
+Target Zone Engine v1 consumes Price Projection Engine output and derives deterministic conservative, base, and aggressive target levels from upside projection data.
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+It does not modify existing Prediction Engine contracts.
+
+Current tests:
+
+- `tests/unit/test_target_zone_engine.py`
+- `tests/smoke/test_price_projection_target_zone_bridge.py`
 
 ### Backtest Framework v1
 
@@ -414,6 +459,42 @@ Current tests:
 - `tests/unit/test_analysis_pipeline_contracts.py`
 - `tests/smoke/test_analysis_pipeline.py`
 
+### Similar Pattern Resolver v1
+
+Status: Implemented.
+
+Similar Pattern Resolver v1 compares a current snapshot with supplied pattern library entries using deterministic weighted scoring only.
+
+Weights:
+
+- trend: 25
+- trend_slope: 20
+- adx: 15
+- rsi: 10
+- atr: 10
+- squeeze: 10
+- market_structure: 10
+
+It outputs top similar historical patterns with:
+
+- pattern_id
+- similarity
+- outcome
+- pattern
+
+It does not call AI.
+
+It does not calculate probabilities.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+It does not modify Pattern Library contracts.
+
+Current tests:
+
+- `tests/unit/test_similar_pattern_resolver.py`
+- `tests/smoke/test_market_learning_pipeline.py`
+
 ### Data Source v1
 
 Status: Public contracts, deterministic memory source, and read-only SQLite source implemented.
@@ -542,7 +623,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 162 tests
+- 191 tests
 
 ## History
 
