@@ -316,6 +316,102 @@ Current tests:
 - `tests/smoke/test_full_prediction_summary_chain.py`
 - `tests/smoke/test_pattern_library_prediction_summary_bridge.py`
 
+### Strategy Summary Engine v1
+
+Status: Implemented.
+
+Strategy Summary Engine v1 consumes Prediction Summary output and returns deterministic non-decision strategy context.
+
+`market_bias` is descriptive context only.
+
+It is not a trade decision.
+
+It outputs:
+
+- Market bias
+- Risk level
+- Reward/risk ratio
+- Notes
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+Current tests:
+
+- `tests/unit/test_strategy_summary_engine.py`
+- `tests/smoke/test_prediction_strategy_summary_bridge.py`
+
+### Trade Plan Engine v1
+
+Status: Implemented.
+
+Trade Plan Engine v1 consumes Prediction Summary and Strategy Summary outputs and returns deterministic non-decision planning context.
+
+It outputs:
+
+- Entry zone
+- Stop zone
+- Target zone
+- Risk/reward
+- Invalidation notes
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+Current tests:
+
+- `tests/unit/test_trade_plan_engine.py`
+- `tests/smoke/test_strategy_summary_trade_plan_bridge.py`
+
+### Position Sizing Engine v1
+
+Status: Implemented.
+
+Position Sizing Engine v1 consumes Trade Plan output and calculates deterministic position sizing from account size and account risk settings.
+
+Position Sizing uses `entry_zone.high` and `stop_zone.aggressive` as conservative sizing anchors.
+
+It outputs:
+
+- Account risk percent
+- Risk per share
+- Position size shares
+- Estimated capital required
+- Max loss amount
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+Current tests:
+
+- `tests/unit/test_position_sizing_engine.py`
+- `tests/smoke/test_trade_plan_position_sizing_bridge.py`
+
+### Strategy Report Engine v1
+
+Status: Implemented.
+
+Strategy Report Engine v1 consumes Prediction Summary, Strategy Summary, Trade Plan, and Position Sizing outputs and returns one deterministic strategy report object.
+
+It includes:
+
+- Prediction summary
+- Strategy summary
+- Trade plan
+- Position sizing
+
+It does not call AI.
+
+It does not output BUY, SELL, or HOLD recommendations.
+
+Current tests:
+
+- `tests/unit/test_strategy_report_engine.py`
+- `tests/smoke/test_full_strategy_report_chain.py`
+
 ### Backtest Framework v1
 
 Status: In-memory framework implemented.
@@ -668,7 +764,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 208 tests
+- 234 tests
 
 ## History
 
