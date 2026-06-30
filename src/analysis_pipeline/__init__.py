@@ -3,6 +3,15 @@ from src.analysis_pipeline.contracts import (
     AnalysisResult,
     PipelineConfig,
 )
+from src.analysis_pipeline.canonical_brain_adapter import (
+    CANONICAL_BRAIN_CHAIN,
+    CanonicalBrainAdapterResult,
+    build_canonical_brain_analysis,
+)
+from src.analysis_pipeline.canonical_pipeline import (
+    CanonicalAnalysisResultV1,
+    analyze_symbol_with_canonical_brain,
+)
 from src.analysis_pipeline.pipeline import analyze_symbol
 from src.analysis_pipeline.report import AnalysisReport, build_analysis_report
 
@@ -10,7 +19,12 @@ __all__ = [
     "AnalysisRequest",
     "AnalysisReport",
     "AnalysisResult",
+    "CANONICAL_BRAIN_CHAIN",
+    "CanonicalAnalysisResultV1",
+    "CanonicalBrainAdapterResult",
     "PipelineConfig",
     "analyze_symbol",
+    "analyze_symbol_with_canonical_brain",
     "build_analysis_report",
+    "build_canonical_brain_analysis",
 ]

@@ -38,6 +38,8 @@ Read-only DB-backed Backtest orchestration is implemented.
 
 Analysis Pipeline deterministic report layer is implemented.
 
+Analysis Pipeline opt-in canonical Brain v1 entry point is implemented.
+
 Data Source v1 public contracts, deterministic memory source, and read-only SQLite source are implemented.
 
 Analysis Service v1 is implemented.
@@ -574,6 +576,8 @@ Analysis Pipeline Phase 5 has started with public contracts and deterministic ex
 - `AnalysisResult`
 - `PipelineConfig`
 - `analyze_symbol`
+- `analyze_symbol_with_canonical_brain`
+- `CanonicalAnalysisResultV1`
 - `AnalysisReport`
 - `build_analysis_report`
 
@@ -588,6 +592,21 @@ It can optionally run Backtest from request-provided deterministic future rows u
 - `BacktestInput`
 - `run_backtest`
 - `build_backtest_report`
+
+`analyze_symbol_with_canonical_brain` is the opt-in canonical Brain v1 analysis path.
+
+It uses Canonical Brain Adapter v1 to run:
+
+Similar Pattern Resolver
+-> Probability Engine
+-> Price Projection
+-> Target Zone
+-> Risk Zone
+-> Prediction Summary
+
+It returns `CanonicalAnalysisResultV1` because canonical Prediction Summary is nested and does not map cleanly to the older flat `AnalysisResult.prediction` shape.
+
+`analyze_symbol` remains legacy/supporting and unchanged. It continues to use the older statistics probability/prediction helper path for compatibility.
 
 `analyze_symbol` still raises `NotImplementedError` when no OHLCV rows are supplied because latest snapshot loading is not implemented yet.
 
@@ -616,7 +635,11 @@ The Analysis Report is deterministic and rule-based only.
 Current tests:
 
 - `tests/unit/test_analysis_pipeline_contracts.py`
+- `tests/unit/test_canonical_brain_adapter.py`
+- `tests/unit/test_canonical_pipeline.py`
 - `tests/smoke/test_analysis_pipeline.py`
+- `tests/smoke/test_canonical_brain_adapter.py`
+- `tests/smoke/test_canonical_pipeline_entry_point.py`
 
 ### Similar Pattern Resolver v1
 

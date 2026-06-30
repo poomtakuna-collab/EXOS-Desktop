@@ -152,6 +152,10 @@ Older probability and prediction helpers under `src.statistics` are legacy/suppo
 
 Future orchestration updates should treat the `src.analysis` Brain v1 engines as the target canonical path for probability and prediction. The pipeline may consume statistics-backed evidence, but it should not treat older statistics probability/prediction helpers as the canonical Brain v1 prediction path unless that wiring is explicit.
 
+`analyze_symbol_with_canonical_brain()` is the opt-in canonical Brain v1 analysis path. It uses the Canonical Brain Adapter v1 and returns `CanonicalAnalysisResultV1`.
+
+`analyze_symbol()` remains unchanged as the legacy/supporting Analysis Pipeline entry point. It continues to use the older statistics probability/prediction helper path for compatibility.
+
 ### strategy
 
 `src/strategy` owns the Strategy Engine v1 public contracts and deterministic strategy scoring.
@@ -234,10 +238,29 @@ Package-level `__init__` exports are convenience facades. An exported name is av
 ### src.analysis_pipeline
 
 - Frozen: existing request/result/config/report contracts that callers already depend on.
-- Canonical v1: orchestration that targets `src.analysis` Brain v1 engines for probability and prediction.
+- Canonical v1: `analyze_symbol_with_canonical_brain()`, backed by Canonical Brain Adapter v1 and `src.analysis` Brain v1 engines for probability and prediction.
 - Supporting: report building and adapters that translate data-source rows into deterministic analysis outputs.
-- Legacy: orchestration paths that rely on older statistics probability/prediction helpers unless explicitly aligned with the canonical Brain v1 path.
+- Legacy: `analyze_symbol()` and other orchestration paths that rely on older statistics probability/prediction helpers unless explicitly aligned with the canonical Brain v1 path.
 - Future/experimental: additive pipeline versions that route through canonical Brain v1 engines without mutating frozen contracts.
+
+## Canonical Analysis Pipeline Alignment
+
+`src.analysis_pipeline` now has two explicit deterministic entry points.
+
+`analyze_symbol()` builds snapshots through `src.analysis`, then computes probability and prediction through older `src.statistics` helpers. That path remains legacy/supporting and unchanged for compatibility.
+
+`analyze_symbol_with_canonical_brain()` is the opt-in canonical Brain v1 path. It uses Canonical Brain Adapter v1 to run the canonical `src.analysis` sequence:
+
+Similar Pattern Resolver
+-> Probability Engine
+-> Price Projection
+-> Target Zone
+-> Risk Zone
+-> Prediction Summary
+
+The opt-in canonical path returns `CanonicalAnalysisResultV1`, not `AnalysisResult`. This is intentional: canonical `Prediction Summary` is nested and carries probability, projection, target zone, and risk zone sections, so it does not map cleanly to the older flat `AnalysisResult.prediction` shape.
+
+The legacy statistics probability/prediction helpers remain available for compatibility. New orchestration should prefer `analyze_symbol_with_canonical_brain()` when canonical Brain v1 probability/prediction output is required. Any future config switch should be introduced only after both paths remain explicitly named, tested, and documented.
 
 ## Dependency Direction
 
