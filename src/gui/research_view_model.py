@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
+from datetime import date
 from pathlib import Path
 import sqlite3
 from typing import Any
 
 from src.analysis import build_prediction_summary, build_strategy_summary
 from src.analysis_pipeline import AnalysisPipelineV2Request, PipelineConfig, analyze_symbol_v2
+from src.canonical_result import (
+    CanonicalContextResultV1,
+    CanonicalResultV1,
+    CanonicalSignalSummaryV1,
+    CanonicalStrategyResultV1,
+    build_canonical_result_v1,
+)
 from src.context import (
     calculate_market_context,
     calculate_relative_strength_context,
@@ -15,7 +24,13 @@ from src.context import (
     calculate_volume_context,
 )
 from src.data import REQUIRED_ROW_COUNT
-from src.data_source import MarketDataRequest, MarketDataSource, SQLiteDataSource
+from src.data_source import (
+    MarketDataRequest,
+    MarketDataSource,
+    SQLiteDataSource,
+    determine_analysis_cutoff_date,
+    rows_through_analysis_cutoff,
+)
 
 
 PLACEHOLDER_TEXT = "-"
@@ -29,7 +44,10 @@ def build_research_view_model(
     selected_symbol: str | None = None,
     indicator_snapshot: Mapping[str, Any] | None = None,
     analysis_result: Any | None = None,
+    canonical_result: CanonicalResultV1 | None = None,
     price_rows: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] | None = None,
+    chart_latest_date: str = "",
+    analysis_cutoff_date: str = "",
     source: str = "",
     error: str = "",
 ) -> dict[str, object]:
@@ -157,6 +175,10 @@ def build_research_view_model(
         "has_symbol": bool(symbol),
         "has_snapshot": bool(snapshot),
         "has_analysis": bool(analysis_result) and not error,
+        "can_save_signal": isinstance(canonical_result, CanonicalResultV1) and not error,
+        "canonical_result": canonical_result,
+        "chart_latest_date": str(chart_latest_date or ""),
+        "analysis_cutoff_date": str(analysis_cutoff_date or ""),
         "source": source,
         "error": error,
         "cards": cards,
@@ -177,6 +199,7 @@ def load_desktop_research_view_model(
     data_source: MarketDataSource | None = None,
     database_path: Path | str | None = None,
     row_limit: int = REQUIRED_ROW_COUNT,
+    as_of_date: date | str | None = None,
 ) -> dict[str, object]:
     symbol = str(selected_symbol or "").strip().upper()
     if not symbol:
@@ -192,6 +215,7 @@ def load_desktop_research_view_model(
             data_source=data_source,
             row_limit=row_limit,
             source_label="Data Source v1",
+            as_of_date=as_of_date,
         )
 
     path = Path(database_path or DEFAULT_RESEARCH_DATABASE_PATH)
@@ -219,6 +243,7 @@ def load_desktop_research_view_model(
             data_source=SQLiteDataSource(connection),
             row_limit=row_limit,
             source_label="sqlite",
+            as_of_date=as_of_date,
         )
     finally:
         connection.close()
@@ -251,6 +276,7 @@ def _load_from_data_source(
     data_source: MarketDataSource,
     row_limit: int,
     source_label: str,
+    as_of_date: date | str | None,
 ) -> dict[str, object]:
     try:
         market_data = data_source.load_ohlcv(
@@ -276,6 +302,18 @@ def _load_from_data_source(
             source=source,
         )
 
+    cutoff = determine_analysis_cutoff_date(rows, as_of_date=as_of_date)
+    analysis_rows = rows_through_analysis_cutoff(rows, cutoff.analysis_cutoff_date)
+    if not analysis_rows:
+        return build_research_view_model(
+            selected_symbol=selected_symbol,
+            indicator_snapshot=indicator_snapshot,
+            price_rows=rows,
+            chart_latest_date=cutoff.chart_latest_date,
+            analysis_cutoff_date=cutoff.analysis_cutoff_date,
+            source=source,
+        )
+
     try:
         analysis_result = analyze_symbol_v2(
             AnalysisPipelineV2Request(
@@ -284,25 +322,138 @@ def _load_from_data_source(
                     timeframe=DEFAULT_RESEARCH_TIMEFRAME,
                     include_backtest=False,
                 ),
-                ohlcv_rows=rows,
+                ohlcv_rows=analysis_rows,
             )
         )
     except (RuntimeError, ValueError, TypeError, KeyError) as error:
         return build_research_view_model(
             selected_symbol=selected_symbol,
             indicator_snapshot=indicator_snapshot,
-            price_rows=rows,
+            price_rows=analysis_rows,
+            chart_latest_date=cutoff.chart_latest_date,
+            analysis_cutoff_date=cutoff.analysis_cutoff_date,
             source=source,
             error=f"Research analysis unavailable: {error}",
         )
+
+    canonical_result = _canonical_result_from_analysis(
+        analysis_result=analysis_result,
+        context_summary=_context_summary_for_signal(
+            analysis_result=analysis_result,
+            price_rows=analysis_rows,
+        ),
+        strategy_summary=_strategy_summary_for_signal(analysis_result),
+    )
 
     return build_research_view_model(
         selected_symbol=selected_symbol,
         indicator_snapshot=indicator_snapshot,
         analysis_result=analysis_result,
-        price_rows=rows,
+        canonical_result=canonical_result,
+        price_rows=analysis_rows,
+        chart_latest_date=cutoff.chart_latest_date,
+        analysis_cutoff_date=cutoff.analysis_cutoff_date,
         source=source,
     )
+
+
+def _canonical_result_from_analysis(
+    *,
+    analysis_result: Any,
+    context_summary: dict[str, Any],
+    strategy_summary: dict[str, Any],
+) -> CanonicalResultV1:
+    canonical = build_canonical_result_v1(analysis_result)
+    prediction_summary = dict(canonical.brain.prediction_summary)
+    signal_type = "setup" if prediction_summary or strategy_summary else "informational"
+    return replace(
+        canonical,
+        context=CanonicalContextResultV1(
+            market=_summary_section(context_summary, "market"),
+            sector=_summary_section(context_summary, "sector"),
+            relative_strength=_summary_section(context_summary, "relative_strength"),
+            volume=_summary_section(context_summary, "volume"),
+            support_resistance=_summary_section(context_summary, "support_resistance"),
+        ),
+        strategy=CanonicalStrategyResultV1(
+            strategy_score=_optional_float(strategy_summary.get("strategy_score")),
+            trade_grade=str(strategy_summary.get("trade_grade") or ""),
+            entry_quality=str(strategy_summary.get("entry_quality") or ""),
+            risk_rating=str(strategy_summary.get("risk_rating") or strategy_summary.get("risk_level") or ""),
+            expected_reward_percent=_optional_float(strategy_summary.get("expected_reward_percent")),
+            expected_risk_percent=_optional_float(strategy_summary.get("expected_risk_percent")),
+            reward_risk_ratio=_optional_float(strategy_summary.get("reward_risk_ratio")),
+            notes=_notes_tuple(strategy_summary.get("notes")),
+        ),
+        signal_summary=CanonicalSignalSummaryV1(
+            symbol=canonical.identity.symbol,
+            signal_date=canonical.identity.analysis_date or canonical.identity.snapshot_date,
+            timeframe=canonical.identity.timeframe,
+            signal_type=signal_type,
+            confidence=_optional_float(prediction_summary.get("confidence")),
+            snapshot_id=canonical.identity.snapshot_id,
+            snapshot_date=canonical.identity.snapshot_date,
+            context_summary=context_summary,
+            strategy_summary=strategy_summary,
+            prediction_summary=prediction_summary,
+            notes=("Manual save candidate only; not persisted automatically.",),
+        ),
+    )
+
+
+def _context_summary_for_signal(
+    *,
+    analysis_result: Any,
+    price_rows: list[Mapping[str, Any]],
+) -> dict[str, Any]:
+    loaded = _analysis_sections(analysis_result)
+    snapshot = loaded["snapshot"]
+    probability = loaded["probability"]
+    projection = loaded["projection"]
+    return {
+        "market": calculate_market_context(
+            snapshot=snapshot,
+            probability=probability,
+            prediction=projection,
+        ).to_dict(),
+        "sector": calculate_sector_context(symbol_rows=price_rows).to_dict(),
+        "relative_strength": calculate_relative_strength_context(symbol_rows=price_rows).to_dict(),
+        "volume": calculate_volume_context(
+            snapshot=snapshot,
+            price_rows=price_rows,
+        ).to_dict(),
+        "support_resistance": calculate_support_resistance_context(
+            snapshot=snapshot,
+            indicators=snapshot,
+            price_rows=price_rows,
+        ).to_dict(),
+    }
+
+
+def _strategy_summary_for_signal(analysis_result: Any) -> dict[str, Any]:
+    loaded = _analysis_sections(analysis_result)
+    strategy_summary = dict(loaded["strategy_summary"])
+    strategy = getattr(analysis_result, "strategy", None)
+    if strategy is None:
+        return strategy_summary
+
+    reward_risk = getattr(strategy, "reward_risk_estimate", None)
+    if isinstance(reward_risk, Mapping):
+        strategy_summary.update(
+            {
+                "expected_reward_percent": reward_risk.get("expected_reward_percent"),
+                "expected_risk_percent": reward_risk.get("expected_risk_percent"),
+                "reward_risk_ratio": reward_risk.get("reward_risk_ratio"),
+                "target_zone": reward_risk.get("target_zone"),
+                "risk_zone": reward_risk.get("risk_zone"),
+            }
+        )
+    strategy_summary["strategy_score"] = getattr(strategy, "strategy_score", None)
+    strategy_summary["trade_grade"] = _enum_value(getattr(strategy, "trade_grade", None))
+    strategy_summary["entry_quality"] = _enum_value(getattr(strategy, "entry_quality", None))
+    strategy_summary["risk_rating"] = _enum_value(getattr(strategy, "risk_rating", None))
+    strategy_summary["notes"] = getattr(strategy, "notes", None) or strategy_summary.get("notes")
+    return strategy_summary
 
 
 def _analysis_sections(analysis_result: Any) -> dict[str, Mapping[str, Any]]:
@@ -346,6 +497,29 @@ def _analysis_sections(analysis_result: Any) -> dict[str, Mapping[str, Any]]:
 
 def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
+
+
+def _summary_section(source: Mapping[str, Any], name: str) -> dict[str, Any]:
+    value = source.get(name)
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _notes_tuple(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        text = value.strip()
+        return (text,) if text else ()
+    if isinstance(value, (list, tuple)):
+        return tuple(str(item) for item in value if item is not None)
+    return ()
 
 
 def _valid_rows(

@@ -830,6 +830,95 @@ Current tests:
 
 - `tests/unit/test_canonical_result_signal_adapter.py`
 
+### EXOS Desktop Manual Signal Creation Flow v1
+
+Status: Implemented.
+
+EXOS Desktop Manual Signal Creation Flow v1 adds an explicit Research tab save action for turning the current deterministic research result into a durable Signal Ledger record.
+
+The flow is:
+
+- selected dashboard/watchlist symbol
+- Research analysis
+- `CanonicalResultV1`
+- Canonical Result -> Signal adapter
+- `SignalRecord`
+- Signal Ledger SQLite repository
+
+The Research tab now exposes a `Save Signal` button that is enabled only when a valid `CanonicalResultV1` is available.
+
+Successful saves show a lightweight confirmation and refresh Signal History automatically.
+
+Duplicate saves are handled idempotently with deterministic signal IDs, so repeated clicks do not create accidental duplicate signal records.
+
+The manual save path persists:
+
+- symbol
+- signal date
+- snapshot id
+- snapshot date
+- timeframe
+- signal type
+- confidence
+- context summary
+- strategy summary
+- notes
+
+The Qt widget remains thin and delegates candidate persistence to Qt-free helpers.
+
+It does not create signals automatically.
+
+It does not evaluate outcomes.
+
+It does not trigger Performance recalculation beyond refreshing existing views.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_research_signal_save.py`
+- `tests/unit/test_research_surface.py`
+- `tests/unit/test_main_window_wiring.py`
+
+### Analysis Cutoff Policy v1 Foundation
+
+Status: Implemented.
+
+Analysis Cutoff Policy v1 adds a small deterministic helper for separating chart recency from analysis recency:
+
+- `chart_latest_date`
+- `analysis_cutoff_date`
+
+Policy:
+
+- if the latest OHLCV row is the current trading day, analysis uses the previous completed trading day
+- otherwise analysis uses the latest available completed row
+
+The helper is JSON-safe through `to_dict()`.
+
+Desktop Research analysis now uses rows through `analysis_cutoff_date`.
+
+Chart rendering is unchanged.
+
+Research layout is unchanged.
+
+Signal creation is unchanged.
+
+Outcome tracking is unchanged.
+
+It does not modify Brain v1.
+
+It does not add Research Zone UI.
+
+Current tests:
+
+- `tests/unit/test_analysis_cutoff_policy.py`
+- `tests/unit/test_research_surface.py`
+
 ### Similar Pattern Resolver v1
 
 Status: Implemented.
@@ -1226,7 +1315,9 @@ Canonical Result Model v1 remains additive and is not wired into Analysis Pipeli
 
 Canonical Result -> Signal Adapter v1 now provides a pure candidate adapter from `CanonicalResultV1` to `SignalRecord`.
 
-No new runtime features were implemented as part of this session finalization.
+EXOS Desktop Manual Signal Creation Flow v1 now lets the user explicitly save the current Research result as a Signal Ledger record through the existing canonical adapter and SQLite repository.
+
+Analysis Cutoff Policy v1 now exposes `chart_latest_date` and `analysis_cutoff_date`, and Desktop Research analysis uses the cutoff date while chart rendering remains unchanged.
 
 Context Engine v1 does not modify frozen Brain v1 contracts.
 
@@ -1243,7 +1334,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 582 tests passing
+- 595 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1859,7 +1950,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 582 tests
+- 595 tests
 
 ## History
 

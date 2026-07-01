@@ -20,6 +20,7 @@ class ResearchSurfaceTest(unittest.TestCase):
         self.assertEqual(view_model["symbol"], "No symbol selected")
         self.assertFalse(view_model["has_symbol"])
         self.assertFalse(view_model["has_snapshot"])
+        self.assertFalse(view_model["can_save_signal"])
         self.assertEqual(
             view_model["status"],
             "Select a dashboard symbol to view research context.",
@@ -149,6 +150,8 @@ class ResearchSurfaceTest(unittest.TestCase):
         )
 
         self.assertTrue(view_model["has_analysis"])
+        self.assertTrue(view_model["can_save_signal"])
+        self.assertIsNotNone(view_model["canonical_result"])
         self.assertEqual(view_model["source"], "memory")
         self.assertEqual(
             view_model["status"],
@@ -161,6 +164,21 @@ class ResearchSurfaceTest(unittest.TestCase):
         self.assertNotEqual(_item(view_model, "support_resistance", "Support")["value"], PLACEHOLDER_TEXT)
         self.assertEqual(_item(view_model, "prediction_summary", "Evidence")["value"], "0")
 
+    def test_loader_uses_analysis_cutoff_for_same_day_latest_row(self) -> None:
+        view_model = load_desktop_research_view_model(
+            selected_symbol="AAPL",
+            data_source=MemoryDataSource(_ohlcv_rows_through("AAPL", date(2026, 7, 1))),
+            row_limit=40,
+            as_of_date="2026-07-01",
+        )
+
+        canonical_result = view_model["canonical_result"]
+
+        self.assertTrue(view_model["has_analysis"])
+        self.assertEqual(view_model["chart_latest_date"], "2026-07-01")
+        self.assertEqual(view_model["analysis_cutoff_date"], "2026-06-30")
+        self.assertEqual(canonical_result.diagnostics.row_count, 39)
+
     def test_loader_handles_empty_data_source_rows_gracefully(self) -> None:
         view_model = load_desktop_research_view_model(
             selected_symbol="AAPL",
@@ -168,6 +186,7 @@ class ResearchSurfaceTest(unittest.TestCase):
         )
 
         self.assertFalse(view_model["has_analysis"])
+        self.assertFalse(view_model["can_save_signal"])
         self.assertEqual(view_model["source"], "memory")
         self.assertEqual(
             view_model["status"],
@@ -183,6 +202,7 @@ class ResearchSurfaceTest(unittest.TestCase):
         )
 
         self.assertFalse(view_model["has_analysis"])
+        self.assertFalse(view_model["can_save_signal"])
         self.assertEqual(view_model["error"], "Research analysis unavailable: fixture failure")
         self.assertEqual(view_model["status"], "Research analysis unavailable: fixture failure")
         self.assertEqual(_item(view_model, "symbol", "Data")["value"], "error")
@@ -230,6 +250,26 @@ def _ohlcv_rows(symbol: str) -> list[dict[str, object]]:
                 "symbol": symbol,
                 "timeframe": "1D",
                 "date": (start_date + timedelta(days=index - 1)).isoformat(),
+                "open": close - 1.0,
+                "high": close + 1.5,
+                "low": close - 2.0,
+                "close": close,
+                "volume": 1000 + index * 100,
+            }
+        )
+    return rows
+
+
+def _ohlcv_rows_through(symbol: str, latest_date: date) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    start_date = latest_date - timedelta(days=39)
+    for index in range(40):
+        close = 100.0 + index
+        rows.append(
+            {
+                "symbol": symbol,
+                "timeframe": "1D",
+                "date": (start_date + timedelta(days=index)).isoformat(),
                 "open": close - 1.0,
                 "high": close + 1.5,
                 "low": close - 2.0,

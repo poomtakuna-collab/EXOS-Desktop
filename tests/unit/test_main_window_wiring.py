@@ -26,6 +26,45 @@ class MainWindowWiringTest(unittest.TestCase):
         self.assertEqual(_attribute_name(keywords["data_manager"]), "self._data_manager")
         self.assertEqual(_attribute_name(keywords["state_manager"]), "self._state_manager")
 
+    def test_research_signal_save_refreshes_signal_history(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "connect"
+        ]
+
+        connections = {
+            (
+                _attribute_name(call.func.value),
+                _attribute_name(call.args[0]) if call.args else "",
+            )
+            for call in calls
+        }
+
+        self.assertIn(
+            (
+                "self._research_panel.signal_saved",
+                "self._signal_history_panel.refresh",
+            ),
+            connections,
+        )
+
+    def test_research_surface_keeps_persistence_out_of_qt_widget(self) -> None:
+        tree = ast.parse(Path("src/gui/research_surface.py").read_text(encoding="utf-8"))
+        imported_names: set[str] = set()
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported_names.update(alias.name for alias in node.names)
+            if isinstance(node, ast.ImportFrom) and node.module:
+                imported_names.add(node.module)
+
+        self.assertNotIn("sqlite3", imported_names)
+        self.assertNotIn("src.signal_ledger.sqlite_repository", imported_names)
+
 
 def _attribute_name(node: ast.AST) -> str:
     if isinstance(node, ast.Attribute):

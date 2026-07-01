@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         self._create_developer_dock()
         self._chart_workspace.data_changed.connect(self._developer_panel.refresh)
         self._chart_workspace.data_changed.connect(self._research_panel.refresh)
+        self._research_panel.signal_saved.connect(self._signal_history_panel.refresh)
         self._update_current_symbol_views()
 
     def _create_menu_bar(self) -> None:

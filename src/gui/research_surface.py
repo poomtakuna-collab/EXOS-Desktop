@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QLabel,
+    QPushButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
+from src.canonical_result import CanonicalResultV1
 from src.core.state_manager import StateManager
+from src.gui.research_signal_save import save_manual_signal_candidate
 from src.gui.research_view_model import (
     build_research_view_model,
     load_desktop_research_view_model,
@@ -18,11 +21,15 @@ from src.gui.research_view_model import (
 
 
 class ResearchPanel(QWidget):
+    signal_saved = Signal()
+
     def __init__(self, state_manager: StateManager) -> None:
         super().__init__()
         self._state_manager = state_manager
         self._status_label = QLabel(self)
+        self._save_signal_button = QPushButton("Save Signal", self)
         self._card_rows: dict[str, list[tuple[QLabel, QLabel]]] = {}
+        self._current_canonical_result: CanonicalResultV1 | None = None
 
         self._create_layout()
         self.refresh()
@@ -32,6 +39,11 @@ class ResearchPanel(QWidget):
             selected_symbol=self._state_manager.current_symbol,
             indicator_snapshot=self._state_manager.indicator_snapshot,
         )
+        candidate = view_model.get("canonical_result")
+        self._current_canonical_result = (
+            candidate if isinstance(candidate, CanonicalResultV1) else None
+        )
+        self._save_signal_button.setEnabled(bool(view_model.get("can_save_signal")))
         self._status_label.setText(str(view_model["status"]))
 
         cards = view_model["cards"]
@@ -57,6 +69,12 @@ class ResearchPanel(QWidget):
                     bool(item.get("is_placeholder", False)),
                 )
 
+    def _save_signal(self) -> None:
+        result = save_manual_signal_candidate(self._current_canonical_result)
+        self._status_label.setText(result.message)
+        if result.saved:
+            self.signal_saved.emit()
+
     def _create_layout(self) -> None:
         root_layout = QVBoxLayout()
         grid = QGridLayout()
@@ -74,6 +92,9 @@ class ResearchPanel(QWidget):
                 grid.addWidget(self._card_widget(card), row, column)
 
         root_layout.addLayout(grid)
+        self._save_signal_button.clicked.connect(self._save_signal)
+        self._save_signal_button.setEnabled(False)
+        root_layout.addWidget(self._save_signal_button)
         root_layout.addWidget(self._status_label)
         root_layout.addStretch()
         self.setLayout(root_layout)

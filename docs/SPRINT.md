@@ -35,7 +35,9 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - ChartWorkspace app integration coverage is implemented.
 - Canonical Result Model v1 contracts and adapter foundation are implemented.
 - Canonical Result -> Signal Adapter v1 is implemented.
-- Current full test baseline: 582 tests passing with `py -m unittest discover -s tests`.
+- EXOS Desktop Manual Signal Creation Flow v1 is implemented.
+- Analysis Cutoff Policy v1 foundation is implemented.
+- Current full test baseline: 595 tests passing with `py -m unittest discover -s tests`.
 
 ## Completed Foundation Work
 
@@ -61,23 +63,20 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Canonical Result Model v1 typed output contracts.
 - Canonical Result adapter foundation for identity, Brain, prediction, and diagnostics sections.
 - Pure Canonical Result -> Signal adapter for deterministic `SignalRecord` candidates.
+- Explicit Research tab `Save Signal` action through the Canonical Result -> Signal adapter and SQLite Signal Ledger repository.
+- Deterministic Analysis Cutoff Policy v1 for separating chart latest date from Research analysis cutoff date.
 
 ## Next Prioritized Tasks
 
-1. Explicit/manual Signal creation flow
-   - Let the user intentionally save deterministic research output as a signal.
-   - No runtime auto-persistence.
-   - No trading actions.
-
-2. Outcome evaluation flow
+1. Outcome evaluation flow
    - Evaluate saved signals against future OHLCV rows.
    - Persist outcomes through existing repositories.
 
-3. Performance report with real accumulated signal data
+2. Performance report with real accumulated signal data
    - Feed Performance Report v1 from saved signals and evaluated outcomes.
    - Keep global and selected-symbol views useful.
 
-4. Context validation/backtest comparison
+3. Context validation/backtest comparison
    - Compare Brain v1 against Brain v1 plus context layers.
    - Adopt only context signals that demonstrate measurable improvement.
 
