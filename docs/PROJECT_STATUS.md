@@ -44,6 +44,8 @@ Analysis Pipeline v2 foundation is implemented.
 
 Analysis Pipeline v2 opt-in Persistence Adapter is implemented.
 
+Canonical Result Model v1 contracts are implemented.
+
 Data Source v1 public contracts, deterministic memory source, and read-only SQLite source are implemented.
 
 Analysis Service v1 is implemented.
@@ -710,6 +712,42 @@ Current tests:
 - `tests/smoke/test_canonical_pipeline_entry_point.py`
 - `tests/smoke/test_analysis_pipeline_v2.py`
 
+### Canonical Result Model v1
+
+Status: Contracts-only foundation implemented.
+
+Canonical Result Model v1 introduces `src/canonical_result` with immutable serializable result contracts for a stable future output boundary:
+
+- `CanonicalIdentityV1`
+- `CanonicalBrainResultV1`
+- `CanonicalPredictionResultV1`
+- `CanonicalContextResultV1`
+- `CanonicalStrategyResultV1`
+- `CanonicalBacktestResultV1`
+- `CanonicalSignalSummaryV1`
+- `CanonicalDiagnosticsV1`
+- `CanonicalResultV1`
+
+The model is additive and does not replace existing Brain v1, Strategy, Backtest, Context, Signal Ledger, or Outcome Tracking contracts.
+
+Raw Brain sections remain dictionary-based inside `CanonicalBrainResultV1` so frozen Brain v1 outputs can be wrapped without mutation.
+
+Canonical Result Model v1 does not implement adapters yet.
+
+Canonical Result Model v1 is not wired into Analysis Pipeline v1, Analysis Pipeline v2, GUI, AI, persistence, or Signal Ledger creation yet.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+It does not read from or write to the database.
+
+Current tests:
+
+- `tests/unit/test_canonical_result_contracts.py`
+
 ### Similar Pattern Resolver v1
 
 Status: Implemented.
@@ -1258,7 +1296,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 463 tests
+- 471 tests
 
 ## History
 
