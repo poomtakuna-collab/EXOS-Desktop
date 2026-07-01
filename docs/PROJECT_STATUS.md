@@ -60,7 +60,7 @@ Outcome Tracking v1 foundation is implemented.
 
 Outcome Calculator v1 is implemented.
 
-Signal Ledger Persistence v1 foundation is implemented.
+Signal Ledger Persistence v1 foundation and SQLite repository are implemented.
 
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
@@ -1090,9 +1090,20 @@ Current tests:
 
 ### Session Report - 2026-07-01
 
-Status: Context Engine v1 complete.
+Status: Foundation session complete.
 
-Completed calculators:
+Completed work:
+
+- Context Engine v1 complete
+- Signal Ledger v1 foundation
+- Outcome Tracking v1 foundation
+- Outcome Calculator v1
+- Signal Ledger repository foundation
+- Signal Ledger SQLite Persistence v1
+- Canonical Result Model v1 contracts
+- Canonical Result Model v1 adapter foundation
+
+Context Engine v1 completed deterministic calculators:
 
 - Market Context Calculator v1
 - Sector Context Calculator v1
@@ -1102,15 +1113,36 @@ Completed calculators:
 
 All Context Engine v1 calculators are pure, deterministic, modular under `src/context`, and exported through `src/context/__init__.py`.
 
+Signal Ledger v1 introduced immutable storage-neutral signal contracts for recording EXOS-generated research signals.
+
+Outcome Tracking v1 introduced immutable storage-neutral outcome contracts plus a pure deterministic calculator for deriving outcome records from signal metadata and future OHLCV rows.
+
+Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
+
+Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
+
+Canonical Result Model v1 introduced immutable serializable contracts and a pure duck-typed adapter foundation for mapping existing analysis result dictionaries or objects into canonical identity, Brain, prediction, and diagnostics sections.
+
+Canonical Result Model v1 remains additive and is not wired into Analysis Pipeline v1, Analysis Pipeline v2, GUI, AI, persistence, or Signal Ledger creation yet.
+
+No new runtime features were implemented as part of this session finalization.
+
 Context Engine v1 does not modify frozen Brain v1 contracts.
 
-Context Engine v1 does not write to the database.
+The completed foundation modules do not modify frozen Brain v1 contracts.
 
-Context Engine v1 does not call AI.
+The completed foundation modules do not write to the database.
 
-Context Engine v1 does not call network services.
+The completed foundation modules do not call AI.
 
-Context Engine v1 does not call broker or live trading paths.
+The completed foundation modules do not call network services.
+
+The completed foundation modules do not call broker or live trading paths.
+
+Verification:
+
+- `py -m unittest discover -s tests`
+- 489 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1241,12 +1273,14 @@ Current tests:
 
 ### Signal Ledger Persistence v1 Foundation
 
-Status: Implemented as a storage-neutral repository foundation.
+Status: Storage-neutral repository foundation and SQLite repository implemented.
 
-Signal Ledger Persistence v1 Foundation introduces repository contracts and an in-memory implementation for saving and loading `SignalRecord` and associated `OutcomeRecord` values:
+Signal Ledger Persistence v1 Foundation introduces repository contracts, an in-memory implementation, and a SQLite implementation for saving and loading `SignalRecord` and associated `OutcomeRecord` values:
 
 - `SignalLedgerRepository`
 - `InMemorySignalLedgerRepository`
+- `SQLiteSignalLedgerRepository`
+- `initialize_signal_ledger_schema`
 
 The repository interface includes:
 
@@ -1258,11 +1292,19 @@ The repository interface includes:
 
 The in-memory implementation is deterministic, JSON-serializable through `to_dict()`, and intended for tests and foundation use only.
 
-It does not wire production SQLite.
+The SQLite implementation stores signals in `signal_ledger_signals` and linked outcomes in `signal_ledger_outcomes`.
+
+The SQLite implementation stores nested signal context, strategy summaries, and notes as deterministic JSON strings.
+
+The SQLite implementation stores outcome notes as deterministic JSON strings and preserves outcome insertion order per signal.
+
+The SQLite implementation supports persistence across repository instances that share the same SQLite database.
+
+It is not wired into the runtime Analysis Pipeline, GUI, Canonical Result Model, or Signal Ledger creation flow yet.
 
 It does not modify frozen Brain v1 contracts.
 
-It does not write to the database.
+It writes only through explicit repository calls supplied with a SQLite connection.
 
 It does not call AI.
 
@@ -1273,6 +1315,7 @@ It does not call broker or live trading paths.
 Current tests:
 
 - `tests/unit/test_signal_ledger_repository.py`
+- `tests/unit/test_signal_ledger_sqlite_repository.py`
 
 ## Not Implemented Yet
 
@@ -1307,7 +1350,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 478 tests
+- 489 tests
 
 ## History
 
