@@ -52,6 +52,8 @@ Near-term EXOS focus is Signal Ledger / Trade Journal, Outcome Tracking, statist
 
 Context Engine v1 is complete.
 
+Signal Ledger v1 foundation is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1055,6 +1057,43 @@ Context Engine v1 does not call network services.
 
 Context Engine v1 does not call broker or live trading paths.
 
+### Signal Ledger v1 Foundation
+
+Status: Implemented as a storage-neutral contracts foundation.
+
+Signal Ledger v1 Foundation introduces `src/signal_ledger` with immutable serializable contracts for recording EXOS-generated signals:
+
+- `SignalType`
+- `SignalSnapshotReference`
+- `SignalRecord`
+
+The foundation captures:
+
+- symbol
+- signal date
+- snapshot reference
+- context summary
+- strategy summary
+- signal type
+- confidence
+- notes
+
+It is deterministic and storage-neutral.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_signal_ledger_contracts.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
@@ -1088,7 +1127,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 415 tests
+- 425 tests
 
 ## History
 
