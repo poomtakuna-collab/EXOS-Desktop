@@ -48,9 +48,9 @@ Data Source v1 public contracts, deterministic memory source, and read-only SQLi
 
 Analysis Service v1 is implemented.
 
-Near-term EXOS focus is Signal Ledger / Trade Journal, Outcome Tracking, statistical performance reporting, and EXOS Context Engine v1.
+Near-term EXOS focus is Signal Ledger / Trade Journal, Outcome Tracking, statistical performance reporting, and validation of Context Engine outputs.
 
-Context Engine v1 Foundation is implemented.
+Context Engine v1 is complete.
 
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
@@ -809,11 +809,11 @@ Current tests:
 - `tests/unit/test_analysis_service.py`
 - `tests/smoke/test_analysis_service.py`
 
-### Context Engine v1 Foundation
+### Context Engine v1
 
-Status: Implemented as an additive contracts-only foundation.
+Status: Complete.
 
-Context Engine v1 Foundation introduces `src/context` with immutable serializable context contracts:
+Context Engine v1 introduces `src/context` with immutable serializable context contracts and pure deterministic calculators:
 
 - `ContextRequest`
 - `MarketContext`
@@ -823,7 +823,7 @@ Context Engine v1 Foundation introduces `src/context` with immutable serializabl
 - `SupportResistanceContext`
 - `ContextResult`
 
-The foundation is deterministic and has no runtime dependency on frozen Brain v1 internals.
+The engine is deterministic and has no runtime dependency on frozen Brain v1 internals.
 
 It is not wired into the default Analysis Pipeline, Strategy Engine, Backtest, Data Source, or GUI.
 
@@ -837,6 +837,10 @@ Current tests:
 
 - `tests/unit/test_context_contracts.py`
 - `tests/unit/test_market_context_calculator.py`
+- `tests/unit/test_sector_context_calculator.py`
+- `tests/unit/test_relative_strength_calculator.py`
+- `tests/unit/test_volume_context_calculator.py`
+- `tests/unit/test_support_resistance_calculator.py`
 
 ### Market Context Calculator v1
 
@@ -1027,6 +1031,30 @@ Current tests:
 
 - `tests/unit/test_sector_context_calculator.py`
 
+### Session Report - 2026-07-01
+
+Status: Context Engine v1 complete.
+
+Completed calculators:
+
+- Market Context Calculator v1
+- Sector Context Calculator v1
+- Relative Strength Context Calculator v1
+- Volume Context Calculator v1
+- Support / Resistance Context Calculator v1
+
+All Context Engine v1 calculators are pure, deterministic, modular under `src/context`, and exported through `src/context/__init__.py`.
+
+Context Engine v1 does not modify frozen Brain v1 contracts.
+
+Context Engine v1 does not write to the database.
+
+Context Engine v1 does not call AI.
+
+Context Engine v1 does not call network services.
+
+Context Engine v1 does not call broker or live trading paths.
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
@@ -1060,7 +1088,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 350 tests
+- 415 tests
 
 ## History
 
