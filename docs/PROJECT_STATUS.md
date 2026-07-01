@@ -44,7 +44,7 @@ Analysis Pipeline v2 foundation is implemented.
 
 Analysis Pipeline v2 opt-in Persistence Adapter is implemented.
 
-Canonical Result Model v1 contracts are implemented.
+Canonical Result Model v1 contracts and adapter foundation are implemented.
 
 Data Source v1 public contracts, deterministic memory source, and read-only SQLite source are implemented.
 
@@ -714,7 +714,7 @@ Current tests:
 
 ### Canonical Result Model v1
 
-Status: Contracts-only foundation implemented.
+Status: Contracts and adapter foundation implemented.
 
 Canonical Result Model v1 introduces `src/canonical_result` with immutable serializable result contracts for a stable future output boundary:
 
@@ -732,7 +732,17 @@ The model is additive and does not replace existing Brain v1, Strategy, Backtest
 
 Raw Brain sections remain dictionary-based inside `CanonicalBrainResultV1` so frozen Brain v1 outputs can be wrapped without mutation.
 
-Canonical Result Model v1 does not implement adapters yet.
+Canonical Result Model v1 includes a pure adapter foundation for mapping existing analysis result dictionaries or objects into the canonical identity, Brain, prediction, and diagnostics contracts.
+
+Current adapter support is intentionally minimal:
+
+- `build_canonical_result_v1`
+- `build_canonical_identity_v1`
+- `build_canonical_brain_result_v1`
+- `build_canonical_prediction_result_v1`
+- `build_canonical_diagnostics_v1`
+
+Adapters are duck-typed and do not import Analysis Pipeline, Brain, Strategy, Backtest, Context, Signal Ledger, Outcome Tracking, database, network, broker, or AI modules.
 
 Canonical Result Model v1 is not wired into Analysis Pipeline v1, Analysis Pipeline v2, GUI, AI, persistence, or Signal Ledger creation yet.
 
@@ -746,6 +756,7 @@ It does not read from or write to the database.
 
 Current tests:
 
+- `tests/unit/test_canonical_result_adapters.py`
 - `tests/unit/test_canonical_result_contracts.py`
 
 ### Similar Pattern Resolver v1
@@ -1296,7 +1307,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 471 tests
+- 478 tests
 
 ## History
 
