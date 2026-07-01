@@ -31,6 +31,7 @@ class PerformancePanel(QWidget):
         self._scope_label = QLabel(self)
         self._global_summary_label = QLabel(self)
         self._summary_labels: dict[str, QLabel] = {}
+        self._snapshot_health_labels: dict[str, QLabel] = {}
         self._outcome_distribution_label = QLabel(self)
         self._signal_breakdown_label = QLabel(self)
         self._confidence_breakdown_label = QLabel(self)
@@ -57,6 +58,8 @@ class PerformancePanel(QWidget):
 
         for key, value in view_model["summary"].items():
             self._summary_labels[key].setText(value)
+        for key, value in view_model["snapshot_health"].items():
+            self._snapshot_health_labels[key].setText(value)
 
         self._outcome_distribution_label.setText(view_model["outcome_status_distribution"])
         self._signal_breakdown_label.setText(view_model["signal_type_breakdown"])
@@ -85,6 +88,26 @@ class PerformancePanel(QWidget):
             self._summary_labels[key] = value_label
         summary_group.setLayout(summary_layout)
 
+        snapshot_health_group = QGroupBox("Snapshot Health", self)
+        snapshot_health_layout = QGridLayout()
+        for row, (key, label) in enumerate(
+            (
+                ("total_snapshots", "Total Snapshots"),
+                ("completed_outcomes", "Completed Outcomes"),
+                ("pending_outcomes", "Pending Outcomes"),
+                ("outcome_coverage", "Outcome Coverage"),
+                ("duplicate_snapshots", "Duplicate Snapshots"),
+                ("last_snapshot_date", "Last Snapshot Date"),
+                ("last_outcome_evaluation_date", "Last Outcome Evaluation Date"),
+            )
+        ):
+            name_label = QLabel(label, snapshot_health_group)
+            value_label = QLabel("", snapshot_health_group)
+            snapshot_health_layout.addWidget(name_label, row, 0)
+            snapshot_health_layout.addWidget(value_label, row, 1)
+            self._snapshot_health_labels[key] = value_label
+        snapshot_health_group.setLayout(snapshot_health_layout)
+
         outcome_group = _text_group(
             "Outcome Status Distribution",
             self._outcome_distribution_label,
@@ -106,6 +129,7 @@ class PerformancePanel(QWidget):
         layout.addWidget(self._scope_label)
         layout.addWidget(self._global_summary_label)
         layout.addWidget(summary_group)
+        layout.addWidget(snapshot_health_group)
         layout.addWidget(outcome_group)
         layout.addWidget(signal_group)
         layout.addWidget(confidence_group)

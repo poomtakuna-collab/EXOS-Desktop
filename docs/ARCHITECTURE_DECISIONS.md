@@ -202,3 +202,51 @@ Outcome Tracking and Performance reporting currently evaluate the usefulness of 
 They should not be interpreted as proof that EXOS issued live BUY, SELL, HOLD, broker, portfolio, or trading instructions.
 
 Future trading-signal work should treat saved `SignalRecord` rows as source research evidence and add an explicit downstream signal-generation layer instead of retroactively changing the v1 contract.
+
+## ADR-010: Daily Research Snapshots are Immutable Facts
+
+Status: Accepted.
+
+Decision:
+
+Daily Research Snapshots are immutable, append-only system-of-record facts.
+
+In v1, these snapshots are stored through the existing `SignalRecord` contract for compatibility, but conceptually they represent the deterministic research state for a symbol and market date.
+
+Reason:
+
+- A saved snapshot is evidence of what EXOS knew at a specific completed market date.
+- Rewriting historical snapshots would make outcome, performance, pattern, probability, and validation results harder to reproduce.
+- Snapshot immutability protects auditability across Desktop save, backfill, Evidence Loop, and future review workflows.
+- Duplicate-safe save behavior should prevent accidental repeated records for the same symbol and market date instead of mutating prior facts.
+
+Consequence:
+
+Future changes should prefer appending new snapshot facts over editing old ones.
+
+If a corrected or regenerated snapshot is needed later, it should be represented as a new explicit fact with enough metadata to distinguish it from the original, not as an in-place rewrite of the original research state.
+
+This decision does not rename `SignalRecord`, change repository contracts, or change database schema.
+
+## ADR-011: Downstream Evidence Views are Rebuildable Projections
+
+Status: Accepted.
+
+Decision:
+
+Outcome, Performance, Statistics, Pattern, Probability, and related evidence views are rebuildable projections derived from immutable snapshots and evaluation facts.
+
+Reason:
+
+- Snapshots and evaluation facts are the durable source material.
+- Aggregates and evidence views may need to be recalculated when formulas, filters, horizons, or validation methods improve.
+- Rebuildable projections keep EXOS deterministic without requiring new engines or a CQRS framework.
+- Projection rebuilds should be reproducible from SQLite source-of-truth data and existing deterministic modules.
+
+Consequence:
+
+Downstream evidence tables, reports, and views should be treated as derived state unless explicitly documented otherwise.
+
+Future implementation may add explicit rebuild services or commands, but should not require changing Brain v1, `SignalRecord`, `OutcomeRecord`, repository contracts, or the existing database schema as part of this decision.
+
+AI, broker, portfolio, and trading layers must not become part of projection rebuild logic.

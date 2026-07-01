@@ -21,6 +21,12 @@ class PerformanceSurfaceTest(unittest.TestCase):
         report = PerformanceReport(
             total_signals=3,
             total_outcomes=2,
+            completed_outcomes=2,
+            pending_outcomes=1,
+            outcome_coverage=66.6667,
+            duplicate_snapshots=1,
+            last_snapshot_date="2026-07-03",
+            last_outcome_evaluation_date="2026-07-11",
             win_rate=50.0,
             average_return=1.25,
             average_max_drawdown=-3.5,
@@ -47,6 +53,18 @@ class PerformanceSurfaceTest(unittest.TestCase):
                 "win_rate": "50.00%",
                 "average_return": "1.25%",
                 "average_max_drawdown": "-3.50%",
+            },
+        )
+        self.assertEqual(
+            view_model["snapshot_health"],
+            {
+                "total_snapshots": "3",
+                "completed_outcomes": "2",
+                "pending_outcomes": "1",
+                "outcome_coverage": "66.67%",
+                "duplicate_snapshots": "1",
+                "last_snapshot_date": "2026-07-03",
+                "last_outcome_evaluation_date": "2026-07-11",
             },
         )
         self.assertEqual(
@@ -89,6 +107,18 @@ class PerformanceSurfaceTest(unittest.TestCase):
     def test_view_model_handles_empty_report(self) -> None:
         view_model = build_performance_view_model(PerformanceReport())
 
+        self.assertEqual(
+            view_model["snapshot_health"],
+            {
+                "total_snapshots": "0",
+                "completed_outcomes": "0",
+                "pending_outcomes": "0",
+                "outcome_coverage": "0.00%",
+                "duplicate_snapshots": "0",
+                "last_snapshot_date": "-",
+                "last_outcome_evaluation_date": "-",
+            },
+        )
         self.assertEqual(view_model["outcome_status_distribution"], "No data")
         self.assertEqual(view_model["signal_type_breakdown"], "No data")
         self.assertIn("Unknown: 0", view_model["confidence_bucket_breakdown"])

@@ -64,6 +64,15 @@ def build_performance_view_model(
             "average_return": _format_percent(report.average_return),
             "average_max_drawdown": _format_percent(report.average_max_drawdown),
         },
+        "snapshot_health": {
+            "total_snapshots": str(report.total_signals),
+            "completed_outcomes": str(report.completed_outcomes),
+            "pending_outcomes": str(report.pending_outcomes),
+            "outcome_coverage": _format_percent(report.outcome_coverage),
+            "duplicate_snapshots": str(report.duplicate_snapshots),
+            "last_snapshot_date": report.last_snapshot_date or "-",
+            "last_outcome_evaluation_date": report.last_outcome_evaluation_date or "-",
+        },
         "global_summary": _global_summary_text(global_report),
         "outcome_status_distribution": _format_distribution(
             report.outcome_status_distribution

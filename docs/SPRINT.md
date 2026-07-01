@@ -8,12 +8,12 @@ Evidence Loop Sprint v1
 
 Close the first measurable EXOS loop:
 
-Signal
+Snapshot
 -> Outcome
 -> Performance Report
 -> Desktop report surface
 
-The sprint should make EXOS able to preserve generated research signals, track their outcomes, and report whether current deterministic outputs are useful before adding new engines.
+The sprint should make EXOS able to preserve generated Daily Research Snapshots, track their outcomes, and report whether current deterministic outputs are useful before adding new engines.
 
 ## Current Baseline
 
@@ -26,22 +26,25 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Outcome SQLite Persistence v1 is implemented.
 - Outcome Evaluation Flow v1 foundation is implemented.
 - Performance Report v1 is implemented.
+- Performance Report Snapshot Health Summary is implemented.
 - EXOS Desktop Performance Surface v0 is implemented.
 - EXOS Desktop Symbol-scoped Performance v1 is implemented.
 - EXOS Desktop Research Surface v1 is implemented.
 - EXOS Desktop Research real analysis/context loading foundation is implemented.
-- EXOS Desktop Signal History tab v0 is implemented.
+- EXOS Desktop Snapshot History tab v0 is implemented.
 - Chart -> Data Source v1 integration foundation is implemented.
 - Chart Data Source v1 integration coverage is implemented.
 - ChartWorkspace app integration coverage is implemented.
 - Canonical Result Model v1 contracts and adapter foundation are implemented.
 - Canonical Result -> Signal Adapter v1 is implemented.
-- EXOS Desktop Manual Signal Creation Flow v1 is implemented.
-- Manual Signal Backfill Service foundation is implemented.
+- EXOS Desktop Manual Snapshot Save Flow v1 is implemented through the existing Signal Ledger compatibility contract.
+- Manual Snapshot Backfill Service foundation is implemented.
 - Manual Evidence Loop Runner foundation is implemented.
 - EXOS Desktop Manual Evidence Loop action is implemented.
+- EXOS Desktop Evidence Loop background worker and crash guard are implemented.
+- Desktop Snapshot terminology is implemented for user-facing save/history/performance surfaces.
 - Analysis Cutoff Policy v1 foundation is implemented.
-- Current full test baseline: 612 tests passing with `py -m unittest discover -s tests`.
+- Current full test baseline: 619 tests passing with `py -m unittest discover -s tests`.
 
 ## Completed Foundation Work
 
@@ -50,39 +53,43 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Backtest, validation, and Backtest Persistence v1 foundations.
 - Data Source v1 public read-only boundary.
 - Context calculators for market, sector, relative strength, volume, and support/resistance.
-- Signal contracts for EXOS-generated signals.
+- Signal Ledger contracts remain the v1 compatibility storage contract for Daily Research Snapshots.
 - Outcome contracts and pure outcome calculation from future OHLCV rows.
 - Standalone Outcome SQLite repository for durable `OutcomeRecord` reads/writes.
-- Deterministic Outcome Evaluation Flow v1 from saved signals to persisted completed outcomes.
+- Deterministic Outcome Evaluation Flow v1 from saved snapshots to persisted completed outcomes.
 - In-memory Signal Ledger repository.
-- SQLite-backed Signal Ledger repository for signals and linked outcomes.
-- Deterministic Performance Report v1 from signal/outcome repositories.
+- SQLite-backed Signal Ledger repository for snapshot-compatible records and linked outcomes.
+- Deterministic Performance Report v1 from snapshot/outcome repositories, including Snapshot Health Summary fields for coverage, pending outcomes, duplicates, and latest dates.
 - Main EXOS Desktop Performance tab.
 - Selected-symbol scoped Performance tab metrics with global reference summary.
 - Main EXOS Desktop Research tab with grouped read-only context cards.
 - Read-only Research tab loading from Data Source v1 rows and Analysis Pipeline v2 canonical Brain output where available.
-- Main EXOS Desktop Signal History tab for saved signals and linked outcomes.
+- Main EXOS Desktop Snapshot History tab for saved snapshots and linked outcomes.
 - Chart Data Source v1 adapter foundation with legacy desktop loader fallback.
 - SQLite-backed Chart Data Source v1 integration coverage for adapter reads, fallback behavior, ordering, values, and read-only guarantees.
 - ChartWorkspace app-level coverage for adapter injection, successful loads, fallback paths, symbol switching, and repeated refreshes.
 - Canonical Result Model v1 typed output contracts.
 - Canonical Result adapter foundation for identity, Brain, prediction, and diagnostics sections.
 - Pure Canonical Result -> Signal adapter for deterministic `SignalRecord` candidates.
-- Explicit Research tab `Save Signal` action through the Canonical Result -> Signal adapter and SQLite Signal Ledger repository.
-- Explicit Manual Signal Backfill Service for missing symbol/date research signals.
+- Explicit Research tab `Save Snapshot` action through the Canonical Result -> Signal adapter and SQLite Signal Ledger repository.
+- Duplicate-safe manual snapshot save by symbol and market date.
+- Explicit Manual Snapshot Backfill Service for missing symbol/date research snapshots.
+- Deterministic Outcome Evaluation Flow v1 for saved snapshots.
 - Explicit Manual Evidence Loop Runner for backfill followed by outcome evaluation.
-- Main EXOS Desktop `Run Evidence Loop` toolbar action with Signal History and Performance refresh.
+- Main EXOS Desktop `Run Evidence Loop` toolbar action with Snapshot History and Performance refresh.
+- Background Qt worker, retained thread/worker references, and defensive crash guard for Evidence Loop completion/error paths.
+- User-facing Snapshot terminology across Research save, History, Performance, and Evidence Loop status surfaces.
 - Deterministic Analysis Cutoff Policy v1 for separating chart latest date from Research analysis cutoff date.
 
 ## Next Prioritized Tasks
 
-1. Performance report with real accumulated signal data
-   - Feed Performance Report v1 from saved signals and evaluated outcomes.
+1. Performance report with real accumulated snapshot data
+   - Feed Performance Report v1 from saved snapshots and evaluated outcomes.
    - Keep global and selected-symbol views useful.
 
 2. Context validation/backtest comparison
    - Compare Brain v1 against Brain v1 plus context layers.
-   - Adopt only context signals that demonstrate measurable improvement.
+   - Adopt only context layers that demonstrate measurable improvement.
 
 ## Definition of Done
 

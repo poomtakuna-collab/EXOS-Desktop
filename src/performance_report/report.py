@@ -35,11 +35,20 @@ class OutcomeRecordRepository(Protocol):
     ) -> tuple[OutcomeRecord, ...]:
         """List saved outcome records."""
 
+    def list_outcomes_for_signal(self, signal_id: str) -> tuple[OutcomeRecord, ...]:
+        """List saved outcome records linked to a signal id."""
+
 
 @dataclass(frozen=True)
 class PerformanceReport:
     total_signals: int = 0
     total_outcomes: int = 0
+    completed_outcomes: int = 0
+    pending_outcomes: int = 0
+    outcome_coverage: float = 0.0
+    duplicate_snapshots: int = 0
+    last_snapshot_date: str = ""
+    last_outcome_evaluation_date: str = ""
     win_rate: float = 0.0
     average_return: float = 0.0
     average_max_drawdown: float = 0.0
@@ -53,6 +62,12 @@ class PerformanceReport:
         return {
             "total_signals": self.total_signals,
             "total_outcomes": self.total_outcomes,
+            "completed_outcomes": self.completed_outcomes,
+            "pending_outcomes": self.pending_outcomes,
+            "outcome_coverage": self.outcome_coverage,
+            "duplicate_snapshots": self.duplicate_snapshots,
+            "last_snapshot_date": self.last_snapshot_date,
+            "last_outcome_evaluation_date": self.last_outcome_evaluation_date,
             "win_rate": self.win_rate,
             "average_return": self.average_return,
             "average_max_drawdown": self.average_max_drawdown,
@@ -86,6 +101,12 @@ def build_performance_report(
     return PerformanceReport(
         total_signals=len(signals),
         total_outcomes=len(outcomes),
+        completed_outcomes=len(outcomes),
+        pending_outcomes=_pending_outcome_count(signals, outcome_repository),
+        outcome_coverage=_outcome_coverage(signals, outcome_repository),
+        duplicate_snapshots=_duplicate_snapshot_count(signals),
+        last_snapshot_date=_last_snapshot_date(signals),
+        last_outcome_evaluation_date=_last_outcome_evaluation_date(outcomes),
         win_rate=_percentage(_winning_outcome_count(outcomes), len(outcomes)),
         average_return=_average(return_values),
         average_max_drawdown=_average(drawdown_values),
@@ -93,6 +114,81 @@ def build_performance_report(
         signal_type_breakdown=_signal_type_breakdown(signals),
         confidence_bucket_breakdown=_confidence_bucket_breakdown(signals),
     )
+
+
+def _pending_outcome_count(
+    signals: tuple[SignalRecord, ...],
+    outcome_repository: OutcomeRecordRepository,
+) -> int:
+    return sum(
+        1
+        for signal in signals
+        if not _linked_outcomes(signal, outcome_repository)
+    )
+
+
+def _outcome_coverage(
+    signals: tuple[SignalRecord, ...],
+    outcome_repository: OutcomeRecordRepository,
+) -> float:
+    completed = sum(
+        1
+        for signal in signals
+        if _linked_outcomes(signal, outcome_repository)
+    )
+    return _percentage(completed, len(signals))
+
+
+def _linked_outcomes(
+    signal: SignalRecord,
+    outcome_repository: OutcomeRecordRepository,
+) -> tuple[OutcomeRecord, ...]:
+    signal_id = str(signal.signal_id or "").strip()
+    if not signal_id:
+        return ()
+    return tuple(outcome_repository.list_outcomes_for_signal(signal_id))
+
+
+def _duplicate_snapshot_count(signals: tuple[SignalRecord, ...]) -> int:
+    counts: dict[tuple[str, str], int] = {}
+    for signal in signals:
+        key = _snapshot_key(signal)
+        if key is None:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+    return sum(count - 1 for count in counts.values() if count > 1)
+
+
+def _snapshot_key(signal: SignalRecord) -> tuple[str, str] | None:
+    symbol = str(signal.symbol or "").strip().upper()
+    market_date = _snapshot_market_date(signal)
+    if not symbol or not market_date:
+        return None
+    return symbol, market_date
+
+
+def _snapshot_market_date(signal: SignalRecord) -> str:
+    snapshot_date = str(signal.snapshot_reference.snapshot_date or "").strip()
+    signal_date = str(signal.signal_date or "").strip()
+    return snapshot_date or signal_date
+
+
+def _last_snapshot_date(signals: tuple[SignalRecord, ...]) -> str:
+    dates = sorted(
+        date
+        for date in (_snapshot_market_date(signal) for signal in signals)
+        if date
+    )
+    return dates[-1] if dates else ""
+
+
+def _last_outcome_evaluation_date(outcomes: tuple[OutcomeRecord, ...]) -> str:
+    dates = sorted(
+        str(outcome.evaluation_date or "").strip()
+        for outcome in outcomes
+        if str(outcome.evaluation_date or "").strip()
+    )
+    return dates[-1] if dates else ""
 
 
 def _winning_outcome_count(outcomes: tuple[OutcomeRecord, ...]) -> int:

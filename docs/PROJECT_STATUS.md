@@ -68,6 +68,8 @@ Outcome Evaluation Flow v1 foundation is implemented.
 
 Performance Report v1 is implemented.
 
+Performance Report Snapshot Health Summary is implemented.
+
 EXOS Desktop Performance Surface v0 is implemented.
 
 EXOS Desktop Symbol-scoped Performance v1 is implemented.
@@ -1366,7 +1368,7 @@ Outcome SQLite Persistence v1 introduced an explicit opt-in SQLite repository fo
 
 Outcome Evaluation Flow v1 introduced deterministic evaluation from saved signals and future OHLCV rows into completed persisted outcomes.
 
-Performance Report v1 introduced deterministic aggregate reporting from signal and outcome repositories.
+Performance Report v1 introduced deterministic aggregate reporting from signal and outcome repositories, now including a read-only Snapshot Health Summary for Desktop.
 
 EXOS Desktop Performance Surface v0 introduced a read-only Performance tab in the main desktop app.
 
@@ -1427,7 +1429,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 618 tests passing
+- 619 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1641,6 +1643,12 @@ The report includes:
 
 - total signals
 - total outcomes
+- completed outcomes
+- pending outcomes
+- outcome coverage
+- duplicate snapshots
+- last snapshot date
+- last outcome evaluation date
 - win rate
 - average return
 - average max drawdown
@@ -1693,6 +1701,14 @@ The Performance tab displays Performance Report v1 output:
 
 - total signals
 - total outcomes
+- Snapshot Health Summary:
+  - total snapshots
+  - completed outcomes
+  - pending outcomes
+  - outcome coverage
+  - duplicate snapshots
+  - last snapshot date
+  - last outcome evaluation date
 - win rate
 - average return
 - average max drawdown
@@ -2072,7 +2088,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 618 tests
+- 619 tests
 
 ## History
 

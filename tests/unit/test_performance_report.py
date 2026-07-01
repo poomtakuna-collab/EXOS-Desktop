@@ -30,6 +30,12 @@ class PerformanceReportTest(unittest.TestCase):
 
         self.assertEqual(report.total_signals, 0)
         self.assertEqual(report.total_outcomes, 0)
+        self.assertEqual(report.completed_outcomes, 0)
+        self.assertEqual(report.pending_outcomes, 0)
+        self.assertEqual(report.outcome_coverage, 0.0)
+        self.assertEqual(report.duplicate_snapshots, 0)
+        self.assertEqual(report.last_snapshot_date, "")
+        self.assertEqual(report.last_outcome_evaluation_date, "")
         self.assertEqual(report.win_rate, 0.0)
         self.assertEqual(report.average_return, 0.0)
         self.assertEqual(report.average_max_drawdown, 0.0)
@@ -70,6 +76,64 @@ class PerformanceReportTest(unittest.TestCase):
         self.assertEqual(report.win_rate, 33.3333)
         self.assertEqual(report.average_return, 0.6667)
         self.assertEqual(report.average_max_drawdown, -3.0)
+
+    def test_builds_snapshot_health_summary(self) -> None:
+        signal_repository = InMemorySignalLedgerRepository()
+        outcome_repository = InMemoryOutcomeRepository()
+        signal_repository.save_signal(
+            _signal(
+                "signal-1",
+                SignalType.SETUP,
+                75.0,
+                snapshot_date="2026-07-01",
+            )
+        )
+        signal_repository.save_signal(
+            _signal(
+                "signal-2",
+                SignalType.BREAKOUT,
+                85.0,
+                snapshot_date="2026-07-01",
+            )
+        )
+        signal_repository.save_signal(
+            _signal(
+                "signal-3",
+                SignalType.SETUP,
+                None,
+                snapshot_date="2026-07-03",
+            )
+        )
+        outcome_repository.save_outcome(
+            "signal-1",
+            _outcome(
+                OutcomeStatus.POSITIVE,
+                5.0,
+                -2.0,
+                evaluation_date="2026-07-11",
+            ),
+            outcome_id="outcome-1",
+        )
+        outcome_repository.save_outcome(
+            "signal-1",
+            _outcome(
+                OutcomeStatus.TARGET_HIT,
+                7.0,
+                -1.0,
+                evaluation_date="2026-07-12",
+            ),
+            outcome_id="outcome-2",
+        )
+
+        report = build_performance_report(signal_repository, outcome_repository)
+
+        self.assertEqual(report.total_signals, 3)
+        self.assertEqual(report.completed_outcomes, 2)
+        self.assertEqual(report.pending_outcomes, 2)
+        self.assertEqual(report.outcome_coverage, 33.3333)
+        self.assertEqual(report.duplicate_snapshots, 1)
+        self.assertEqual(report.last_snapshot_date, "2026-07-03")
+        self.assertEqual(report.last_outcome_evaluation_date, "2026-07-12")
 
     def test_builds_symbol_scoped_performance_metrics(self) -> None:
         signal_repository = InMemorySignalLedgerRepository()
@@ -220,6 +284,12 @@ class PerformanceReportTest(unittest.TestCase):
         report = PerformanceReport(
             total_signals=1,
             total_outcomes=1,
+            completed_outcomes=1,
+            pending_outcomes=0,
+            outcome_coverage=100.0,
+            duplicate_snapshots=0,
+            last_snapshot_date="2026-07-01",
+            last_outcome_evaluation_date="2026-07-11",
             win_rate=100.0,
             average_return=5.0,
             average_max_drawdown=-2.0,
@@ -235,6 +305,12 @@ class PerformanceReportTest(unittest.TestCase):
             {
                 "total_signals",
                 "total_outcomes",
+                "completed_outcomes",
+                "pending_outcomes",
+                "outcome_coverage",
+                "duplicate_snapshots",
+                "last_snapshot_date",
+                "last_outcome_evaluation_date",
                 "win_rate",
                 "average_return",
                 "average_max_drawdown",
@@ -303,14 +379,16 @@ def _signal(
     confidence: float | None,
     *,
     symbol: str = "AAPL",
+    signal_date: str = "2026-07-01",
+    snapshot_date: str = "2026-07-01",
 ) -> SignalRecord:
     return SignalRecord(
         signal_id=signal_id,
         symbol=symbol,
-        signal_date="2026-07-01",
+        signal_date=signal_date,
         snapshot_reference=SignalSnapshotReference(
             snapshot_id=f"snapshot-{signal_id}",
-            snapshot_date="2026-07-01",
+            snapshot_date=snapshot_date,
             timeframe="1D",
             source="fixture",
         ),
@@ -325,11 +403,12 @@ def _outcome(
     max_drawdown_pct: float | None,
     *,
     symbol: str = "AAPL",
+    evaluation_date: str = "2026-07-11",
 ) -> OutcomeRecord:
     return OutcomeRecord(
         symbol=symbol,
         signal_date="2026-07-01",
-        evaluation_date="2026-07-11",
+        evaluation_date=evaluation_date,
         horizon_days=10,
         entry_price=100.0,
         close_price=100.0 + return_pct if return_pct is not None else None,
