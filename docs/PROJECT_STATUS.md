@@ -62,6 +62,10 @@ Outcome Calculator v1 is implemented.
 
 Signal Ledger Persistence v1 foundation and SQLite repository are implemented.
 
+Outcome SQLite Persistence v1 is implemented.
+
+Performance Report v1 is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1117,6 +1121,10 @@ Signal Ledger v1 introduced immutable storage-neutral signal contracts for recor
 
 Outcome Tracking v1 introduced immutable storage-neutral outcome contracts plus a pure deterministic calculator for deriving outcome records from signal metadata and future OHLCV rows.
 
+Outcome SQLite Persistence v1 introduced an explicit opt-in SQLite repository for standalone `OutcomeRecord` storage and direct lookup/list reads.
+
+Performance Report v1 introduced deterministic aggregate reporting from signal and outcome repositories.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1142,7 +1150,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 489 tests passing
+- 521 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1210,7 +1218,7 @@ It is deterministic and storage-neutral.
 
 It does not implement outcome calculators yet.
 
-It does not implement persistence yet.
+The foundation contracts themselves remain storage-neutral.
 
 It does not modify frozen Brain v1 contracts.
 
@@ -1270,6 +1278,99 @@ It does not call broker or live trading paths.
 Current tests:
 
 - `tests/unit/test_outcome_calculator.py`
+
+### Outcome SQLite Persistence v1
+
+Status: Implemented.
+
+Outcome SQLite Persistence v1 introduces a standalone repository boundary for durable `OutcomeRecord` storage:
+
+- `OutcomeRepository`
+- `InMemoryOutcomeRepository`
+- `SQLiteOutcomeRepository`
+- `initialize_outcome_schema`
+
+The repository interface includes:
+
+- `save_outcome`
+- `load_outcome`
+- `list_outcomes`
+- `list_outcomes_for_signal`
+
+The SQLite implementation stores outcomes in `outcome_records`.
+
+It supports direct outcome lookup by repository-owned `outcome_id`, deterministic listing by insertion order, deterministic listing per signal, optional symbol filtering, and persistence across repository instances that share the same SQLite database.
+
+`save_outcome(signal_id, outcome)` remains compatible with existing outcome-save call shape, with optional `outcome_id` support for direct lookup.
+
+The SQLite implementation stores notes as deterministic JSON strings and round-trips known `OutcomeStatus` values or custom status strings without validation side effects.
+
+It is not wired into Analysis Pipeline, GUI, Signal Ledger, Canonical Result Model, Brain v1, or runtime creation flows.
+
+It does not modify frozen Brain v1 contracts.
+
+It writes only through explicit repository calls supplied with a SQLite connection.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_outcome_repository.py`
+- `tests/unit/test_outcome_sqlite_repository.py`
+
+### Performance Report v1
+
+Status: Implemented.
+
+Performance Report v1 introduces `src/performance_report` with deterministic aggregate reporting over existing signal and outcome repositories:
+
+- `PerformanceReport`
+- `build_performance_report`
+
+The report includes:
+
+- total signals
+- total outcomes
+- win rate
+- average return
+- average max drawdown
+- outcome status distribution
+- signal type breakdown
+- confidence bucket breakdown
+
+The report supports JSON-safe `to_dict()` output.
+
+It gracefully handles empty repositories with zero totals, zero averages, empty observed distributions, and stable zero-filled confidence buckets.
+
+Win rate is calculated over stored outcomes. Numeric positive returns are treated as wins; if return percentage is missing, positive or target-hit outcome status is used as a fallback.
+
+Average return and average max drawdown are calculated only from outcomes that provide those numeric values.
+
+Distributions are deterministic and stable.
+
+It is not wired into Analysis Pipeline, GUI, Signal Ledger, Outcome Tracking persistence, Canonical Result Model, Brain v1, or runtime creation flows.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+It does not implement portfolio analysis.
+
+Current tests:
+
+- `tests/unit/test_performance_report.py`
 
 ### Signal Ledger Persistence v1 Foundation
 
@@ -1350,7 +1451,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 489 tests
+- 521 tests
 
 ## History
 
