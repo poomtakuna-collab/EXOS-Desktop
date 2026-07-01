@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import json
 import sqlite3
 import tempfile
@@ -16,7 +17,7 @@ from src.signal_ledger.sqlite_repository import (
 
 class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
     def test_schema_initialization_creates_tables(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             initialize_signal_ledger_schema(connection)
 
             table_names = {
@@ -34,7 +35,7 @@ class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
             self.assertIn("signal_ledger_outcomes", table_names)
 
     def test_save_and_load_signal(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
             signal = _signal(signal_id="signal-1", symbol="AAPL")
@@ -46,7 +47,7 @@ class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
             self.assertEqual(loaded, signal)
 
     def test_list_signals_preserves_insert_order_and_filters_by_symbol(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
             first = _signal(signal_id="signal-1", symbol="AAPL")
@@ -61,7 +62,7 @@ class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
             self.assertEqual(repository.list_signals(symbol="AAPL"), (first, third))
 
     def test_save_and_list_outcomes_for_signal(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
             first = _outcome("AAPL", "2026-07-11", 5.0)
@@ -105,21 +106,21 @@ class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
                 second_connection.close()
 
     def test_missing_signal_lookup_returns_none(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
 
             self.assertIsNone(repository.load_signal("missing"))
 
     def test_missing_signal_outcomes_are_empty(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
 
             self.assertEqual(repository.list_outcomes_for_signal("missing"), ())
 
     def test_save_signal_replaces_existing_signal_id(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
             original = _signal(signal_id="signal-1", symbol="AAPL")
@@ -132,7 +133,7 @@ class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
             self.assertEqual(repository.list_signals(), (updated,))
 
     def test_save_signal_requires_signal_id(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
 
@@ -140,7 +141,7 @@ class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
                 repository.save_signal(SignalRecord())
 
     def test_save_outcome_requires_signal_id(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
 
@@ -148,7 +149,7 @@ class SQLiteSignalLedgerRepositoryTest(unittest.TestCase):
                 repository.save_outcome("", _outcome("AAPL", "2026-07-11", 5.0))
 
     def test_nested_fields_are_json_serialized_safely(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteSignalLedgerRepository(connection)
             repository.initialize_schema()
             signal = _signal(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import unittest
 
@@ -16,7 +17,7 @@ from src.backtest import (
 
 class BacktestPersistenceSchemaTest(unittest.TestCase):
     def test_schema_contains_only_backtest_owned_persistence_tables(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             _execute_schema(connection)
 
             self.assertEqual(
@@ -29,7 +30,7 @@ class BacktestPersistenceSchemaTest(unittest.TestCase):
             )
 
     def test_run_table_columns_match_contract_fields(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             _execute_schema(connection)
 
             self.assertEqual(
@@ -38,7 +39,7 @@ class BacktestPersistenceSchemaTest(unittest.TestCase):
             )
 
     def test_evaluation_table_columns_match_contract_fields(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             _execute_schema(connection)
 
             self.assertEqual(
@@ -47,7 +48,7 @@ class BacktestPersistenceSchemaTest(unittest.TestCase):
             )
 
     def test_trade_result_table_columns_match_contract_fields(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             _execute_schema(connection)
 
             self.assertEqual(
@@ -75,7 +76,7 @@ class BacktestPersistenceSchemaTest(unittest.TestCase):
         self.assertNotIn("SELECT ", sql_text)
 
     def test_schema_is_idempotent_when_executed_directly(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             _execute_schema(connection)
             first_schema = _schema_sql(connection)
 

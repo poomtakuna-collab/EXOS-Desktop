@@ -34,7 +34,7 @@ from src.data_source import (
 
 
 PLACEHOLDER_TEXT = "-"
-SIGNAL_SUMMARY_PLACEHOLDER = "Signal summary is not available in v1."
+SIGNAL_SUMMARY_PLACEHOLDER = "Snapshot summary is not available in v1."
 DEFAULT_RESEARCH_DATABASE_PATH = Path("database") / "exos.db"
 DEFAULT_RESEARCH_TIMEFRAME = "1D"
 
@@ -161,7 +161,7 @@ def build_research_view_model(
         ),
         _card(
             "signal_summary",
-            "Signal Summary",
+            "Snapshot Summary",
             (
                 _item("Status", SIGNAL_SUMMARY_PLACEHOLDER),
                 _item("Confidence", None),

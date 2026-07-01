@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 import sys
 import unittest
 from datetime import date, timedelta
@@ -9,13 +10,13 @@ from src.data_source import SQLiteDataSource
 
 class SQLiteDataSourceAnalysisServiceIntegrationTest(unittest.TestCase):
     def test_sqlite_data_source_to_analysis_service_to_report(self) -> None:
-        conn = sqlite3.connect(":memory:")
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _market_rows() + _future_rows())
-        service = AnalysisService(SQLiteDataSource(conn))
+        with closing(sqlite3.connect(":memory:")) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _market_rows() + _future_rows())
+            service = AnalysisService(SQLiteDataSource(conn))
 
-        first = service.analyze_symbol_with_report("AAPL")
-        second = service.analyze_symbol_with_report("AAPL")
+            first = service.analyze_symbol_with_report("AAPL")
+            second = service.analyze_symbol_with_report("AAPL")
 
         self.assertIsInstance(first, AnalysisServiceResult)
         self.assertNotEqual(first.analysis_result.snapshot, {})
@@ -38,13 +39,13 @@ class SQLiteDataSourceAnalysisServiceIntegrationTest(unittest.TestCase):
         self.assertNotIn("HOLD", output_values)
 
     def test_sqlite_integration_does_not_import_ai_network_or_broker_modules(self) -> None:
-        conn = sqlite3.connect(":memory:")
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _market_rows() + _future_rows())
-        service = AnalysisService(SQLiteDataSource(conn))
-        before = set(sys.modules)
+        with closing(sqlite3.connect(":memory:")) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _market_rows() + _future_rows())
+            service = AnalysisService(SQLiteDataSource(conn))
+            before = set(sys.modules)
 
-        service.analyze_symbol_with_report("AAPL")
+            service.analyze_symbol_with_report("AAPL")
 
         imported = set(sys.modules) - before
         imported_roots = {name.split(".")[0] for name in imported}

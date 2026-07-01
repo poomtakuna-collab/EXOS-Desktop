@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import unittest
 
@@ -82,7 +83,7 @@ class BacktestPersistenceOrchestratorTest(unittest.TestCase):
         self.assertEqual(record.outcome_label, trade.outcome_label)
 
     def test_persists_run_evaluations_and_trade_results(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             backtest_run = _backtest_run()
             validation_report = build_validation_report(backtest_run)
 
@@ -112,7 +113,7 @@ class BacktestPersistenceOrchestratorTest(unittest.TestCase):
             )
 
     def test_empty_run_persists_only_run_record(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             backtest_run = run_backtest_v1([])
             validation_report = build_validation_report(backtest_run)
 
@@ -132,7 +133,7 @@ class BacktestPersistenceOrchestratorTest(unittest.TestCase):
             )
 
     def test_persistence_summary_shape_is_stable(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             summary = persist_backtest_run_v1(
                 connection,
                 run_backtest_v1([]),
@@ -152,7 +153,7 @@ class BacktestPersistenceOrchestratorTest(unittest.TestCase):
             )
 
     def test_persistence_summary_is_deterministic(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             summary = persist_backtest_run_v1(
                 connection,
                 run_backtest_v1([]),

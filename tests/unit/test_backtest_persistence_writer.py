@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import unittest
 
@@ -33,7 +34,7 @@ class BacktestPersistenceWriterTest(unittest.TestCase):
         )
 
     def test_writes_backtest_run_record(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             record = _run_record()
 
             write_backtest_run_record(connection, record)
@@ -45,7 +46,7 @@ class BacktestPersistenceWriterTest(unittest.TestCase):
             self.assertEqual(row["profit_factor"], 2.5)
 
     def test_writes_backtest_evaluation_record(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             write_backtest_run_record(connection, _run_record())
             record = _evaluation_record()
 
@@ -63,7 +64,7 @@ class BacktestPersistenceWriterTest(unittest.TestCase):
             self.assertEqual(row["has_future_rows"], 1)
 
     def test_writes_backtest_trade_result_record(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             write_backtest_run_record(connection, _run_record())
             write_backtest_evaluation_record(connection, _evaluation_record())
             record = _trade_result_record()
@@ -82,7 +83,7 @@ class BacktestPersistenceWriterTest(unittest.TestCase):
             self.assertEqual(row["outcome_label"], "Win")
 
     def test_duplicate_primary_key_raises_sqlite_integrity_error(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             record = _run_record()
             write_backtest_run_record(connection, record)
 
@@ -90,7 +91,7 @@ class BacktestPersistenceWriterTest(unittest.TestCase):
                 write_backtest_run_record(connection, record)
 
     def test_trade_result_requires_existing_evaluation_when_foreign_keys_are_on(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             write_backtest_run_record(connection, _run_record())
 
             with self.assertRaises(sqlite3.IntegrityError):

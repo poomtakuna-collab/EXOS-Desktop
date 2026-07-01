@@ -22,6 +22,13 @@ class SignalRepository(Protocol):
     def load_signal(self, signal_id: str) -> SignalRecord | None:
         pass
 
+    def list_signals(
+        self,
+        *,
+        symbol: str | None = None,
+    ) -> tuple[SignalRecord, ...]:
+        pass
+
 
 @dataclass(frozen=True)
 class ManualSignalSaveResult:
@@ -61,7 +68,7 @@ def save_manual_signal_candidate(
     except sqlite3.Error as error:
         return ManualSignalSaveResult(
             status="error",
-            message=f"Unable to save signal: {error}",
+            message=f"Unable to save snapshot: {error}",
         )
 
     try:
@@ -71,7 +78,7 @@ def save_manual_signal_candidate(
     except (sqlite3.Error, ValueError) as error:
         return ManualSignalSaveResult(
             status="error",
-            message=f"Unable to save signal: {error}",
+            message=f"Unable to save snapshot: {error}",
         )
     finally:
         connection.close()
@@ -82,25 +89,95 @@ def _save_with_repository(
     signal: SignalRecord,
 ) -> ManualSignalSaveResult:
     try:
+        existing_for_date = _existing_signal_for_candidate_market_date(repository, signal)
+        if existing_for_date is not None:
+            return ManualSignalSaveResult(
+                status="duplicate",
+                message=f"Snapshot already exists for {signal.symbol} on {_market_date(existing_for_date)}.",
+                signal=existing_for_date,
+            )
         existing = repository.load_signal(signal.signal_id)
         if existing is not None:
             return ManualSignalSaveResult(
                 status="duplicate",
-                message=f"Signal already saved: {signal.signal_id}",
+                message=f"Snapshot already saved: {signal.signal_id}",
                 signal=existing,
             )
         saved_signal = repository.save_signal(signal)
     except (RuntimeError, ValueError, sqlite3.Error) as error:
         return ManualSignalSaveResult(
             status="error",
-            message=f"Unable to save signal: {error}",
+            message=f"Unable to save snapshot: {error}",
         )
 
     return ManualSignalSaveResult(
         status="saved",
-        message=f"Signal saved: {saved_signal.signal_id}",
+        message=f"Snapshot saved: {saved_signal.signal_id}",
         signal=saved_signal,
     )
+
+
+def signal_exists_for_market_date(
+    repository: SignalRepository,
+    *,
+    symbol: str,
+    market_date: str,
+) -> SignalRecord | None:
+    normalized_symbol = str(symbol or "").strip().upper()
+    safe_market_date = str(market_date or "").strip()
+    if not normalized_symbol or not safe_market_date:
+        return None
+    for existing in repository.list_signals(symbol=normalized_symbol):
+        if _matches_market_date(existing, normalized_symbol, safe_market_date):
+            return existing
+    return None
+
+
+def _existing_signal_for_candidate_market_date(
+    repository: SignalRepository,
+    signal: SignalRecord,
+) -> SignalRecord | None:
+    normalized_symbol = str(signal.symbol or "").strip().upper()
+    if not normalized_symbol:
+        return None
+    candidate_dates = _market_dates(signal)
+    if not candidate_dates:
+        return None
+    for existing in repository.list_signals(symbol=normalized_symbol):
+        if str(existing.symbol or "").strip().upper() != normalized_symbol:
+            continue
+        if candidate_dates.intersection(_market_dates(existing)):
+            return existing
+    return None
+
+
+def _matches_market_date(
+    signal: SignalRecord,
+    symbol: str,
+    market_date: str,
+) -> bool:
+    if str(signal.symbol or "").strip().upper() != symbol:
+        return False
+    dates = {
+        str(signal.signal_date or "").strip(),
+        str(signal.snapshot_reference.snapshot_date or "").strip(),
+    }
+    return market_date in dates
+
+
+def _market_dates(signal: SignalRecord) -> set[str]:
+    return {
+        value
+        for value in (
+            str(signal.signal_date or "").strip(),
+            str(signal.snapshot_reference.snapshot_date or "").strip(),
+        )
+        if value
+    }
+
+
+def _market_date(signal: SignalRecord) -> str:
+    return str(signal.signal_date or signal.snapshot_reference.snapshot_date or "").strip()
 
 
 def _with_signal_id(signal: SignalRecord) -> SignalRecord:

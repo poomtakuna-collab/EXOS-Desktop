@@ -82,7 +82,7 @@ class PerformanceSurfaceTest(unittest.TestCase):
         self.assertEqual(view_model["scope"], "Selected Symbol: AAPL")
         self.assertEqual(
             view_model["global_summary"],
-            "Global: 3 signals, 2 outcomes, 50.00% win rate",
+            "Global: 3 snapshots, 2 outcomes, 50.00% win rate",
         )
         self.assertEqual(view_model["status"], "Read-only performance report for AAPL.")
 
@@ -94,7 +94,7 @@ class PerformanceSurfaceTest(unittest.TestCase):
         self.assertIn("Unknown: 0", view_model["confidence_bucket_breakdown"])
         self.assertEqual(
             view_model["status"],
-            "No saved signal or outcome records found.",
+            "No saved snapshot or outcome records found.",
         )
 
     def test_view_model_handles_empty_selected_symbol_report(self) -> None:
@@ -107,7 +107,7 @@ class PerformanceSurfaceTest(unittest.TestCase):
         self.assertEqual(view_model["scope"], "Selected Symbol: MSFT")
         self.assertEqual(
             view_model["status"],
-            "No saved signal or outcome records found for MSFT.",
+            "No saved snapshot or outcome records found for MSFT.",
         )
 
     def test_missing_database_path_returns_empty_report_without_creating_file(self) -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import sys
 import unittest
@@ -9,7 +10,7 @@ from src.backtest.data import SQLiteOutcomeLoader
 
 class SQLiteOutcomeLoaderTest(unittest.TestCase):
     def test_load_outcome_by_snapshot_id_reads_existing_record(self) -> None:
-        with _outcome_connection() as connection:
+        with closing(_outcome_connection()) as connection:
             loader = SQLiteOutcomeLoader(connection)
 
             row = loader.load_outcome("snapshot-b")
@@ -19,7 +20,7 @@ class SQLiteOutcomeLoaderTest(unittest.TestCase):
             self.assertEqual(row["outcome_id"], "outcome-b")
 
     def test_load_outcomes_returns_matching_snapshot_ids_only(self) -> None:
-        with _outcome_connection() as connection:
+        with closing(_outcome_connection()) as connection:
             loader = SQLiteOutcomeLoader(connection)
 
             rows = loader.load_outcomes(["snapshot-c", "snapshot-a"])
@@ -30,13 +31,13 @@ class SQLiteOutcomeLoaderTest(unittest.TestCase):
             self.assertNotIn("snapshot-b", rows)
 
     def test_empty_snapshot_id_list_returns_empty_dict_without_table_access(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             loader = SQLiteOutcomeLoader(connection)
 
             self.assertEqual(loader.load_outcomes([]), {})
 
     def test_ordering_is_stable(self) -> None:
-        with _outcome_connection() as connection:
+        with closing(_outcome_connection()) as connection:
             loader = SQLiteOutcomeLoader(connection)
 
             rows = loader.load_outcomes(["snapshot-c", "snapshot-a", "snapshot-b"])
@@ -44,7 +45,7 @@ class SQLiteOutcomeLoaderTest(unittest.TestCase):
             self.assertEqual(list(rows), ["snapshot-a", "snapshot-b", "snapshot-c"])
 
     def test_duplicate_snapshot_id_uses_first_outcome_by_outcome_id(self) -> None:
-        with _outcome_connection() as connection:
+        with closing(_outcome_connection()) as connection:
             connection.execute(
                 """
                 INSERT INTO outcomes (
@@ -66,14 +67,14 @@ class SQLiteOutcomeLoaderTest(unittest.TestCase):
             self.assertEqual(rows["snapshot-a"]["outcome_id"], "outcome-a")
 
     def test_missing_outcomes_table_fails_clearly(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             loader = SQLiteOutcomeLoader(connection)
 
             with self.assertRaisesRegex(RuntimeError, "outcomes table is required"):
                 loader.load_outcomes(["snapshot-a"])
 
     def test_loader_does_not_write_to_database(self) -> None:
-        with _outcome_connection() as connection:
+        with closing(_outcome_connection()) as connection:
             loader = SQLiteOutcomeLoader(connection)
             changes_before = connection.total_changes
             schema_before = _schema_sql(connection)
@@ -86,7 +87,7 @@ class SQLiteOutcomeLoaderTest(unittest.TestCase):
 
     def test_loader_does_not_import_live_data_ai_network_or_broker_modules(self) -> None:
         before_modules = set(sys.modules)
-        with _outcome_connection() as connection:
+        with closing(_outcome_connection()) as connection:
             loader = SQLiteOutcomeLoader(connection)
             loader.load_outcomes(["snapshot-a"])
 

@@ -27,7 +27,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
         self.assertEqual(view_model["rows"], ())
         self.assertEqual(
             view_model["status"],
-            "Select a dashboard symbol to view saved signal history.",
+            "Select a dashboard symbol to view saved snapshot history.",
         )
 
     def test_missing_database_returns_empty_selected_symbol_without_creating_file(self) -> None:
@@ -42,7 +42,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
             self.assertFalse(db_path.exists())
             self.assertEqual(view_model["selected_symbol"], "AAPL")
             self.assertEqual(view_model["rows"], ())
-            self.assertEqual(view_model["status"], "No saved signals found for AAPL.")
+            self.assertEqual(view_model["status"], "No saved snapshots found for AAPL.")
 
     def test_database_without_signal_ledger_tables_returns_empty_state(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -60,7 +60,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
             )
 
             self.assertEqual(view_model["rows"], ())
-            self.assertEqual(view_model["status"], "No saved signals found for MSFT.")
+            self.assertEqual(view_model["status"], "No saved snapshots found for MSFT.")
 
     def test_loads_selected_symbol_signals_and_linked_outcomes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -93,7 +93,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
             )
 
             self.assertEqual(view_model["selected_symbol"], "AAPL")
-            self.assertEqual(view_model["status"], "Read-only signal history for AAPL.")
+            self.assertEqual(view_model["status"], "Read-only snapshot history for AAPL.")
             self.assertEqual(len(view_model["rows"]), 2)
             first_row = view_model["rows"][0]
             second_row = view_model["rows"][1]

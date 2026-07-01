@@ -1,4 +1,5 @@
 import ast
+from contextlib import closing
 import inspect
 import sqlite3
 import sys
@@ -16,12 +17,12 @@ from src.data_source import (
 
 class SQLiteDataSourceTest(unittest.TestCase):
     def test_loads_ohlcv_rows_in_deterministic_order(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows())
-        source = SQLiteDataSource(conn)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows())
+            source = SQLiteDataSource(conn)
 
-        result = source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
+            result = source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
 
         self.assertIsInstance(result, MarketDataResult)
         self.assertEqual(
@@ -32,46 +33,46 @@ class SQLiteDataSourceTest(unittest.TestCase):
         self.assertTrue(all(row["timeframe"] == "1D" for row in result.rows))
 
     def test_limited_load_returns_latest_rows_in_ascending_order(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows())
-        source = SQLiteDataSource(conn)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows())
+            source = SQLiteDataSource(conn)
 
-        result = source.load_ohlcv(MarketDataRequest(symbol="AAPL", limit=2))
+            result = source.load_ohlcv(MarketDataRequest(symbol="AAPL", limit=2))
 
         self.assertEqual([row["date"] for row in result.rows], ["2026-01-03", "2026-01-04"])
         self.assertEqual([row["close"] for row in result.rows], [103.0, 104.0])
 
     def test_filters_by_symbol_start_end_and_limit(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows())
-        source = SQLiteDataSource(conn)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows())
+            source = SQLiteDataSource(conn)
 
-        result = source.load_ohlcv(
-            MarketDataRequest(
-                symbol="AAPL",
-                start_date="2026-01-02",
-                end_date="2026-01-04",
-                limit=2,
+            result = source.load_ohlcv(
+                MarketDataRequest(
+                    symbol="AAPL",
+                    start_date="2026-01-02",
+                    end_date="2026-01-04",
+                    limit=2,
+                )
             )
-        )
 
         self.assertEqual([row["date"] for row in result.rows], ["2026-01-03", "2026-01-04"])
 
     def test_unlimited_date_range_load_remains_deterministic(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows())
-        source = SQLiteDataSource(conn)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows())
+            source = SQLiteDataSource(conn)
 
-        result = source.load_ohlcv(
-            MarketDataRequest(
-                symbol="AAPL",
-                start_date="2026-01-02",
-                end_date="2026-01-04",
+            result = source.load_ohlcv(
+                MarketDataRequest(
+                    symbol="AAPL",
+                    start_date="2026-01-02",
+                    end_date="2026-01-04",
+                )
             )
-        )
 
         self.assertEqual(
             [row["date"] for row in result.rows],
@@ -79,78 +80,79 @@ class SQLiteDataSourceTest(unittest.TestCase):
         )
 
     def test_future_rows_use_existing_backtest_loader_behavior(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn, include_role=False)
-        _insert_rows(conn, _rows(include_role=False), include_role=False)
-        source = SQLiteDataSource(conn)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn, include_role=False)
+            _insert_rows(conn, _rows(include_role=False), include_role=False)
+            source = SQLiteDataSource(conn)
 
-        result = source.load_future_rows(
-            FutureRowsRequest(
-                symbol="AAPL",
-                snapshot_date="2026-01-02",
-                horizon_days=2,
+            result = source.load_future_rows(
+                FutureRowsRequest(
+                    symbol="AAPL",
+                    snapshot_date="2026-01-02",
+                    horizon_days=2,
+                )
             )
-        )
 
         self.assertIsInstance(result, FutureRowsResult)
         self.assertEqual([row["date"] for row in result.rows], ["2026-01-03", "2026-01-04"])
 
     def test_future_rows_can_use_marked_future_fixtures(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows() + _future_rows())
-        source = SQLiteDataSource(conn)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows() + _future_rows())
+            source = SQLiteDataSource(conn)
 
-        market_result = source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
-        future_result = source.load_future_rows(
-            FutureRowsRequest(
-                symbol="AAPL",
-                snapshot_date=market_result.rows[-1]["date"],
-                horizon_days=2,
+            market_result = source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
+            future_result = source.load_future_rows(
+                FutureRowsRequest(
+                    symbol="AAPL",
+                    snapshot_date=market_result.rows[-1]["date"],
+                    horizon_days=2,
+                )
             )
-        )
 
         self.assertEqual(market_result.rows[-1]["date"], "2026-01-04")
         self.assertEqual([row["date"] for row in future_result.rows], ["2026-01-05", "2026-01-06"])
 
     def test_empty_result_is_deterministic(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows())
-        source = SQLiteDataSource(conn)
-        request = MarketDataRequest(symbol="NVDA")
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows())
+            source = SQLiteDataSource(conn)
+            request = MarketDataRequest(symbol="NVDA")
 
-        first = source.load_ohlcv(request)
-        second = source.load_ohlcv(request)
+            first = source.load_ohlcv(request)
+            second = source.load_ohlcv(request)
 
         self.assertEqual(first.rows, [])
         self.assertEqual(second.rows, [])
         self.assertEqual(first, second)
 
     def test_missing_table_failure_is_clear(self) -> None:
-        source = SQLiteDataSource(_connection())
+        with closing(_connection()) as conn:
+            source = SQLiteDataSource(conn)
 
-        with self.assertRaisesRegex(RuntimeError, "ohlcv_daily"):
-            source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
-        with self.assertRaisesRegex(RuntimeError, "ohlcv_daily"):
-            source.load_future_rows(
-                FutureRowsRequest(symbol="AAPL", snapshot_date="2026-01-01")
-            )
+            with self.assertRaisesRegex(RuntimeError, "ohlcv_daily"):
+                source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
+            with self.assertRaisesRegex(RuntimeError, "ohlcv_daily"):
+                source.load_future_rows(
+                    FutureRowsRequest(symbol="AAPL", snapshot_date="2026-01-01")
+                )
 
     def test_source_is_read_only(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows())
-        before = _table_rows(conn)
-        source = SQLiteDataSource(conn)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows())
+            before = _table_rows(conn)
+            source = SQLiteDataSource(conn)
 
-        result = source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
-        result.rows[0]["close"] = 999.0
-        source.load_future_rows(
-            FutureRowsRequest(symbol="AAPL", snapshot_date="2026-01-02")
-        )
+            result = source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
+            result.rows[0]["close"] = 999.0
+            source.load_future_rows(
+                FutureRowsRequest(symbol="AAPL", snapshot_date="2026-01-02")
+            )
 
-        self.assertEqual(_table_rows(conn), before)
+            self.assertEqual(_table_rows(conn), before)
         self.assertFalse(hasattr(source, "save"))
         self.assertFalse(hasattr(source, "write"))
         self.assertFalse(hasattr(source, "insert"))
@@ -169,16 +171,16 @@ class SQLiteDataSourceTest(unittest.TestCase):
         self.assertTrue(blocked_module_roots.isdisjoint(imported_roots))
 
     def test_running_sqlite_source_does_not_load_ai_network_or_broker_modules(self) -> None:
-        conn = _connection()
-        _create_ohlcv_daily(conn)
-        _insert_rows(conn, _rows())
-        source = SQLiteDataSource(conn)
-        before = set(sys.modules)
+        with closing(_connection()) as conn:
+            _create_ohlcv_daily(conn)
+            _insert_rows(conn, _rows())
+            source = SQLiteDataSource(conn)
+            before = set(sys.modules)
 
-        source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
-        source.load_future_rows(
-            FutureRowsRequest(symbol="AAPL", snapshot_date="2026-01-02")
-        )
+            source.load_ohlcv(MarketDataRequest(symbol="AAPL"))
+            source.load_future_rows(
+                FutureRowsRequest(symbol="AAPL", snapshot_date="2026-01-02")
+            )
 
         imported = set(sys.modules) - before
         imported_roots = {name.split(".")[0] for name in imported}

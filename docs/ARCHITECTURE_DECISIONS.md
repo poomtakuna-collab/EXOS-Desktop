@@ -176,3 +176,29 @@ Portfolio Engine must not be wired into the default pipeline.
 Portfolio Engine must not become a dependency of Strategy, Backtest, Analysis Pipeline, Data Source, or Context Engine.
 
 Portfolio / Risk Evaluation may be reconsidered only after real EXOS usage proves that portfolio-level workflows are needed.
+
+## ADR-009: SignalRecord as Daily Research Snapshot in v1
+
+Status: Accepted.
+
+Decision:
+
+In EXOS v1, the current `SignalRecord` should be understood conceptually as a Daily Research Snapshot record.
+
+The existing class name, repository contracts, and database schema remain unchanged for compatibility.
+
+Reason:
+
+- Brain v1 produces deterministic research snapshots and structured analysis context, not trading decisions.
+- Current Desktop Research and manual save flows persist these deterministic research outputs through the Signal Ledger.
+- The v1 Signal Ledger name and `SignalRecord` contract are already integrated with Outcome Tracking, Performance reporting, Signal History, and Evidence Loop workflows.
+- Renaming the contract or schema now would create churn without changing the actual domain behavior.
+- Future real trading signals may be generated from one or more saved research snapshots once enough evidence exists.
+
+Consequence:
+
+Outcome Tracking and Performance reporting currently evaluate the usefulness of saved research snapshots.
+
+They should not be interpreted as proof that EXOS issued live BUY, SELL, HOLD, broker, portfolio, or trading instructions.
+
+Future trading-signal work should treat saved `SignalRecord` rows as source research evidence and add an explicit downstream signal-generation layer instead of retroactively changing the v1 contract.

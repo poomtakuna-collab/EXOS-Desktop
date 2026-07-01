@@ -64,6 +64,8 @@ Signal Ledger Persistence v1 foundation and SQLite repository are implemented.
 
 Outcome SQLite Persistence v1 is implemented.
 
+Outcome Evaluation Flow v1 foundation is implemented.
+
 Performance Report v1 is implemented.
 
 EXOS Desktop Performance Surface v0 is implemented.
@@ -75,6 +77,12 @@ EXOS Desktop Research Surface v0 is implemented.
 EXOS Desktop Research Surface v1 is implemented.
 
 EXOS Desktop Signal History tab v0 is implemented.
+
+Manual Signal Backfill Service foundation is implemented.
+
+Manual Evidence Loop Runner foundation is implemented.
+
+EXOS Desktop Manual Evidence Loop action is implemented.
 
 Chart -> Data Source v1 integration foundation is implemented.
 
@@ -107,6 +115,8 @@ Architecture Audit v3 completed:
 ## Architecture Summary
 
 Architecture details are maintained in `docs/Architecture.md`.
+
+Architecture terminology decisions are maintained in `docs/ARCHITECTURE_DECISIONS.md`, including the accepted v1 decision that current `SignalRecord` rows are conceptually Daily Research Snapshots rather than trading decisions.
 
 ## Completed
 
@@ -849,7 +859,7 @@ The Research tab now exposes a `Save Signal` button that is enabled only when a 
 
 Successful saves show a lightweight confirmation and refresh Signal History automatically.
 
-Duplicate saves are handled idempotently with deterministic signal IDs, so repeated clicks do not create accidental duplicate signal records.
+Duplicate saves are handled idempotently by deterministic signal ID and by symbol plus market date, checking both `signal_date` and `snapshot_reference.snapshot_date`, so repeated or payload-varied saves do not create accidental duplicate research signal records for the same market date.
 
 The manual save path persists:
 
@@ -884,6 +894,80 @@ Current tests:
 - `tests/unit/test_research_surface.py`
 - `tests/unit/test_main_window_wiring.py`
 
+### Manual Signal Backfill Service Foundation
+
+Status: Implemented.
+
+Manual Signal Backfill Service adds an explicit application service for backfilling missing research signals for a symbol.
+
+The service:
+
+- loads OHLCV rows from Data Source v1
+- excludes the latest/current unconfirmed row with Analysis Cutoff Policy
+- identifies missing market dates from existing Signal Ledger records
+- runs Analysis Pipeline v2 for each missing market date using rows through that date only
+- stamps the canonical signal candidate with the backfilled market date
+- saves through the duplicate-safe manual Signal save flow
+
+It is not wired into Desktop.
+
+It does not add a scheduler.
+
+It does not modify Brain v1.
+
+It does not modify Analysis Pipeline contracts.
+
+It does not modify Signal Ledger contracts.
+
+Current tests:
+
+- `tests/unit/test_signal_backfill_service.py`
+
+### Manual Evidence Loop Runner Foundation
+
+Status: Implemented.
+
+Manual Evidence Loop Runner adds an explicit application service for running the current evidence loop steps in order:
+
+- `backfill_missing_research_signals`
+- `evaluate_saved_signal_outcomes`
+
+The runner returns a JSON-safe summary that includes signals created and outcomes evaluated/skipped.
+
+It does not add a scheduler.
+
+It does not add a new engine.
+
+It does not modify Brain v1.
+
+It does not modify Analysis Pipeline contracts.
+
+Current tests:
+
+- `tests/unit/test_evidence_loop_runner.py`
+
+### EXOS Desktop Manual Evidence Loop Action
+
+Status: Implemented.
+
+EXOS Desktop now provides an explicit `Run Evidence Loop` toolbar action for the selected dashboard/watchlist symbol.
+
+The action starts a background Qt worker for `run_manual_evidence_loop`, disables the action while running, refreshes Signal History and Performance after completion, and surfaces a lightweight status-bar summary or safe error status.
+
+It does not run on startup.
+
+It does not add a scheduler.
+
+It does not add a new engine.
+
+It does not modify Brain v1.
+
+It does not modify Analysis Pipeline contracts.
+
+Current tests:
+
+- `tests/unit/test_main_window_wiring.py`
+
 ### Analysis Cutoff Policy v1 Foundation
 
 Status: Implemented.
@@ -902,7 +986,7 @@ The helper is JSON-safe through `to_dict()`.
 
 Desktop Research analysis now uses rows through `analysis_cutoff_date`.
 
-Chart rendering is unchanged.
+Desktop Chart loading now filters rendered OHLCV rows through the same `analysis_cutoff_date`.
 
 Research layout is unchanged.
 
@@ -918,6 +1002,7 @@ Current tests:
 
 - `tests/unit/test_analysis_cutoff_policy.py`
 - `tests/unit/test_research_surface.py`
+- `tests/unit/test_chart_data_adapter.py`
 
 ### Similar Pattern Resolver v1
 
@@ -1279,6 +1364,8 @@ Outcome Tracking v1 introduced immutable storage-neutral outcome contracts plus 
 
 Outcome SQLite Persistence v1 introduced an explicit opt-in SQLite repository for standalone `OutcomeRecord` storage and direct lookup/list reads.
 
+Outcome Evaluation Flow v1 introduced deterministic evaluation from saved signals and future OHLCV rows into completed persisted outcomes.
+
 Performance Report v1 introduced deterministic aggregate reporting from signal and outcome repositories.
 
 EXOS Desktop Performance Surface v0 introduced a read-only Performance tab in the main desktop app.
@@ -1317,7 +1404,13 @@ Canonical Result -> Signal Adapter v1 now provides a pure candidate adapter from
 
 EXOS Desktop Manual Signal Creation Flow v1 now lets the user explicitly save the current Research result as a Signal Ledger record through the existing canonical adapter and SQLite repository.
 
-Analysis Cutoff Policy v1 now exposes `chart_latest_date` and `analysis_cutoff_date`, and Desktop Research analysis uses the cutoff date while chart rendering remains unchanged.
+Manual Signal Backfill Service foundation now provides an explicit no-GUI, no-scheduler service for filling missing research signals by market date while excluding the current unconfirmed row.
+
+Manual Evidence Loop Runner foundation now provides an explicit no-GUI, no-scheduler service that runs signal backfill before outcome evaluation and returns a combined summary.
+
+EXOS Desktop Manual Evidence Loop action now exposes that runner as an explicit toolbar action backed by a background Qt worker, and refreshes Signal History plus Performance after completion.
+
+Analysis Cutoff Policy v1 now exposes `chart_latest_date` and `analysis_cutoff_date`, and Desktop Research analysis plus Desktop Chart loading use the cutoff date.
 
 Context Engine v1 does not modify frozen Brain v1 contracts.
 
@@ -1334,7 +1427,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 595 tests passing
+- 618 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1505,6 +1598,35 @@ Current tests:
 
 - `tests/unit/test_outcome_repository.py`
 - `tests/unit/test_outcome_sqlite_repository.py`
+
+### Outcome Evaluation Flow v1 Foundation
+
+Status: Implemented.
+
+Outcome Evaluation Flow v1 adds a deterministic service for evaluating saved `SignalRecord` entries against supplied future OHLCV rows and persisting completed `OutcomeRecord` results through the existing Outcome repository boundary.
+
+The flow is:
+
+- saved signals from Signal Ledger repository
+- future OHLCV rows after signal date
+- Outcome Calculator v1
+- Outcome SQLite repository
+
+Signals with existing persisted outcomes are skipped without overwrite.
+
+Signals without enough future rows for their horizon are skipped safely without persisting partial/open outcomes.
+
+It does not modify `SignalRecord`.
+
+It does not modify `OutcomeRecord`.
+
+It does not modify Brain v1.
+
+It does not wire Desktop runtime behavior.
+
+Current tests:
+
+- `tests/unit/test_outcome_evaluation.py`
 
 ### Performance Report v1
 
@@ -1950,7 +2072,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 595 tests
+- 618 tests
 
 ## History
 

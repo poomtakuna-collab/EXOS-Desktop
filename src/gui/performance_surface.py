@@ -71,7 +71,7 @@ class PerformancePanel(QWidget):
         summary_layout = QGridLayout()
         for row, (key, label) in enumerate(
             (
-                ("total_signals", "Total Signals"),
+                ("total_signals", "Total Snapshots"),
                 ("total_outcomes", "Total Outcomes"),
                 ("win_rate", "Win Rate"),
                 ("average_return", "Average Return"),
@@ -91,7 +91,7 @@ class PerformancePanel(QWidget):
             self,
         )
         signal_group = _text_group(
-            "Signal Type Breakdown",
+            "Snapshot Type Breakdown",
             self._signal_breakdown_label,
             self,
         )

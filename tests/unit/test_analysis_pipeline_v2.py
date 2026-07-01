@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 from dataclasses import FrozenInstanceError, is_dataclass
 import unittest
@@ -183,7 +184,7 @@ class AnalysisPipelineV2Test(unittest.TestCase):
         )
 
     def test_persistence_is_skipped_without_backtest_run(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             request = AnalysisPipelineV2Request(
                 symbol="AAPL",
                 ohlcv_rows=_ohlcv_rows(),
@@ -201,7 +202,7 @@ class AnalysisPipelineV2Test(unittest.TestCase):
             )
 
     def test_persistence_adapter_uses_existing_backtest_persistence_v1(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             request = AnalysisPipelineV2Request(
                 symbol="AAPL",
                 ohlcv_rows=_ohlcv_rows(),

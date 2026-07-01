@@ -23,7 +23,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
-                today=lambda: date(2026, 1, 4),
+                today=lambda: date(2026, 1, 5),
             )
 
             result = adapter.get_cached_historical_data("aapl")
@@ -51,7 +51,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
-                today=lambda: date(2026, 1, 4),
+                today=lambda: date(2026, 1, 7),
             )
 
             result = adapter.get_cached_historical_data("AAPL")
@@ -76,7 +76,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
-                today=lambda: date(2026, 1, 4),
+                today=lambda: date(2026, 1, 5),
             )
 
             result = adapter.get_historical_data("AAPL")
@@ -117,7 +117,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
-                today=lambda: date(2026, 1, 4),
+                today=lambda: date(2026, 1, 5),
             )
 
             sqlite_result = adapter.get_cached_historical_data("AAPL")
@@ -164,7 +164,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
-                today=lambda: date(2026, 1, 4),
+                today=lambda: date(2026, 1, 5),
             )
 
             adapter.get_cached_historical_data("AAPL")

@@ -21,12 +21,37 @@ class ChartDataAdapterTest(unittest.TestCase):
             legacy_data_loader=legacy,
             data_source=MemoryDataSource([_row("2026-07-01", 100.0, symbol="AAPL")]),
             required_row_count=1,
+            today=lambda: date(2026, 7, 2),
         )
 
         result = adapter.get_cached_historical_data("aapl")
 
         self.assertEqual(result.source, "memory")
         self.assertEqual(result.rows[0]["date"], "2026-07-01")
+        self.assertEqual(legacy.cached_calls, 0)
+
+    def test_cached_load_filters_chart_rows_to_analysis_cutoff(self) -> None:
+        legacy = _LegacyLoader(
+            cached=HistoricalDataResult(rows=[_row("legacy", 90.0)], source="legacy"),
+            historical=HistoricalDataResult(rows=[], source="legacy-live"),
+        )
+        adapter = ChartDataAdapter(
+            legacy_data_loader=legacy,
+            data_source=MemoryDataSource(
+                [
+                    _row("2026-06-29", 99.0, symbol="AAPL"),
+                    _row("2026-06-30", 100.0, symbol="AAPL"),
+                    _row("2026-07-01", 101.0, symbol="AAPL"),
+                ]
+            ),
+            required_row_count=2,
+            today=lambda: date(2026, 7, 1),
+        )
+
+        result = adapter.get_cached_historical_data("AAPL")
+
+        self.assertEqual(result.source, "memory")
+        self.assertEqual([row["date"] for row in result.rows], ["2026-06-29", "2026-06-30"])
         self.assertEqual(legacy.cached_calls, 0)
 
     def test_cached_load_falls_back_to_legacy_when_data_source_has_no_rows(self) -> None:
@@ -162,6 +187,7 @@ class ChartDataAdapterTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=1,
+                today=lambda: date(2026, 7, 2),
             )
 
             result = adapter.get_cached_historical_data("AAPL")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import sys
 import unittest
@@ -9,7 +10,7 @@ from src.backtest.data import SQLiteFutureRowsLoader
 
 class SQLiteFutureRowsLoaderTest(unittest.TestCase):
     def test_load_future_rows_after_snapshot_date_only(self) -> None:
-        with _market_connection() as connection:
+        with closing(_market_connection()) as connection:
             loader = SQLiteFutureRowsLoader(connection)
 
             rows = loader.load_future_rows("AAPL", "1D", "2026-01-02", 10)
@@ -18,7 +19,7 @@ class SQLiteFutureRowsLoaderTest(unittest.TestCase):
             self.assertTrue(all(row["symbol"] == "AAPL" for row in rows))
 
     def test_horizon_limits_rows(self) -> None:
-        with _market_connection() as connection:
+        with closing(_market_connection()) as connection:
             loader = SQLiteFutureRowsLoader(connection)
 
             rows = loader.load_future_rows("AAPL", "1D", "2026-01-01", 1)
@@ -26,7 +27,7 @@ class SQLiteFutureRowsLoaderTest(unittest.TestCase):
             self.assertEqual([row["date"] for row in rows], ["2026-01-02"])
 
     def test_groups_rows_by_snapshot_id(self) -> None:
-        with _market_connection() as connection:
+        with closing(_market_connection()) as connection:
             loader = SQLiteFutureRowsLoader(connection)
             snapshots = _snapshot_rows(connection)
 
@@ -53,27 +54,27 @@ class SQLiteFutureRowsLoaderTest(unittest.TestCase):
             )
 
     def test_zero_horizon_returns_empty_rows_without_table_access(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             loader = SQLiteFutureRowsLoader(connection)
 
             self.assertEqual(loader.load_future_rows("AAPL", "1D", "2026-01-01", 0), [])
 
     def test_missing_ohlcv_table_fails_clearly(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             loader = SQLiteFutureRowsLoader(connection)
 
             with self.assertRaisesRegex(RuntimeError, "ohlcv_daily table is required"):
                 loader.load_future_rows("AAPL", "1D", "2026-01-01", 2)
 
     def test_non_daily_timeframe_fails_clearly(self) -> None:
-        with _market_connection() as connection:
+        with closing(_market_connection()) as connection:
             loader = SQLiteFutureRowsLoader(connection)
 
             with self.assertRaisesRegex(ValueError, "1D timeframe only"):
                 loader.load_future_rows("AAPL", "1W", "2026-01-01", 2)
 
     def test_loader_does_not_write_to_database(self) -> None:
-        with _market_connection() as connection:
+        with closing(_market_connection()) as connection:
             loader = SQLiteFutureRowsLoader(connection)
             changes_before = connection.total_changes
             schema_before = _schema_sql(connection)
@@ -86,7 +87,7 @@ class SQLiteFutureRowsLoaderTest(unittest.TestCase):
 
     def test_loader_does_not_import_live_data_ai_network_or_broker_modules(self) -> None:
         before_modules = set(sys.modules)
-        with _market_connection() as connection:
+        with closing(_market_connection()) as connection:
             loader = SQLiteFutureRowsLoader(connection)
             loader.load_future_rows("AAPL", "1D", "2026-01-01", 2)
 

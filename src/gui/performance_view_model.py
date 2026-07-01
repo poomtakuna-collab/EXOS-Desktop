@@ -117,7 +117,7 @@ def _global_summary_text(report: PerformanceReport | None) -> str:
         return ""
     return (
         "Global: "
-        f"{report.total_signals} signals, "
+        f"{report.total_signals} snapshots, "
         f"{report.total_outcomes} outcomes, "
         f"{_format_percent(report.win_rate)} win rate"
     )
@@ -126,8 +126,8 @@ def _global_summary_text(report: PerformanceReport | None) -> str:
 def _status_text(report: PerformanceReport, *, symbol: str = "") -> str:
     if report.total_signals == 0 and report.total_outcomes == 0:
         if symbol:
-            return f"No saved signal or outcome records found for {symbol}."
-        return "No saved signal or outcome records found."
+            return f"No saved snapshot or outcome records found for {symbol}."
+        return "No saved snapshot or outcome records found."
     if symbol:
         return f"Read-only performance report for {symbol}."
     return "Read-only global performance report."

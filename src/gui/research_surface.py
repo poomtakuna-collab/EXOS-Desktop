@@ -27,7 +27,7 @@ class ResearchPanel(QWidget):
         super().__init__()
         self._state_manager = state_manager
         self._status_label = QLabel(self)
-        self._save_signal_button = QPushButton("Save Signal", self)
+        self._save_signal_button = QPushButton("Save Snapshot", self)
         self._card_rows: dict[str, list[tuple[QLabel, QLabel]]] = {}
         self._current_canonical_result: CanonicalResultV1 | None = None
 

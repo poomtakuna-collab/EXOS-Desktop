@@ -24,6 +24,7 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Signal Ledger repository foundation is implemented.
 - Signal Ledger SQLite Persistence v1 is implemented.
 - Outcome SQLite Persistence v1 is implemented.
+- Outcome Evaluation Flow v1 foundation is implemented.
 - Performance Report v1 is implemented.
 - EXOS Desktop Performance Surface v0 is implemented.
 - EXOS Desktop Symbol-scoped Performance v1 is implemented.
@@ -36,8 +37,11 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Canonical Result Model v1 contracts and adapter foundation are implemented.
 - Canonical Result -> Signal Adapter v1 is implemented.
 - EXOS Desktop Manual Signal Creation Flow v1 is implemented.
+- Manual Signal Backfill Service foundation is implemented.
+- Manual Evidence Loop Runner foundation is implemented.
+- EXOS Desktop Manual Evidence Loop action is implemented.
 - Analysis Cutoff Policy v1 foundation is implemented.
-- Current full test baseline: 595 tests passing with `py -m unittest discover -s tests`.
+- Current full test baseline: 612 tests passing with `py -m unittest discover -s tests`.
 
 ## Completed Foundation Work
 
@@ -49,6 +53,7 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Signal contracts for EXOS-generated signals.
 - Outcome contracts and pure outcome calculation from future OHLCV rows.
 - Standalone Outcome SQLite repository for durable `OutcomeRecord` reads/writes.
+- Deterministic Outcome Evaluation Flow v1 from saved signals to persisted completed outcomes.
 - In-memory Signal Ledger repository.
 - SQLite-backed Signal Ledger repository for signals and linked outcomes.
 - Deterministic Performance Report v1 from signal/outcome repositories.
@@ -64,19 +69,18 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Canonical Result adapter foundation for identity, Brain, prediction, and diagnostics sections.
 - Pure Canonical Result -> Signal adapter for deterministic `SignalRecord` candidates.
 - Explicit Research tab `Save Signal` action through the Canonical Result -> Signal adapter and SQLite Signal Ledger repository.
+- Explicit Manual Signal Backfill Service for missing symbol/date research signals.
+- Explicit Manual Evidence Loop Runner for backfill followed by outcome evaluation.
+- Main EXOS Desktop `Run Evidence Loop` toolbar action with Signal History and Performance refresh.
 - Deterministic Analysis Cutoff Policy v1 for separating chart latest date from Research analysis cutoff date.
 
 ## Next Prioritized Tasks
 
-1. Outcome evaluation flow
-   - Evaluate saved signals against future OHLCV rows.
-   - Persist outcomes through existing repositories.
-
-2. Performance report with real accumulated signal data
+1. Performance report with real accumulated signal data
    - Feed Performance Report v1 from saved signals and evaluated outcomes.
    - Keep global and selected-symbol views useful.
 
-3. Context validation/backtest comparison
+2. Context validation/backtest comparison
    - Compare Brain v1 against Brain v1 plus context layers.
    - Adopt only context signals that demonstrate measurable improvement.
 

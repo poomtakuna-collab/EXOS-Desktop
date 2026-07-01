@@ -11,8 +11,8 @@ from src.signal_ledger.sqlite_repository import SQLiteSignalLedgerRepository
 
 DEFAULT_SIGNAL_HISTORY_DATABASE_PATH = Path("database") / "exos.db"
 SIGNAL_HISTORY_COLUMNS = (
-    "Signal Date",
-    "Signal Type",
+    "Snapshot Date",
+    "Snapshot Type",
     "Confidence",
     "Snapshot",
     "Outcomes",
@@ -134,10 +134,10 @@ def _format_latest_outcome(outcome: OutcomeRecord | None) -> str:
 
 def _status_text(*, symbol: str, row_count: int) -> str:
     if not symbol:
-        return "Select a dashboard symbol to view saved signal history."
+        return "Select a dashboard symbol to view saved snapshot history."
     if row_count == 0:
-        return f"No saved signals found for {symbol}."
-    return f"Read-only signal history for {symbol}."
+        return f"No saved snapshots found for {symbol}."
+    return f"Read-only snapshot history for {symbol}."
 
 
 def _has_table(connection: sqlite3.Connection, table_name: str) -> bool:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import json
 import sqlite3
 import sys
@@ -11,7 +12,7 @@ from src.backtest.data import SQLiteBacktestDatasetBuilder, SnapshotQuery
 
 class SQLiteBacktestDatasetBuilderTest(unittest.TestCase):
     def test_build_dataset_loads_snapshots_outcomes_and_future_rows(self) -> None:
-        with _dataset_connection() as connection:
+        with closing(_dataset_connection()) as connection:
             builder = SQLiteBacktestDatasetBuilder(connection)
 
             dataset = builder.build_dataset(
@@ -36,7 +37,7 @@ class SQLiteBacktestDatasetBuilderTest(unittest.TestCase):
             )
 
     def test_missing_outcomes_and_future_rows_are_represented_deterministically(self) -> None:
-        with _dataset_connection() as connection:
+        with closing(_dataset_connection()) as connection:
             builder = SQLiteBacktestDatasetBuilder(connection)
 
             dataset = builder.build_dataset(
@@ -71,7 +72,7 @@ class SQLiteBacktestDatasetBuilderTest(unittest.TestCase):
             )
 
     def test_strategy_probability_and_prediction_json_are_parsed_without_execution(self) -> None:
-        with _dataset_connection() as connection:
+        with closing(_dataset_connection()) as connection:
             builder = SQLiteBacktestDatasetBuilder(connection)
 
             dataset = builder.build_dataset(
@@ -86,7 +87,7 @@ class SQLiteBacktestDatasetBuilderTest(unittest.TestCase):
             self.assertEqual(item.strategy_result.reward_risk_estimate["target_zone"]["low"], 105.0)
 
     def test_snapshot_order_is_preserved(self) -> None:
-        with _dataset_connection() as connection:
+        with closing(_dataset_connection()) as connection:
             builder = SQLiteBacktestDatasetBuilder(connection)
 
             dataset = builder.build_dataset(SnapshotQuery(), SimulationConfig(horizon_days=1))
@@ -97,7 +98,7 @@ class SQLiteBacktestDatasetBuilderTest(unittest.TestCase):
             )
 
     def test_builder_does_not_write_to_database(self) -> None:
-        with _dataset_connection() as connection:
+        with closing(_dataset_connection()) as connection:
             builder = SQLiteBacktestDatasetBuilder(connection)
             changes_before = connection.total_changes
             schema_before = _schema_sql(connection)
@@ -112,7 +113,7 @@ class SQLiteBacktestDatasetBuilderTest(unittest.TestCase):
 
     def test_builder_does_not_import_live_data_ai_network_or_broker_modules(self) -> None:
         before_modules = set(sys.modules)
-        with _dataset_connection() as connection:
+        with closing(_dataset_connection()) as connection:
             builder = SQLiteBacktestDatasetBuilder(connection)
             builder.build_dataset(
                 SnapshotQuery(symbol="AAPL", timeframe="1D"),

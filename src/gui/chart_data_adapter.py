@@ -13,6 +13,10 @@ from src.data import (
     is_historical_data_fresh,
 )
 from src.data_source import MarketDataRequest, MarketDataSource, SQLiteDataSource
+from src.data_source.analysis_cutoff import (
+    determine_analysis_cutoff_date,
+    rows_through_analysis_cutoff,
+)
 
 
 DEFAULT_CHART_DATABASE_PATH = Path("database") / "exos.db"
@@ -46,18 +50,40 @@ class ChartDataAdapter:
     def get_cached_historical_data(self, symbol: str) -> HistoricalDataResult:
         data_source_result = self._load_from_data_source(symbol)
         if data_source_result is not None and data_source_result.rows:
-            return data_source_result
-        return self._legacy_data_loader.get_cached_historical_data(symbol)
+            return self._apply_analysis_cutoff(data_source_result)
+        return self._apply_analysis_cutoff(
+            self._legacy_data_loader.get_cached_historical_data(symbol)
+        )
 
     def get_historical_data(self, symbol: str) -> HistoricalDataResult:
         data_source_result = self._load_from_data_source(symbol)
+        cutoff_result = (
+            self._apply_analysis_cutoff(data_source_result)
+            if data_source_result is not None
+            else None
+        )
         if (
-            data_source_result is not None
-            and len(data_source_result.rows) >= self._required_row_count
-            and is_historical_data_fresh(data_source_result, as_of_date=self._today())
+            cutoff_result is not None
+            and len(cutoff_result.rows) >= self._required_row_count
+            and is_historical_data_fresh(cutoff_result, as_of_date=self._today())
         ):
-            return data_source_result
-        return self._legacy_data_loader.get_historical_data(symbol)
+            return cutoff_result
+        return self._apply_analysis_cutoff(
+            self._legacy_data_loader.get_historical_data(symbol)
+        )
+
+    def _apply_analysis_cutoff(
+        self,
+        result: HistoricalDataResult,
+    ) -> HistoricalDataResult:
+        cutoff = determine_analysis_cutoff_date(
+            result.rows,
+            as_of_date=self._today(),
+        )
+        rows = rows_through_analysis_cutoff(result.rows, cutoff.analysis_cutoff_date)
+        if len(rows) > self._required_row_count:
+            rows = rows[-self._required_row_count :]
+        return HistoricalDataResult(rows=rows, source=result.source)
 
     def _load_from_data_source(self, symbol: str) -> HistoricalDataResult | None:
         normalized_symbol = str(symbol or "").strip().upper()
@@ -68,7 +94,7 @@ class ChartDataAdapter:
             return _load_ohlcv(
                 self._data_source,
                 symbol=normalized_symbol,
-                limit=self._required_row_count,
+                limit=self._required_row_count + 1,
             )
 
         if not self._database_path.exists():
@@ -81,7 +107,7 @@ class ChartDataAdapter:
             return _load_ohlcv(
                 data_source,
                 symbol=normalized_symbol,
-                limit=self._required_row_count,
+                limit=self._required_row_count + 1,
             )
         except (RuntimeError, sqlite3.Error, ValueError):
             return None

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import json
 import sqlite3
 import tempfile
@@ -15,7 +16,7 @@ from src.outcome_tracking.sqlite_repository import (
 
 class SQLiteOutcomeRepositoryTest(unittest.TestCase):
     def test_schema_initialization_creates_outcome_table(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             initialize_outcome_schema(connection)
 
             table_names = {
@@ -32,7 +33,7 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
             self.assertIn("outcome_records", table_names)
 
     def test_save_and_load_outcome(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
             outcome = _outcome("AAPL", "2026-07-11", 5.0)
@@ -44,14 +45,14 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
             self.assertEqual(loaded, outcome)
 
     def test_missing_outcome_lookup_returns_none(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
 
             self.assertIsNone(repository.load_outcome("missing"))
 
     def test_list_outcomes_preserves_insert_order_and_filters_by_symbol(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
             first = _outcome("AAPL", "2026-07-11", 5.0)
@@ -66,7 +67,7 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
             self.assertEqual(repository.list_outcomes(symbol="AAPL"), (first, third))
 
     def test_list_outcomes_for_signal_preserves_insert_order(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
             first = _outcome("AAPL", "2026-07-11", 5.0)
@@ -79,7 +80,7 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
             self.assertEqual(repository.list_outcomes_for_signal("signal-1"), (first, second))
 
     def test_save_outcome_replaces_existing_outcome_id_without_reordering(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
             original = _outcome("AAPL", "2026-07-11", 5.0)
@@ -94,7 +95,7 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
             self.assertEqual(repository.list_outcomes(), (updated, middle))
 
     def test_save_outcome_requires_signal_id_and_outcome_id_when_supplied(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
 
@@ -104,7 +105,7 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
                 repository.save_outcome("signal-1", _outcome("AAPL", "2026-07-11", 5.0), outcome_id="")
 
     def test_default_outcome_id_is_deterministic(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
             outcome = _outcome("AAPL", "2026-07-11", 5.0)
@@ -117,7 +118,7 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
             )
 
     def test_json_serializes_notes_safely(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
             outcome = _outcome(
@@ -140,7 +141,7 @@ class SQLiteOutcomeRepositoryTest(unittest.TestCase):
             self.assertEqual(json.loads(row[0]), ["target reached", "closed at horizon"])
 
     def test_custom_status_round_trips_without_validation_side_effects(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             repository = SQLiteOutcomeRepository(connection)
             repository.initialize_schema()
             outcome = _outcome("AAPL", "2026-07-11", 5.0, status="custom-status")

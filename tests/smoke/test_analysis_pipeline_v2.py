@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import unittest
 
@@ -48,7 +49,7 @@ class AnalysisPipelineV2SmokeTest(unittest.TestCase):
         self.assertIsNone(v2_result.persistence)
 
     def test_opt_in_persistence_path_uses_backtest_persistence_v1(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             request = AnalysisPipelineV2Request(
                 symbol="AAPL",
                 ohlcv_rows=_ohlcv_rows(),

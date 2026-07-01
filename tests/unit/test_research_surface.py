@@ -60,7 +60,7 @@ class ResearchSurfaceTest(unittest.TestCase):
                 ("support_resistance", "Support / Resistance"),
                 ("prediction_summary", "Prediction"),
                 ("strategy_summary", "Strategy"),
-                ("signal_summary", "Signal Summary"),
+                ("signal_summary", "Snapshot Summary"),
             ],
         )
         self.assertIn("Confidence", _labels(view_model, "prediction_summary"))

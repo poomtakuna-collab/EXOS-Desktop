@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import unittest
 
@@ -19,7 +20,7 @@ from src.backtest import (
 
 class BacktestPersistenceReaderTest(unittest.TestCase):
     def test_reads_backtest_run_record_by_run_id(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             record = _run_record()
             write_backtest_run_record(connection, record)
 
@@ -28,11 +29,11 @@ class BacktestPersistenceReaderTest(unittest.TestCase):
             self.assertEqual(fetched, record)
 
     def test_missing_backtest_run_record_returns_none(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             self.assertIsNone(read_backtest_run_record(connection, "missing-run"))
 
     def test_reads_backtest_evaluation_record_by_evaluation_id(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             write_backtest_run_record(connection, _run_record())
             record = _evaluation_record("evaluation-1", 1)
             write_backtest_evaluation_record(connection, record)
@@ -45,13 +46,13 @@ class BacktestPersistenceReaderTest(unittest.TestCase):
             self.assertIs(fetched.has_future_rows, True)
 
     def test_missing_backtest_evaluation_record_returns_none(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             self.assertIsNone(
                 read_backtest_evaluation_record(connection, "missing-evaluation")
             )
 
     def test_reads_trade_result_records_by_run_id_in_deterministic_order(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             write_backtest_run_record(connection, _run_record())
             first_evaluation = _evaluation_record("evaluation-1", 1)
             second_evaluation = _evaluation_record("evaluation-2", 2)
@@ -74,14 +75,14 @@ class BacktestPersistenceReaderTest(unittest.TestCase):
             )
 
     def test_missing_trade_result_records_by_run_id_returns_empty_list(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             self.assertEqual(
                 read_backtest_trade_result_records_by_run_id(connection, "missing-run"),
                 [],
             )
 
     def test_reader_returns_contract_types(self) -> None:
-        with _connection() as connection:
+        with closing(_connection()) as connection:
             write_backtest_run_record(connection, _run_record())
             write_backtest_evaluation_record(
                 connection,

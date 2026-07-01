@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import sys
 import unittest
@@ -9,7 +10,7 @@ from src.backtest.data import SQLiteSnapshotLoader, SnapshotQuery
 
 class SQLiteSnapshotLoaderTest(unittest.TestCase):
     def test_load_snapshot_by_id_reads_existing_record(self) -> None:
-        with _snapshot_connection() as connection:
+        with closing(_snapshot_connection()) as connection:
             loader = SQLiteSnapshotLoader(connection)
 
             row = loader.load_snapshot("snapshot-b")
@@ -20,7 +21,7 @@ class SQLiteSnapshotLoaderTest(unittest.TestCase):
             self.assertEqual(row["date"], "2026-01-02")
 
     def test_symbol_timeframe_date_and_limit_filters_work(self) -> None:
-        with _snapshot_connection() as connection:
+        with closing(_snapshot_connection()) as connection:
             loader = SQLiteSnapshotLoader(connection)
 
             rows = loader.load_snapshots(
@@ -36,7 +37,7 @@ class SQLiteSnapshotLoaderTest(unittest.TestCase):
             self.assertEqual([row["snapshot_id"] for row in rows], ["snapshot-b"])
 
     def test_symbols_tuple_filter_is_supported_for_backward_compatibility(self) -> None:
-        with _snapshot_connection() as connection:
+        with closing(_snapshot_connection()) as connection:
             loader = SQLiteSnapshotLoader(connection)
 
             rows = loader.load_snapshots(SnapshotQuery(symbols=("MSFT",)))
@@ -44,7 +45,7 @@ class SQLiteSnapshotLoaderTest(unittest.TestCase):
             self.assertEqual([row["snapshot_id"] for row in rows], ["snapshot-c"])
 
     def test_ordering_is_stable(self) -> None:
-        with _snapshot_connection() as connection:
+        with closing(_snapshot_connection()) as connection:
             loader = SQLiteSnapshotLoader(connection)
 
             rows = loader.load_snapshots(SnapshotQuery())
@@ -55,14 +56,14 @@ class SQLiteSnapshotLoaderTest(unittest.TestCase):
             )
 
     def test_missing_snapshots_table_fails_clearly(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             loader = SQLiteSnapshotLoader(connection)
 
             with self.assertRaisesRegex(RuntimeError, "snapshots table is required"):
                 loader.load_snapshots(SnapshotQuery())
 
     def test_loader_does_not_write_to_database(self) -> None:
-        with _snapshot_connection() as connection:
+        with closing(_snapshot_connection()) as connection:
             loader = SQLiteSnapshotLoader(connection)
             changes_before = connection.total_changes
             schema_before = _schema_sql(connection)
@@ -75,7 +76,7 @@ class SQLiteSnapshotLoaderTest(unittest.TestCase):
 
     def test_loader_does_not_import_live_data_ai_network_or_broker_modules(self) -> None:
         before_modules = set(sys.modules)
-        with _snapshot_connection() as connection:
+        with closing(_snapshot_connection()) as connection:
             loader = SQLiteSnapshotLoader(connection)
             loader.load_snapshots(SnapshotQuery(symbol="AAPL"))
 

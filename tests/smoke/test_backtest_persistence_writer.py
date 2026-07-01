@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import unittest
 
@@ -16,7 +17,7 @@ from src.backtest import (
 
 class BacktestPersistenceWriterSmokeTest(unittest.TestCase):
     def test_creates_schema_and_persists_run_evaluation_and_trade_result(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             connection.execute("PRAGMA foreign_keys = ON")
             for statement in BACKTEST_PERSISTENCE_SCHEMA_SQL:
                 connection.execute(statement)

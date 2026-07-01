@@ -28,7 +28,7 @@ class ResearchSignalSaveTest(unittest.TestCase):
             self.assertTrue(result.saved)
             self.assertIsNotNone(result.signal)
             self.assertTrue(result.signal.signal_id)
-            self.assertIn("Signal saved:", result.message)
+            self.assertIn("Snapshot saved:", result.message)
 
             connection = sqlite3.connect(db_path)
             try:
@@ -59,7 +59,7 @@ class ResearchSignalSaveTest(unittest.TestCase):
             self.assertTrue(first.saved)
             self.assertTrue(second.duplicate)
             self.assertEqual(second.signal.signal_id, first.signal.signal_id)
-            self.assertIn("already saved", second.message)
+            self.assertIn("Snapshot already exists", second.message)
 
             connection = sqlite3.connect(db_path)
             try:
@@ -69,6 +69,80 @@ class ResearchSignalSaveTest(unittest.TestCase):
                 connection.close()
 
             self.assertEqual(len(signals), 1)
+
+    def test_same_symbol_and_market_date_with_different_signal_id_is_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+
+            first = save_manual_signal_candidate(
+                _canonical_result(confidence=81.0, notes=("first",)),
+                database_path=db_path,
+            )
+            second = save_manual_signal_candidate(
+                _canonical_result(confidence=77.0, notes=("changed payload",)),
+                database_path=db_path,
+            )
+
+            self.assertTrue(first.saved)
+            self.assertTrue(second.duplicate)
+            self.assertNotEqual(
+                _signal_id_for(_canonical_result(confidence=81.0, notes=("first",))),
+                _signal_id_for(_canonical_result(confidence=77.0, notes=("changed payload",))),
+            )
+            self.assertEqual(second.signal.signal_id, first.signal.signal_id)
+            self.assertEqual(_signals(db_path, "AAPL"), (first.signal,))
+
+    def test_same_symbol_different_market_date_can_create_new_signal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+
+            first = save_manual_signal_candidate(
+                _canonical_result(signal_date="2026-07-02", snapshot_date="2026-07-01"),
+                database_path=db_path,
+            )
+            second = save_manual_signal_candidate(
+                _canonical_result(signal_date="2026-07-03", snapshot_date="2026-07-03"),
+                database_path=db_path,
+            )
+
+            self.assertTrue(first.saved)
+            self.assertTrue(second.saved)
+            self.assertEqual(len(_signals(db_path, "AAPL")), 2)
+
+    def test_same_market_date_different_symbol_can_create_new_signal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+
+            first = save_manual_signal_candidate(
+                _canonical_result(symbol="AAPL"),
+                database_path=db_path,
+            )
+            second = save_manual_signal_candidate(
+                _canonical_result(symbol="MSFT"),
+                database_path=db_path,
+            )
+
+            self.assertTrue(first.saved)
+            self.assertTrue(second.saved)
+            self.assertEqual(len(_signals(db_path, "AAPL")), 1)
+            self.assertEqual(len(_signals(db_path, "MSFT")), 1)
+
+    def test_duplicate_detection_checks_snapshot_date_when_signal_date_differs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+
+            first = save_manual_signal_candidate(
+                _canonical_result(signal_date="2026-07-02", snapshot_date="2026-07-01"),
+                database_path=db_path,
+            )
+            second = save_manual_signal_candidate(
+                _canonical_result(signal_date="2026-07-05", snapshot_date="2026-07-01"),
+                database_path=db_path,
+            )
+
+            self.assertTrue(first.saved)
+            self.assertTrue(second.duplicate)
+            self.assertEqual(len(_signals(db_path, "AAPL")), 1)
 
     def test_missing_analysis_returns_unavailable_without_repository_call(self) -> None:
         repository = _CountingRepository()
@@ -87,7 +161,7 @@ class ResearchSignalSaveTest(unittest.TestCase):
         )
 
         self.assertEqual(result.status, "error")
-        self.assertIn("Unable to save signal", result.message)
+        self.assertIn("Unable to save snapshot", result.message)
         self.assertIsNone(result.signal)
 
     def test_signal_serialization_is_deterministic(self) -> None:
@@ -107,11 +181,19 @@ class _CountingRepository:
     def __init__(self) -> None:
         self.signals: dict[str, SignalRecord] = {}
         self.load_calls = 0
+        self.list_calls = 0
         self.save_calls = 0
 
     def load_signal(self, signal_id: str) -> SignalRecord | None:
         self.load_calls += 1
         return self.signals.get(signal_id)
+
+    def list_signals(self, *, symbol: str | None = None) -> tuple[SignalRecord, ...]:
+        self.list_calls += 1
+        signals = tuple(self.signals.values())
+        if symbol is not None:
+            signals = tuple(signal for signal in signals if signal.symbol == symbol)
+        return signals
 
     def save_signal(self, signal: SignalRecord) -> SignalRecord:
         self.save_calls += 1
@@ -120,6 +202,10 @@ class _CountingRepository:
 
 
 class _FailingRepository:
+    def list_signals(self, *, symbol: str | None = None) -> tuple[SignalRecord, ...]:
+        del symbol
+        return ()
+
     def load_signal(self, signal_id: str) -> SignalRecord | None:
         del signal_id
         return None
@@ -129,30 +215,55 @@ class _FailingRepository:
         raise RuntimeError("repository unavailable")
 
 
-def _canonical_result() -> CanonicalResultV1:
+def _canonical_result(
+    *,
+    symbol: str = "AAPL",
+    signal_date: str = "2026-07-02",
+    snapshot_date: str = "2026-07-01",
+    confidence: float = 81.0,
+    notes: tuple[str, ...] = ("manual save candidate",),
+) -> CanonicalResultV1:
     return CanonicalResultV1(
         identity=CanonicalIdentityV1(
-            symbol="AAPL",
+            symbol=symbol,
             timeframe="1D",
             snapshot_id="snapshot-1",
-            snapshot_date="2026-07-01",
-            analysis_date="2026-07-02",
+            snapshot_date=snapshot_date,
+            analysis_date=signal_date,
             source="analysis_pipeline_v2",
         ),
         signal_summary=CanonicalSignalSummaryV1(
-            symbol="AAPL",
-            signal_date="2026-07-02",
+            symbol=symbol,
+            signal_date=signal_date,
             timeframe="1D",
             signal_type="setup",
-            confidence=81.0,
+            confidence=confidence,
             snapshot_id="snapshot-1",
-            snapshot_date="2026-07-01",
+            snapshot_date=snapshot_date,
             context_summary={"market": {"trend": "up"}},
             strategy_summary={"strategy_score": 77.0},
-            prediction_summary={"confidence": 81.0, "evidence_count": 12},
-            notes=("manual save candidate",),
+            prediction_summary={"confidence": confidence, "evidence_count": 12},
+            notes=notes,
         ),
     )
+
+
+def _signals(db_path: Path, symbol: str) -> tuple[SignalRecord, ...]:
+    connection = sqlite3.connect(db_path)
+    try:
+        repository = SQLiteSignalLedgerRepository(connection)
+        return repository.list_signals(symbol=symbol)
+    finally:
+        connection.close()
+
+
+def _signal_id_for(canonical_result: CanonicalResultV1) -> str:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        result = save_manual_signal_candidate(
+            canonical_result,
+            database_path=Path(temp_dir) / "exos.db",
+        )
+        return result.signal.signal_id
 
 
 if __name__ == "__main__":

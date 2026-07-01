@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import sqlite3
 import sys
 import unittest
@@ -9,7 +10,7 @@ from src.backtest.db import initialize_backtest_schema
 
 class BacktestDbSchemaTest(unittest.TestCase):
     def test_backtest_tables_are_created(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             initialize_backtest_schema(connection)
 
             self.assertEqual(
@@ -23,7 +24,7 @@ class BacktestDbSchemaTest(unittest.TestCase):
             )
 
     def test_required_columns_exist(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             initialize_backtest_schema(connection)
 
             self.assertTrue(
@@ -46,7 +47,7 @@ class BacktestDbSchemaTest(unittest.TestCase):
             )
 
     def test_initializer_is_idempotent(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             initialize_backtest_schema(connection)
             first_schema = _schema_sql(connection)
 
@@ -56,7 +57,7 @@ class BacktestDbSchemaTest(unittest.TestCase):
             self.assertEqual(first_schema, second_schema)
 
     def test_existing_market_and_statistics_tables_are_not_modified(self) -> None:
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             _create_existing_source_tables(connection)
             before_schema = _schema_sql(connection)
 
@@ -68,7 +69,7 @@ class BacktestDbSchemaTest(unittest.TestCase):
 
     def test_initializer_does_not_import_live_data_ai_network_or_broker_modules(self) -> None:
         before_modules = set(sys.modules)
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             initialize_backtest_schema(connection)
 
         imported_modules = set(sys.modules) - before_modules
