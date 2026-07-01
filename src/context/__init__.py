@@ -6,6 +6,10 @@ from src.context.relative_strength_calculator import (
     calculate_relative_strength_context,
     calculate_relative_strength_context_from_analysis,
 )
+from src.context.sector_context_calculator import (
+    calculate_sector_context,
+    calculate_sector_context_from_analysis,
+)
 from src.context.support_resistance_calculator import (
     calculate_support_resistance_context,
     calculate_support_resistance_context_from_analysis,
@@ -36,6 +40,8 @@ __all__ = [
     "calculate_market_context_from_analysis",
     "calculate_relative_strength_context",
     "calculate_relative_strength_context_from_analysis",
+    "calculate_sector_context",
+    "calculate_sector_context_from_analysis",
     "calculate_support_resistance_context",
     "calculate_support_resistance_context_from_analysis",
     "calculate_volume_context",

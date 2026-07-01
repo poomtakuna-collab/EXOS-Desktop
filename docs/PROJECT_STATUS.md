@@ -981,6 +981,52 @@ Current tests:
 
 - `tests/unit/test_relative_strength_calculator.py`
 
+### Sector Context Calculator v1
+
+Status: Implemented.
+
+Sector Context Calculator v1 adds a deterministic pure calculator in `src/context` that derives `SectorContext` from local performance inputs:
+
+- symbol OHLCV rows
+- sector benchmark OHLCV rows
+- optional industry benchmark OHLCV rows
+- explicit symbol, sector, or industry performance values
+
+The calculator classifies sector trend as:
+
+- `up`
+- `sideways`
+- `down`
+- `unknown`
+
+It classifies sector strength in the existing `relative_to_market` contract field as:
+
+- `strong`
+- `neutral`
+- `weak`
+- `unknown`
+
+It returns `trend` and `relative_to_market` as the existing contract's sector quality fields.
+
+It is exported through the context package as:
+
+- `calculate_sector_context`
+- `calculate_sector_context_from_analysis`
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_sector_context_calculator.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
