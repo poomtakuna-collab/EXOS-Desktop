@@ -58,6 +58,8 @@ Outcome Tracking v1 foundation is implemented.
 
 Outcome Calculator v1 is implemented.
 
+Signal Ledger Persistence v1 foundation is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1188,6 +1190,41 @@ Current tests:
 
 - `tests/unit/test_outcome_calculator.py`
 
+### Signal Ledger Persistence v1 Foundation
+
+Status: Implemented as a storage-neutral repository foundation.
+
+Signal Ledger Persistence v1 Foundation introduces repository contracts and an in-memory implementation for saving and loading `SignalRecord` and associated `OutcomeRecord` values:
+
+- `SignalLedgerRepository`
+- `InMemorySignalLedgerRepository`
+
+The repository interface includes:
+
+- `save_signal`
+- `load_signal`
+- `list_signals`
+- `save_outcome`
+- `list_outcomes_for_signal`
+
+The in-memory implementation is deterministic, JSON-serializable through `to_dict()`, and intended for tests and foundation use only.
+
+It does not wire production SQLite.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_signal_ledger_repository.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
@@ -1221,7 +1258,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 449 tests
+- 463 tests
 
 ## History
 
