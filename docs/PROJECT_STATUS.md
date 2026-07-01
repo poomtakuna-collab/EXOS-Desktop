@@ -56,6 +56,8 @@ Signal Ledger v1 foundation is implemented.
 
 Outcome Tracking v1 foundation is implemented.
 
+Outcome Calculator v1 is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1141,6 +1143,51 @@ Current tests:
 
 - `tests/unit/test_outcome_tracking_contracts.py`
 
+### Outcome Calculator v1
+
+Status: Implemented.
+
+Outcome Calculator v1 adds a deterministic pure calculator in `src/outcome_tracking` that derives `OutcomeRecord` from signal metadata and future OHLCV rows.
+
+The calculator uses:
+
+- symbol
+- signal date
+- entry price
+- future OHLCV rows
+- horizon days
+- optional target price
+- optional stop price
+- notes
+
+It calculates:
+
+- close price at horizon
+- return percentage
+- max runup percentage
+- max drawdown percentage
+- target hit flag
+- stop hit flag
+- outcome status
+
+It gracefully handles missing or malformed data and marks incomplete horizons as `open`.
+
+It does not implement persistence.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_outcome_calculator.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
@@ -1174,7 +1221,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 434 tests
+- 449 tests
 
 ## History
 
