@@ -78,6 +78,8 @@ EXOS Desktop Signal History tab v0 is implemented.
 
 Chart -> Data Source v1 integration foundation is implemented.
 
+Chart Data Source v1 integration coverage is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1149,6 +1151,8 @@ EXOS Desktop Signal History tab v0 introduced a read-only signal/outcome history
 
 Chart -> Data Source v1 integration foundation introduced a thin chart data adapter that tries Data Source v1 before falling back to the legacy desktop data loader.
 
+Chart Data Source v1 integration coverage now verifies realistic SQLite-backed adapter reads, fallback behavior, deterministic ordering, and read-only guarantees.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1174,7 +1178,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 549 tests passing
+- 555 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1660,6 +1664,7 @@ It does not add AI, broker, portfolio, trading actions, or runtime auto-persiste
 Current tests:
 
 - `tests/unit/test_chart_data_adapter.py`
+- `tests/integration/test_chart_data_adapter_sqlite_integration.py`
 
 ### Signal Ledger Persistence v1 Foundation
 
@@ -1740,7 +1745,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 549 tests
+- 555 tests
 
 ## History
 
