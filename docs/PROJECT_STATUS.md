@@ -836,6 +836,71 @@ It does not call broker or live trading paths.
 Current tests:
 
 - `tests/unit/test_context_contracts.py`
+- `tests/unit/test_market_context_calculator.py`
+
+### Market Context Calculator v1
+
+Status: Implemented.
+
+Market Context Calculator v1 adds a deterministic pure calculator in `src/context` that derives `MarketContext` from available analysis outputs:
+
+- snapshot
+- probability
+- prediction
+- strategy
+
+The calculator handles missing or malformed inputs gracefully and returns the existing immutable `MarketContext` contract.
+
+It is exported through the context package as:
+
+- `calculate_market_context`
+- `calculate_market_context_from_analysis`
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_market_context_calculator.py`
+
+### Support / Resistance Context Calculator v1
+
+Status: Implemented.
+
+Support / Resistance Context Calculator v1 adds a deterministic pure calculator in `src/context` that derives `SupportResistanceContext` from available local analysis inputs:
+
+- snapshot market-structure levels
+- indicator levels such as EMA/SMA/VWAP values
+- supplied OHLCV price rows
+- explicit or inferred current price
+
+The calculator identifies nearest support and resistance when enough local data exists and returns support/resistance distance percentages as the existing contract's level-quality fields.
+
+It is exported through the context package as:
+
+- `calculate_support_resistance_context`
+- `calculate_support_resistance_context_from_analysis`
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_support_resistance_calculator.py`
 
 ## Not Implemented Yet
 
