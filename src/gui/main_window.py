@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
         self._dashboard_list = QListWidget(self)
         self._chart_workspace = ChartWorkspace(self._data_manager, self._state_manager)
         self._research_panel = ResearchPanel(self._state_manager)
-        self._performance_panel = PerformancePanel()
+        self._performance_panel = PerformancePanel(state_manager=self._state_manager)
         self._developer_panel = DeveloperPanel(self._state_manager)
         self._developer_dock = QDockWidget("Developer Panel", self)
         self._developer_mode_action: QAction | None = None

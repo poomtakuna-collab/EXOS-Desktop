@@ -15,12 +15,15 @@ DEFAULT_PERFORMANCE_DATABASE_PATH = Path("database") / "exos.db"
 
 def load_desktop_performance_report(
     database_path: Path | str | None = None,
+    *,
+    symbol: str | None = None,
 ) -> PerformanceReport:
     safe_database_path = Path(database_path or DEFAULT_PERFORMANCE_DATABASE_PATH)
     if not safe_database_path.exists():
         return build_performance_report(
             InMemorySignalLedgerRepository(),
             InMemoryOutcomeRepository(),
+            symbol=symbol,
         )
 
     uri = safe_database_path.resolve().as_uri() + "?mode=ro"
@@ -36,13 +39,24 @@ def load_desktop_performance_report(
             if _has_table(connection, "outcome_records")
             else InMemoryOutcomeRepository()
         )
-        return build_performance_report(signal_repository, outcome_repository)
+        return build_performance_report(
+            signal_repository,
+            outcome_repository,
+            symbol=symbol,
+        )
     finally:
         connection.close()
 
 
-def build_performance_view_model(report: PerformanceReport) -> dict[str, object]:
+def build_performance_view_model(
+    report: PerformanceReport,
+    *,
+    selected_symbol: str | None = None,
+    global_report: PerformanceReport | None = None,
+) -> dict[str, object]:
+    symbol = str(selected_symbol or "").strip().upper()
     return {
+        "scope": _scope_text(symbol),
         "summary": {
             "total_signals": str(report.total_signals),
             "total_outcomes": str(report.total_outcomes),
@@ -50,6 +64,7 @@ def build_performance_view_model(report: PerformanceReport) -> dict[str, object]
             "average_return": _format_percent(report.average_return),
             "average_max_drawdown": _format_percent(report.average_max_drawdown),
         },
+        "global_summary": _global_summary_text(global_report),
         "outcome_status_distribution": _format_distribution(
             report.outcome_status_distribution
         ),
@@ -57,7 +72,7 @@ def build_performance_view_model(report: PerformanceReport) -> dict[str, object]
         "confidence_bucket_breakdown": _format_distribution(
             report.confidence_bucket_breakdown
         ),
-        "status": _status_text(report),
+        "status": _status_text(report, symbol=symbol),
     }
 
 
@@ -91,7 +106,28 @@ def _format_percent(value: float) -> str:
     return f"{float(value):.2f}%"
 
 
-def _status_text(report: PerformanceReport) -> str:
+def _scope_text(symbol: str) -> str:
+    if symbol:
+        return f"Selected Symbol: {symbol}"
+    return "Global Performance"
+
+
+def _global_summary_text(report: PerformanceReport | None) -> str:
+    if report is None:
+        return ""
+    return (
+        "Global: "
+        f"{report.total_signals} signals, "
+        f"{report.total_outcomes} outcomes, "
+        f"{_format_percent(report.win_rate)} win rate"
+    )
+
+
+def _status_text(report: PerformanceReport, *, symbol: str = "") -> str:
     if report.total_signals == 0 and report.total_outcomes == 0:
+        if symbol:
+            return f"No saved signal or outcome records found for {symbol}."
         return "No saved signal or outcome records found."
-    return "Read-only performance report."
+    if symbol:
+        return f"Read-only performance report for {symbol}."
+    return "Read-only global performance report."

@@ -38,6 +38,7 @@ class PerformanceSurfaceTest(unittest.TestCase):
 
         view_model = build_performance_view_model(report)
 
+        self.assertEqual(view_model["scope"], "Global Performance")
         self.assertEqual(
             view_model["summary"],
             {
@@ -57,7 +58,33 @@ class PerformanceSurfaceTest(unittest.TestCase):
             "Breakout: 1\nSetup: 2",
         )
         self.assertIn("80 100: 1", view_model["confidence_bucket_breakdown"])
-        self.assertEqual(view_model["status"], "Read-only performance report.")
+        self.assertEqual(view_model["global_summary"], "")
+        self.assertEqual(view_model["status"], "Read-only global performance report.")
+
+    def test_view_model_formats_selected_symbol_scope_and_global_reference(self) -> None:
+        selected_report = PerformanceReport(
+            total_signals=1,
+            total_outcomes=1,
+            win_rate=100.0,
+            average_return=5.0,
+            average_max_drawdown=-2.0,
+            outcome_status_distribution={"positive": 1},
+            signal_type_breakdown={"setup": 1},
+        )
+        global_report = PerformanceReport(total_signals=3, total_outcomes=2, win_rate=50.0)
+
+        view_model = build_performance_view_model(
+            selected_report,
+            selected_symbol="aapl",
+            global_report=global_report,
+        )
+
+        self.assertEqual(view_model["scope"], "Selected Symbol: AAPL")
+        self.assertEqual(
+            view_model["global_summary"],
+            "Global: 3 signals, 2 outcomes, 50.00% win rate",
+        )
+        self.assertEqual(view_model["status"], "Read-only performance report for AAPL.")
 
     def test_view_model_handles_empty_report(self) -> None:
         view_model = build_performance_view_model(PerformanceReport())
@@ -68,6 +95,19 @@ class PerformanceSurfaceTest(unittest.TestCase):
         self.assertEqual(
             view_model["status"],
             "No saved signal or outcome records found.",
+        )
+
+    def test_view_model_handles_empty_selected_symbol_report(self) -> None:
+        view_model = build_performance_view_model(
+            PerformanceReport(),
+            selected_symbol="MSFT",
+            global_report=PerformanceReport(total_signals=2, total_outcomes=1),
+        )
+
+        self.assertEqual(view_model["scope"], "Selected Symbol: MSFT")
+        self.assertEqual(
+            view_model["status"],
+            "No saved signal or outcome records found for MSFT.",
         )
 
     def test_missing_database_path_returns_empty_report_without_creating_file(self) -> None:
@@ -127,15 +167,48 @@ class PerformanceSurfaceTest(unittest.TestCase):
             self.assertEqual(report.average_return, 1.0)
             self.assertEqual(report.average_max_drawdown, -4.0)
 
+    def test_existing_performance_tables_can_be_filtered_by_symbol(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            connection = sqlite3.connect(db_path)
+            try:
+                signal_repository = SQLiteSignalLedgerRepository(connection)
+                outcome_repository = SQLiteOutcomeRepository(connection)
+                signal_repository.initialize_schema()
+                outcome_repository.initialize_schema()
+                signal_repository.save_signal(_signal("signal-1", SignalType.SETUP, 75.0, symbol="AAPL"))
+                signal_repository.save_signal(_signal("signal-2", SignalType.BREAKOUT, 85.0, symbol="MSFT"))
+                outcome_repository.save_outcome(
+                    "signal-1",
+                    _outcome(OutcomeStatus.POSITIVE, 5.0, -2.0, symbol="AAPL"),
+                    outcome_id="outcome-1",
+                )
+                outcome_repository.save_outcome(
+                    "signal-2",
+                    _outcome(OutcomeStatus.NEGATIVE, -3.0, -6.0, symbol="MSFT"),
+                    outcome_id="outcome-2",
+                )
+            finally:
+                connection.close()
+
+            report = load_desktop_performance_report(db_path, symbol="msft")
+
+            self.assertEqual(report.total_signals, 1)
+            self.assertEqual(report.total_outcomes, 1)
+            self.assertEqual(report.win_rate, 0.0)
+            self.assertEqual(report.average_return, -3.0)
+
 
 def _signal(
     signal_id: str,
     signal_type: SignalType,
     confidence: float,
+    *,
+    symbol: str = "AAPL",
 ) -> SignalRecord:
     return SignalRecord(
         signal_id=signal_id,
-        symbol="AAPL",
+        symbol=symbol,
         signal_date="2026-07-01",
         snapshot_reference=SignalSnapshotReference(
             snapshot_id=f"snapshot-{signal_id}",
@@ -152,9 +225,11 @@ def _outcome(
     status: OutcomeStatus,
     return_pct: float,
     max_drawdown_pct: float,
+    *,
+    symbol: str = "AAPL",
 ) -> OutcomeRecord:
     return OutcomeRecord(
-        symbol="AAPL",
+        symbol=symbol,
         signal_date="2026-07-01",
         evaluation_date="2026-07-11",
         horizon_days=10,

@@ -16,15 +16,20 @@ from src.gui.performance_view_model import (
     build_performance_view_model,
     load_desktop_performance_report,
 )
+from src.core.state_manager import StateManager
 
 
 class PerformancePanel(QWidget):
     def __init__(
         self,
         database_path: Path | None = None,
+        state_manager: StateManager | None = None,
     ) -> None:
         super().__init__()
         self._database_path = database_path or DEFAULT_PERFORMANCE_DATABASE_PATH
+        self._state_manager = state_manager
+        self._scope_label = QLabel(self)
+        self._global_summary_label = QLabel(self)
         self._summary_labels: dict[str, QLabel] = {}
         self._outcome_distribution_label = QLabel(self)
         self._signal_breakdown_label = QLabel(self)
@@ -35,8 +40,20 @@ class PerformancePanel(QWidget):
         self.refresh()
 
     def refresh(self) -> None:
-        report = load_desktop_performance_report(self._database_path)
-        view_model = build_performance_view_model(report)
+        selected_symbol = self._state_manager.current_symbol if self._state_manager else None
+        global_report = load_desktop_performance_report(self._database_path)
+        report = load_desktop_performance_report(
+            self._database_path,
+            symbol=selected_symbol,
+        )
+        view_model = build_performance_view_model(
+            report,
+            selected_symbol=selected_symbol,
+            global_report=global_report,
+        )
+
+        self._scope_label.setText(str(view_model["scope"]))
+        self._global_summary_label.setText(str(view_model["global_summary"]))
 
         for key, value in view_model["summary"].items():
             self._summary_labels[key].setText(value)
@@ -86,6 +103,8 @@ class PerformancePanel(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(refresh_button)
+        layout.addWidget(self._scope_label)
+        layout.addWidget(self._global_summary_label)
         layout.addWidget(summary_group)
         layout.addWidget(outcome_group)
         layout.addWidget(signal_group)

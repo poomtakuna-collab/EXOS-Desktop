@@ -65,9 +65,12 @@ class PerformanceReport:
 def build_performance_report(
     signal_repository: SignalRecordRepository,
     outcome_repository: OutcomeRecordRepository,
+    *,
+    symbol: str | None = None,
 ) -> PerformanceReport:
-    signals = tuple(signal_repository.list_signals())
-    outcomes = tuple(outcome_repository.list_outcomes())
+    safe_symbol = _symbol_filter(symbol)
+    signals = tuple(signal_repository.list_signals(symbol=safe_symbol))
+    outcomes = tuple(outcome_repository.list_outcomes(symbol=safe_symbol))
 
     return_values = [
         float(outcome.return_pct)
@@ -169,6 +172,11 @@ def _clamp(value: float, low: float, high: float) -> float:
 
 def _sorted_counts(counts: dict[str, int]) -> dict[str, int]:
     return {key: counts[key] for key in sorted(counts)}
+
+
+def _symbol_filter(symbol: str | None) -> str | None:
+    safe_symbol = str(symbol or "").strip().upper()
+    return safe_symbol or None
 
 
 def _outcome_status_value(outcome_status: OutcomeStatus | str) -> str:

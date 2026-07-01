@@ -71,6 +71,57 @@ class PerformanceReportTest(unittest.TestCase):
         self.assertEqual(report.average_return, 0.6667)
         self.assertEqual(report.average_max_drawdown, -3.0)
 
+    def test_builds_symbol_scoped_performance_metrics(self) -> None:
+        signal_repository = InMemorySignalLedgerRepository()
+        outcome_repository = InMemoryOutcomeRepository()
+        signal_repository.save_signal(_signal("signal-1", SignalType.SETUP, 75.0, symbol="AAPL"))
+        signal_repository.save_signal(_signal("signal-2", SignalType.BREAKOUT, 85.0, symbol="MSFT"))
+        outcome_repository.save_outcome(
+            "signal-1",
+            _outcome(OutcomeStatus.POSITIVE, 5.0, -2.0, symbol="AAPL"),
+            outcome_id="outcome-1",
+        )
+        outcome_repository.save_outcome(
+            "signal-2",
+            _outcome(OutcomeStatus.NEGATIVE, -3.0, -6.0, symbol="MSFT"),
+            outcome_id="outcome-2",
+        )
+
+        report = build_performance_report(
+            signal_repository,
+            outcome_repository,
+            symbol="msft",
+        )
+
+        self.assertEqual(report.total_signals, 1)
+        self.assertEqual(report.total_outcomes, 1)
+        self.assertEqual(report.win_rate, 0.0)
+        self.assertEqual(report.average_return, -3.0)
+        self.assertEqual(report.average_max_drawdown, -6.0)
+        self.assertEqual(report.signal_type_breakdown, {"breakout": 1})
+        self.assertEqual(report.outcome_status_distribution, {"negative": 1})
+
+    def test_symbol_scoped_performance_handles_no_matching_records(self) -> None:
+        signal_repository = InMemorySignalLedgerRepository()
+        outcome_repository = InMemoryOutcomeRepository()
+        signal_repository.save_signal(_signal("signal-1", SignalType.SETUP, 75.0, symbol="AAPL"))
+        outcome_repository.save_outcome(
+            "signal-1",
+            _outcome(OutcomeStatus.POSITIVE, 5.0, -2.0, symbol="AAPL"),
+            outcome_id="outcome-1",
+        )
+
+        report = build_performance_report(
+            signal_repository,
+            outcome_repository,
+            symbol="MSFT",
+        )
+
+        self.assertEqual(report.total_signals, 0)
+        self.assertEqual(report.total_outcomes, 0)
+        self.assertEqual(report.win_rate, 0.0)
+        self.assertEqual(report.average_return, 0.0)
+
     def test_outcome_status_distribution_is_deterministic(self) -> None:
         signal_repository = InMemorySignalLedgerRepository()
         outcome_repository = InMemoryOutcomeRepository()
@@ -250,10 +301,12 @@ def _signal(
     signal_id: str,
     signal_type: SignalType | str,
     confidence: float | None,
+    *,
+    symbol: str = "AAPL",
 ) -> SignalRecord:
     return SignalRecord(
         signal_id=signal_id,
-        symbol="AAPL",
+        symbol=symbol,
         signal_date="2026-07-01",
         snapshot_reference=SignalSnapshotReference(
             snapshot_id=f"snapshot-{signal_id}",
@@ -270,9 +323,11 @@ def _outcome(
     status: OutcomeStatus | str,
     return_pct: float | None,
     max_drawdown_pct: float | None,
+    *,
+    symbol: str = "AAPL",
 ) -> OutcomeRecord:
     return OutcomeRecord(
-        symbol="AAPL",
+        symbol=symbol,
         signal_date="2026-07-01",
         evaluation_date="2026-07-11",
         horizon_days=10,

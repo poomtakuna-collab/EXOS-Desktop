@@ -68,6 +68,8 @@ Performance Report v1 is implemented.
 
 EXOS Desktop Performance Surface v0 is implemented.
 
+EXOS Desktop Symbol-scoped Performance v1 is implemented.
+
 EXOS Desktop Research Surface v0 is implemented.
 
 EXOS Desktop Research Surface v1 is implemented.
@@ -1133,6 +1135,8 @@ Performance Report v1 introduced deterministic aggregate reporting from signal a
 
 EXOS Desktop Performance Surface v0 introduced a read-only Performance tab in the main desktop app.
 
+EXOS Desktop Symbol-scoped Performance v1 added selected-symbol filtering to the Performance tab while keeping global performance visible.
+
 EXOS Desktop Research Surface v0 introduced a read-only Research tab in the main desktop app.
 
 EXOS Desktop Research Surface v1 refined the Research tab into compact grouped information cards.
@@ -1162,7 +1166,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 532 tests passing
+- 537 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1432,6 +1436,42 @@ Current tests:
 
 - `tests/unit/test_performance_surface.py`
 
+### EXOS Desktop Symbol-scoped Performance v1
+
+Status: Implemented.
+
+EXOS Desktop Symbol-scoped Performance v1 improves the existing Performance tab so it can display performance for the currently selected dashboard/watchlist symbol.
+
+The Performance tab now shows:
+
+- selected symbol scope when a dashboard symbol is active
+- symbol-filtered total signals
+- symbol-filtered total outcomes
+- symbol-filtered win rate
+- symbol-filtered average return
+- symbol-filtered average max drawdown
+- symbol-filtered outcome status distribution
+- symbol-filtered signal type breakdown
+- symbol-filtered confidence bucket breakdown
+- a compact global performance reference summary
+
+Filtering is handled through the existing `PerformanceReport` builder and repository filtering paths.
+
+Missing or empty selected-symbol records render a clear empty state.
+
+The UI wiring remains thin and consumes Qt-free view-model helpers.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not add AI, broker, portfolio, trading actions, or runtime auto-persistence.
+
+Current tests:
+
+- `tests/unit/test_performance_report.py`
+- `tests/unit/test_performance_surface.py`
+
 ### EXOS Desktop Research Surface v0
 
 Status: Implemented.
@@ -1600,7 +1640,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 532 tests
+- 537 tests
 
 ## History
 
