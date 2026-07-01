@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
+from typing import Any
 from typing import Protocol
 
+from src.daily_research_snapshot import (
+    DailyResearchSnapshotRecord,
+    SQLiteDailyResearchSnapshotRepository,
+)
 from src.outcome_tracking import OutcomeRecord, OutcomeStatus
 from src.signal_ledger import SignalRecord, SignalType
 from src.signal_ledger.sqlite_repository import SQLiteSignalLedgerRepository
@@ -67,6 +73,48 @@ def load_desktop_signal_history_view_model(
         connection.close()
 
 
+def load_desktop_snapshot_detail_view_model(
+    database_path: Path | str | None = None,
+    *,
+    signal_id: str | None = None,
+) -> dict[str, object]:
+    safe_signal_id = str(signal_id or "").strip()
+    if not safe_signal_id:
+        return build_snapshot_detail_view_model()
+
+    safe_database_path = Path(database_path or DEFAULT_SIGNAL_HISTORY_DATABASE_PATH)
+    if not safe_database_path.exists():
+        return build_snapshot_detail_view_model()
+
+    uri = safe_database_path.resolve().as_uri() + "?mode=ro"
+    connection = sqlite3.connect(uri, uri=True)
+    try:
+        if not _has_table(connection, "signal_ledger_signals"):
+            return build_snapshot_detail_view_model()
+
+        repository = SQLiteSignalLedgerRepository(connection)
+        signal = repository.load_signal(safe_signal_id)
+        outcomes = (
+            repository.list_outcomes_for_signal(safe_signal_id)
+            if signal is not None and _has_table(connection, "signal_ledger_outcomes")
+            else ()
+        )
+        if signal is not None and _has_table(connection, "daily_research_snapshots"):
+            snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+            v2_snapshot = _load_v2_snapshot_for_signal(
+                snapshot_repository,
+                signal=signal,
+            )
+            if v2_snapshot is not None:
+                return build_v2_snapshot_detail_view_model(
+                    snapshot=v2_snapshot,
+                    outcomes=outcomes,
+                )
+        return build_snapshot_detail_view_model(signal=signal, outcomes=outcomes)
+    finally:
+        connection.close()
+
+
 def build_signal_history_view_model(
     *,
     selected_symbol: str | None = None,
@@ -87,6 +135,99 @@ def build_signal_history_view_model(
     }
 
 
+def build_snapshot_detail_view_model(
+    *,
+    signal: SignalRecord | None = None,
+    outcomes: tuple[OutcomeRecord, ...] = (),
+) -> dict[str, object]:
+    if signal is None:
+        empty_raw = _json_pretty({})
+        return {
+            "title": "Snapshot Detail",
+            "header": _detail_header(signal=None, outcomes=()),
+            "groups": _empty_detail_groups(),
+            "raw_json": empty_raw,
+            "status": "Snapshot detail is not available.",
+        }
+
+    raw_payload = signal.to_dict()
+    latest_outcome = outcomes[-1] if outcomes else None
+    if latest_outcome is not None:
+        raw_payload = {
+            **raw_payload,
+            "latest_outcome": latest_outcome.to_dict(),
+            "linked_outcome_count": len(outcomes),
+        }
+
+    return {
+        "title": f"Snapshot Detail - {signal.symbol or '-'}",
+        "header": _detail_header(signal=signal, outcomes=outcomes),
+        "groups": (
+            _detail_group(
+                "Market",
+                (
+                    ("Symbol", signal.symbol),
+                    ("Market Date", _market_date(signal)),
+                    ("Timeframe", signal.snapshot_reference.timeframe),
+                    ("Snapshot Source", signal.snapshot_reference.source),
+                ),
+            ),
+            _detail_group(
+                "Indicators",
+                _dict_items(_nested_dict(signal.context_summary, "indicators")),
+            ),
+            _detail_group(
+                "Context",
+                _dict_items(signal.context_summary),
+            ),
+            _detail_group(
+                "Prediction",
+                _dict_items(_prediction_summary(signal)),
+            ),
+            _detail_group(
+                "Strategy",
+                _dict_items(signal.strategy_summary),
+            ),
+        ),
+        "raw_json": _json_pretty(raw_payload),
+        "status": "Legacy Reduced Snapshot",
+    }
+
+
+def build_v2_snapshot_detail_view_model(
+    *,
+    snapshot: DailyResearchSnapshotRecord | None = None,
+    outcomes: tuple[OutcomeRecord, ...] = (),
+) -> dict[str, object]:
+    if snapshot is None:
+        return build_snapshot_detail_view_model()
+
+    canonical = snapshot.canonical_snapshot
+    latest_outcome = outcomes[-1] if outcomes else None
+    return {
+        "title": f"Snapshot Detail - {snapshot.symbol or '-'}",
+        "header": _v2_detail_header(snapshot=snapshot, latest_outcome=latest_outcome),
+        "groups": (
+            _detail_group(
+                "Market",
+                (
+                    ("Symbol", snapshot.symbol),
+                    ("Market Date", snapshot.market_date),
+                    ("Timeframe", snapshot.timeframe),
+                    ("Snapshot Source", snapshot.source),
+                    ("Canonical Schema", snapshot.canonical_schema_version),
+                ),
+            ),
+            _detail_group("Indicators", _dict_items(_v2_indicators(canonical))),
+            _detail_group("Context", _dict_items(_v2_section(canonical, "context"))),
+            _detail_group("Prediction", _dict_items(_v2_prediction(canonical))),
+            _detail_group("Strategy", _dict_items(_v2_section(canonical, "strategy"))),
+        ),
+        "raw_json": _json_pretty(canonical),
+        "status": "Full Canonical Snapshot",
+    }
+
+
 def _outcomes_by_signal_id(
     repository: SignalHistoryRepository,
     signals: tuple[SignalRecord, ...],
@@ -104,6 +245,7 @@ def _signal_row(
 ) -> dict[str, str]:
     latest_outcome = outcomes[-1] if outcomes else None
     return {
+        "signal_id": signal.signal_id,
         "signal_date": signal.signal_date or "-",
         "signal_type": _format_label(_signal_type_value(signal.signal_type)),
         "confidence": _format_percent(signal.confidence),
@@ -138,6 +280,214 @@ def _status_text(*, symbol: str, row_count: int) -> str:
     if row_count == 0:
         return f"No saved snapshots found for {symbol}."
     return f"Read-only snapshot history for {symbol}."
+
+
+
+def _load_v2_snapshot_for_signal(
+    repository: SQLiteDailyResearchSnapshotRepository,
+    *,
+    signal: SignalRecord,
+) -> DailyResearchSnapshotRecord | None:
+    if signal.signal_id:
+        try:
+            linked = repository.load_snapshot_for_signal_id(signal.signal_id)
+        except (sqlite3.Error, ValueError):
+            linked = None
+        if linked is not None:
+            return linked
+
+    symbol = str(signal.symbol or "").strip()
+    timeframe = str(signal.snapshot_reference.timeframe or "1D").strip()
+    if not symbol:
+        return None
+    for market_date in _candidate_market_dates(signal):
+        try:
+            snapshot = repository.load_snapshot(
+                symbol=symbol,
+                market_date=market_date,
+                timeframe=timeframe or "1D",
+            )
+        except (sqlite3.Error, ValueError):
+            snapshot = None
+        if snapshot is not None:
+            return snapshot
+    return None
+
+def _detail_header(
+    *,
+    signal: SignalRecord | None,
+    outcomes: tuple[OutcomeRecord, ...],
+) -> tuple[dict[str, str], ...]:
+    latest_outcome = outcomes[-1] if outcomes else None
+    return (
+        {"label": "Symbol", "value": signal.symbol if signal else "-"},
+        {"label": "Market Date", "value": _market_date(signal) if signal else "-"},
+        {"label": "Snapshot ID", "value": _snapshot_id(signal)},
+        {"label": "Brain Version", "value": _brain_version(signal) if signal else "-"},
+        {"label": "Outcome Status", "value": _format_latest_outcome(latest_outcome)},
+    )
+
+def _v2_detail_header(
+    *,
+    snapshot: DailyResearchSnapshotRecord,
+    latest_outcome: OutcomeRecord | None,
+) -> tuple[dict[str, str], ...]:
+    canonical = snapshot.canonical_snapshot
+    return (
+        {"label": "Symbol", "value": snapshot.symbol or "-"},
+        {"label": "Market Date", "value": snapshot.market_date or "-"},
+        {"label": "Snapshot ID", "value": _v2_snapshot_id(snapshot)},
+        {"label": "Brain Version", "value": _v2_brain_version(canonical)},
+        {"label": "Outcome Status", "value": _format_latest_outcome(latest_outcome)},
+    )
+
+def _empty_detail_groups() -> tuple[dict[str, object], ...]:
+    return (
+        _detail_group("Market", ()),
+        _detail_group("Indicators", ()),
+        _detail_group("Context", ()),
+        _detail_group("Prediction", ()),
+        _detail_group("Strategy", ()),
+    )
+
+
+def _detail_group(
+    title: str,
+    items: tuple[tuple[str, object], ...],
+) -> dict[str, object]:
+    return {
+        "title": title,
+        "items": tuple(
+            {"label": label, "value": _format_detail_value(value)}
+            for label, value in items
+        )
+        or ({"label": "Status", "value": "-"},),
+    }
+
+
+def _dict_items(value: dict[str, Any]) -> tuple[tuple[str, object], ...]:
+    return tuple(
+        (_format_label(str(key)), value[key])
+        for key in sorted(value)
+        if key not in {"indicators", "prediction", "prediction_summary"}
+    )
+
+
+def _nested_dict(value: dict[str, Any], key: str) -> dict[str, Any]:
+    candidate = value.get(key)
+    return candidate if isinstance(candidate, dict) else {}
+
+def _v2_snapshot_id(snapshot: DailyResearchSnapshotRecord) -> str:
+    canonical = snapshot.canonical_snapshot
+    identity = canonical.get("identity")
+    if isinstance(identity, dict):
+        value = str(identity.get("snapshot_id") or "").strip()
+        if value:
+            return value
+    return snapshot.snapshot_record_id or "-"
+
+
+def _v2_brain_version(canonical: dict[str, Any]) -> str:
+    identity = canonical.get("identity")
+    if isinstance(identity, dict):
+        for key in ("pipeline_version", "pipeline_name", "source"):
+            value = str(identity.get(key) or "").strip()
+            if value:
+                return value
+    brain = canonical.get("brain")
+    if isinstance(brain, dict):
+        metadata = brain.get("metadata")
+        if isinstance(metadata, dict):
+            for key in ("brain_version", "version"):
+                value = str(metadata.get(key) or "").strip()
+                if value:
+                    return value
+    return "-"
+
+
+def _v2_section(canonical: dict[str, Any], name: str) -> dict[str, Any]:
+    section = canonical.get(name)
+    return section if isinstance(section, dict) else {}
+
+
+def _v2_indicators(canonical: dict[str, Any]) -> dict[str, Any]:
+    brain = _v2_section(canonical, "brain")
+    snapshot = brain.get("snapshot")
+    if not isinstance(snapshot, dict):
+        return {}
+    indicators = snapshot.get("indicators")
+    return indicators if isinstance(indicators, dict) else snapshot
+
+
+def _v2_prediction(canonical: dict[str, Any]) -> dict[str, Any]:
+    prediction = _v2_section(canonical, "prediction")
+    if prediction:
+        return prediction
+    brain = _v2_section(canonical, "brain")
+    summary = brain.get("prediction_summary")
+    return summary if isinstance(summary, dict) else {}
+
+def _prediction_summary(signal: SignalRecord) -> dict[str, Any]:
+    for source in (signal.context_summary, signal.strategy_summary):
+        for key in ("prediction_summary", "prediction"):
+            candidate = source.get(key)
+            if isinstance(candidate, dict):
+                return candidate
+    return {}
+
+
+def _market_date(signal: SignalRecord | None) -> str:
+    if signal is None:
+        return "-"
+    return (
+        signal.snapshot_reference.snapshot_date
+        or signal.signal_date
+        or "-"
+    )
+
+
+def _candidate_market_dates(signal: SignalRecord) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(
+            value
+            for value in (
+                str(signal.signal_date or "").strip(),
+                str(signal.snapshot_reference.snapshot_date or "").strip(),
+            )
+            if value
+        )
+    )
+
+
+def _snapshot_id(signal: SignalRecord | None) -> str:
+    if signal is None:
+        return "-"
+    return signal.snapshot_reference.snapshot_id or signal.signal_id or "-"
+
+
+def _brain_version(signal: SignalRecord | None) -> str:
+    if signal is None:
+        return "-"
+    for source in (signal.context_summary, signal.strategy_summary):
+        for key in ("brain_version", "brainVersion", "version"):
+            value = source.get(key)
+            if value:
+                return str(value)
+    return "-"
+
+
+def _format_detail_value(value: object) -> str:
+    if value is None or value == "":
+        return "-"
+    if isinstance(value, float):
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    if isinstance(value, (dict, list, tuple)):
+        return _json_pretty(value)
+    return str(value)
+
+
+def _json_pretty(value: object) -> str:
+    return json.dumps(value, indent=2, sort_keys=True, default=str)
 
 
 def _has_table(connection: sqlite3.Connection, table_name: str) -> bool:

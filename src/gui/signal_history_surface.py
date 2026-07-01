@@ -3,10 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtWidgets import (
+    QDialog,
+    QGridLayout,
+    QGroupBox,
     QLabel,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -14,6 +19,7 @@ from PySide6.QtWidgets import (
 from src.core.state_manager import StateManager
 from src.gui.signal_history_view_model import (
     DEFAULT_SIGNAL_HISTORY_DATABASE_PATH,
+    load_desktop_snapshot_detail_view_model,
     load_desktop_signal_history_view_model,
 )
 
@@ -30,6 +36,8 @@ class SignalHistoryPanel(QWidget):
         self._symbol_label = QLabel(self)
         self._status_label = QLabel(self)
         self._table = QTableWidget(self)
+        self._rows: tuple[dict[str, object], ...] = ()
+        self._detail_dialog: SnapshotDetailDialog | None = None
 
         self._create_layout()
         self.refresh()
@@ -47,13 +55,12 @@ class SignalHistoryPanel(QWidget):
 
         if not isinstance(columns, tuple) or not isinstance(rows, tuple):
             return
+        self._rows = tuple(row for row in rows if isinstance(row, dict))
 
         self._table.setColumnCount(len(columns))
         self._table.setHorizontalHeaderLabels([str(column) for column in columns])
-        self._table.setRowCount(len(rows))
-        for row_index, row in enumerate(rows):
-            if not isinstance(row, dict):
-                continue
+        self._table.setRowCount(len(self._rows))
+        for row_index, row in enumerate(self._rows):
             values = (
                 row.get("signal_date", ""),
                 row.get("signal_type", ""),
@@ -70,9 +77,24 @@ class SignalHistoryPanel(QWidget):
                 )
         self._table.resizeColumnsToContents()
 
+    def _open_snapshot_detail(self, row: int, column: int) -> None:
+        del column
+        if row < 0 or row >= len(self._rows):
+            return
+        signal_id = str(self._rows[row].get("signal_id", "")).strip()
+        if not signal_id:
+            return
+        view_model = load_desktop_snapshot_detail_view_model(
+            self._database_path,
+            signal_id=signal_id,
+        )
+        self._detail_dialog = SnapshotDetailDialog(view_model, self)
+        self._detail_dialog.show()
+
     def _create_layout(self) -> None:
         refresh_button = QPushButton("Refresh", self)
         refresh_button.clicked.connect(self.refresh)
+        self._table.cellDoubleClicked.connect(self._open_snapshot_detail)
 
         layout = QVBoxLayout()
         layout.addWidget(refresh_button)
@@ -80,3 +102,60 @@ class SignalHistoryPanel(QWidget):
         layout.addWidget(self._table)
         layout.addWidget(self._status_label)
         self.setLayout(layout)
+
+
+class SnapshotDetailDialog(QDialog):
+    def __init__(self, view_model: dict[str, object], parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(str(view_model.get("title", "Snapshot Detail")))
+        self.setMinimumWidth(760)
+        self.setMinimumHeight(560)
+
+        layout = QVBoxLayout()
+        layout.addWidget(_header_group(view_model.get("header"), self))
+
+        tabs = QTabWidget(self)
+        groups = view_model.get("groups")
+        if isinstance(groups, tuple):
+            for group in groups:
+                if isinstance(group, dict):
+                    tabs.addTab(_group_widget(group, self), str(group.get("title", "")))
+
+        raw_json = QTextEdit(self)
+        raw_json.setReadOnly(True)
+        raw_json.setPlainText(str(view_model.get("raw_json", "{}")))
+        tabs.addTab(raw_json, "Raw JSON")
+        layout.addWidget(tabs)
+
+        status = QLabel(str(view_model.get("status", "")), self)
+        layout.addWidget(status)
+        self.setLayout(layout)
+
+
+def _header_group(value: object, parent: QWidget) -> QGroupBox:
+    group = QGroupBox("Header", parent)
+    layout = QGridLayout()
+    if isinstance(value, tuple):
+        for row, item in enumerate(value):
+            if not isinstance(item, dict):
+                continue
+            layout.addWidget(QLabel(str(item.get("label", "")), group), row, 0)
+            layout.addWidget(QLabel(str(item.get("value", "")), group), row, 1)
+    group.setLayout(layout)
+    return group
+
+
+def _group_widget(group_model: dict[str, object], parent: QWidget) -> QGroupBox:
+    group = QGroupBox(str(group_model.get("title", "")), parent)
+    layout = QGridLayout()
+    items = group_model.get("items")
+    if isinstance(items, tuple):
+        for row, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            layout.addWidget(QLabel(str(item.get("label", "")), group), row, 0)
+            value = QLabel(str(item.get("value", "")), group)
+            value.setWordWrap(True)
+            layout.addWidget(value, row, 1)
+    group.setLayout(layout)
+    return group

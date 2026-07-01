@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+import ast
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
+from src.canonical_result import (
+    CanonicalBrainResultV1,
+    CanonicalIdentityV1,
+    CanonicalPredictionResultV1,
+    CanonicalResultV1,
+)
+from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
 from src.gui.signal_history_view_model import (
     SIGNAL_HISTORY_COLUMNS,
+    build_snapshot_detail_view_model,
     build_signal_history_view_model,
+    load_desktop_snapshot_detail_view_model,
     load_desktop_signal_history_view_model,
 )
 from src.outcome_tracking import OutcomeRecord, OutcomeStatus
@@ -174,6 +184,211 @@ class SignalHistorySurfaceTest(unittest.TestCase):
         self.assertEqual(row["signal_type"], "Custom Signal")
         self.assertEqual(row["latest_outcome"], "Custom Outcome")
 
+    def test_snapshot_detail_view_model_handles_empty_fields_safely(self) -> None:
+        view_model = build_snapshot_detail_view_model()
+
+        self.assertEqual(view_model["title"], "Snapshot Detail")
+        self.assertEqual(view_model["raw_json"], "{}")
+        self.assertEqual(view_model["status"], "Snapshot detail is not available.")
+        header = view_model["header"]
+        self.assertEqual(header[0]["value"], "-")
+
+    def test_snapshot_detail_view_model_formats_groups_and_json_deterministically(self) -> None:
+        signal = SignalRecord(
+            signal_id="signal-1",
+            symbol="AAPL",
+            signal_date="2026-07-01",
+            snapshot_reference=SignalSnapshotReference(
+                snapshot_id="snapshot-1",
+                snapshot_date="2026-07-01",
+                timeframe="1D",
+                source="fixture",
+            ),
+            context_summary={
+                "brain_version": "brain-v1",
+                "indicators": {"rsi": 55.1234},
+                "market": {"regime": "risk_on"},
+                "prediction_summary": {"confidence": 0.75},
+            },
+            strategy_summary={"grade": "A", "score": 82},
+            signal_type=SignalType.SETUP,
+            confidence=75.0,
+            notes=("first",),
+        )
+        outcome = _outcome(OutcomeStatus.POSITIVE, 5.0)
+
+        view_model = build_snapshot_detail_view_model(
+            signal=signal,
+            outcomes=(outcome,),
+        )
+
+        self.assertEqual(view_model["title"], "Snapshot Detail - AAPL")
+        header = view_model["header"]
+        self.assertEqual(header[0]["value"], "AAPL")
+        self.assertEqual(header[1]["value"], "2026-07-01")
+        self.assertEqual(header[2]["value"], "snapshot-1")
+        self.assertEqual(header[3]["value"], "brain-v1")
+        self.assertEqual(header[4]["value"], "Positive / 5.00%")
+        raw_json = view_model["raw_json"]
+        self.assertIn('  "confidence": 75.0', raw_json)
+        self.assertIn('  "linked_outcome_count": 1', raw_json)
+        self.assertLess(raw_json.index('"confidence"'), raw_json.index('"context_summary"'))
+
+    def test_load_snapshot_detail_view_model_loads_exact_snapshot_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            connection = sqlite3.connect(db_path)
+            try:
+                repository = SQLiteSignalLedgerRepository(connection)
+                repository.initialize_schema()
+                repository.save_signal(_signal("signal-1", "AAPL", SignalType.SETUP, 75.0))
+                repository.save_signal(_signal("signal-2", "AAPL", SignalType.RISK, None))
+                repository.save_outcome(
+                    "signal-2",
+                    _outcome(OutcomeStatus.NEGATIVE, -4.0),
+                )
+            finally:
+                connection.close()
+
+            view_model = load_desktop_snapshot_detail_view_model(
+                db_path,
+                signal_id="signal-2",
+            )
+
+            header = view_model["header"]
+            self.assertEqual(header[2]["value"], "snapshot-signal-2")
+            self.assertEqual(header[4]["value"], "Negative / -4.00%")
+            self.assertIn('"signal_id": "signal-2"', view_model["raw_json"])
+
+    def test_snapshot_detail_prefers_v2_canonical_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            canonical = _canonical_result()
+            connection = sqlite3.connect(db_path)
+            try:
+                signal_repository = SQLiteSignalLedgerRepository(connection)
+                signal_repository.initialize_schema()
+                signal_repository.save_signal(_signal("signal-1", "AAPL", SignalType.SETUP, 75.0))
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+                snapshot_repository.initialize_schema()
+                snapshot_repository.save_snapshot(
+                    canonical,
+                    signal_id="signal-1",
+                    created_at="2026-07-01",
+                )
+            finally:
+                connection.close()
+
+            view_model = load_desktop_snapshot_detail_view_model(
+                db_path,
+                signal_id="signal-1",
+            )
+
+            self.assertEqual(view_model["status"], "Full Canonical Snapshot")
+            header = view_model["header"]
+            self.assertEqual(header[0]["value"], "AAPL")
+            self.assertEqual(header[1]["value"], "2026-07-01")
+            self.assertEqual(header[2]["value"], "canonical-snapshot-1")
+            self.assertEqual(header[3]["value"], "pipeline-v2")
+            self.assertEqual(view_model["raw_json"], _json_pretty(canonical.to_dict()))
+            self.assertIn('"resolver_output"', view_model["raw_json"])
+
+    def test_snapshot_detail_falls_back_to_legacy_when_v2_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            connection = sqlite3.connect(db_path)
+            try:
+                repository = SQLiteSignalLedgerRepository(connection)
+                repository.initialize_schema()
+                repository.save_signal(_signal("signal-1", "AAPL", SignalType.SETUP, 75.0))
+            finally:
+                connection.close()
+
+            view_model = load_desktop_snapshot_detail_view_model(
+                db_path,
+                signal_id="signal-1",
+            )
+
+            self.assertEqual(view_model["status"], "Legacy Reduced Snapshot")
+            self.assertIn('"signal_id": "signal-1"', view_model["raw_json"])
+
+    def test_snapshot_detail_missing_v2_table_is_safe(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            connection = sqlite3.connect(db_path)
+            try:
+                repository = SQLiteSignalLedgerRepository(connection)
+                repository.initialize_schema()
+                repository.save_signal(_signal("signal-1", "AAPL", SignalType.SETUP, 75.0))
+            finally:
+                connection.close()
+
+            view_model = load_desktop_snapshot_detail_view_model(
+                db_path,
+                signal_id="signal-1",
+            )
+
+            self.assertEqual(view_model["status"], "Legacy Reduced Snapshot")
+
+    def test_snapshot_detail_can_find_v2_by_symbol_market_date_and_timeframe(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            canonical = _canonical_result()
+            connection = sqlite3.connect(db_path)
+            try:
+                signal_repository = SQLiteSignalLedgerRepository(connection)
+                signal_repository.initialize_schema()
+                signal_repository.save_signal(_signal("signal-1", "AAPL", SignalType.SETUP, 75.0))
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+                snapshot_repository.initialize_schema()
+                snapshot_repository.save_snapshot(canonical, created_at="2026-07-01")
+            finally:
+                connection.close()
+
+            view_model = load_desktop_snapshot_detail_view_model(
+                db_path,
+                signal_id="signal-1",
+            )
+
+            self.assertEqual(view_model["status"], "Full Canonical Snapshot")
+            self.assertEqual(view_model["raw_json"], _json_pretty(canonical.to_dict()))
+
+    def test_history_rows_include_hidden_signal_id_for_detail_loading(self) -> None:
+        signal = _signal("signal-1", "AAPL", SignalType.SETUP, 75.0)
+
+        view_model = build_signal_history_view_model(
+            selected_symbol="AAPL",
+            signals=(signal,),
+        )
+
+        self.assertEqual(view_model["rows"][0]["signal_id"], "signal-1")
+
+    def test_snapshot_history_double_click_opens_detail_viewer(self) -> None:
+        tree = ast.parse(Path("src/gui/signal_history_surface.py").read_text(encoding="utf-8"))
+        connections = {
+            (
+                _attribute_name(call.func.value),
+                _attribute_name(call.args[0]) if call.args else "",
+            )
+            for call in ast.walk(tree)
+            if isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and call.func.attr == "connect"
+        }
+        open_method = _method(tree, "_open_snapshot_detail")
+        called_names = {
+            _attribute_name(call.func)
+            for call in ast.walk(open_method)
+            if isinstance(call, ast.Call)
+        }
+
+        self.assertIn(
+            ("self._table.cellDoubleClicked", "self._open_snapshot_detail"),
+            connections,
+        )
+        self.assertIn("load_desktop_snapshot_detail_view_model", called_names)
+        self.assertIn("SnapshotDetailDialog", called_names)
+
 
 def _signal(
     signal_id: str,
@@ -196,6 +411,38 @@ def _signal(
     )
 
 
+def _canonical_result() -> CanonicalResultV1:
+    return CanonicalResultV1(
+        identity=CanonicalIdentityV1(
+            symbol="AAPL",
+            timeframe="1D",
+            snapshot_id="canonical-snapshot-1",
+            snapshot_date="2026-07-01",
+            analysis_date="2026-07-01",
+            source="analysis_pipeline_v2",
+            pipeline_version="pipeline-v2",
+        ),
+        brain=CanonicalBrainResultV1(
+            snapshot={"indicators": {"rsi": 55.0}},
+            resolver_output={"matches": [{"pattern_id": "pattern-1"}]},
+            prediction_summary={"confidence": 72.0, "evidence_count": 12},
+            metadata={"brain_version": "brain-v1"},
+        ),
+        prediction=CanonicalPredictionResultV1(
+            confidence=72.0,
+            evidence_count=12,
+            expected_return_10d=4.5,
+            best_pattern_id="pattern-1",
+        ),
+    )
+
+
+def _json_pretty(value: object) -> str:
+    import json
+
+    return json.dumps(value, indent=2, sort_keys=True, default=str)
+
+
 def _outcome(
     status: OutcomeStatus | str,
     return_pct: float | None,
@@ -214,6 +461,25 @@ def _outcome(
         max_drawdown_pct=min(return_pct, 0.0) if return_pct is not None else None,
         outcome_status=status,
     )
+
+
+def _attribute_name(node: ast.AST) -> str:
+    if isinstance(node, ast.Attribute):
+        return f"{_attribute_name(node.value)}.{node.attr}"
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Call):
+        return f"{_attribute_name(node.func)}()"
+    if isinstance(node, ast.Subscript):
+        return f"{_attribute_name(node.value)}[]"
+    raise AssertionError(f"Unexpected AST node: {ast.dump(node)}")
+
+
+def _method(tree: ast.Module, name: str) -> ast.FunctionDef:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise AssertionError(f"Missing method: {name}")
 
 
 if __name__ == "__main__":

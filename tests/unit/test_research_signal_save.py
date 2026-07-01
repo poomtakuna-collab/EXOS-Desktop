@@ -10,6 +10,7 @@ from src.canonical_result import (
     CanonicalResultV1,
     CanonicalSignalSummaryV1,
 )
+from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
 from src.gui.research_signal_save import save_manual_signal_candidate
 from src.signal_ledger import SignalRecord, SignalType
 from src.signal_ledger.sqlite_repository import SQLiteSignalLedgerRepository
@@ -48,6 +49,54 @@ class ResearchSignalSaveTest(unittest.TestCase):
             self.assertEqual(saved.context_summary["market"]["trend"], "up")
             self.assertEqual(saved.strategy_summary["strategy_score"], 77.0)
             self.assertIn("prediction_summary", saved.strategy_summary)
+
+    def test_successful_save_persists_v2_snapshot_and_compatibility_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+
+            result = save_manual_signal_candidate(
+                _canonical_result(),
+                database_path=db_path,
+            )
+
+            self.assertTrue(result.saved)
+            connection = sqlite3.connect(db_path)
+            try:
+                signal_repository = SQLiteSignalLedgerRepository(connection)
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+                saved_signal = signal_repository.load_signal(result.signal.signal_id)
+                saved_snapshot = snapshot_repository.load_snapshot(
+                    symbol="AAPL",
+                    market_date="2026-07-02",
+                    timeframe="1D",
+                )
+            finally:
+                connection.close()
+
+            self.assertIsNotNone(saved_signal)
+            self.assertIsNotNone(saved_snapshot)
+            self.assertEqual(saved_snapshot.signal_id, result.signal.signal_id)
+            self.assertEqual(saved_snapshot.canonical_snapshot, _canonical_result().to_dict())
+
+    def test_v2_conflict_does_not_create_compatibility_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            connection = sqlite3.connect(db_path)
+            try:
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+                snapshot_repository.initialize_schema()
+                snapshot_repository.save_snapshot(_canonical_result(confidence=90.0))
+            finally:
+                connection.close()
+
+            result = save_manual_signal_candidate(
+                _canonical_result(confidence=81.0),
+                database_path=db_path,
+            )
+
+            self.assertEqual(result.status, "error")
+            self.assertIn("Unable to save snapshot", result.message)
+            self.assertEqual(_signals(db_path, "AAPL"), ())
 
     def test_duplicate_save_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

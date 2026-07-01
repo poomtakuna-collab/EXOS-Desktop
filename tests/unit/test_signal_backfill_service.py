@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from contextlib import closing
+import sqlite3
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from src.application.signal_backfill_service import backfill_missing_research_signals
 from src.data_source import MemoryDataSource
+from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
 from src.signal_ledger import (
     InMemorySignalLedgerRepository,
     SignalRecord,
@@ -114,6 +117,46 @@ class SignalBackfillServiceTest(unittest.TestCase):
         self.assertEqual(
             [signal.signal_date for signal in signals],
             ["2026-06-30", "2026-06-29"],
+        )
+
+    def test_backfill_persists_v2_snapshot_for_each_saved_market_date(self) -> None:
+        signal_repository = InMemorySignalLedgerRepository()
+        with closing(sqlite3.connect(":memory:")) as connection:
+            snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+            snapshot_repository.initialize_schema()
+
+            with patch(
+                "src.application.signal_backfill_service.analyze_symbol_v2",
+                side_effect=_fake_analysis,
+            ):
+                summary = backfill_missing_research_signals(
+                    symbol="AAPL",
+                    data_source=MemoryDataSource(
+                        [
+                            _row("AAPL", "2026-06-29", 100.0),
+                            _row("AAPL", "2026-06-30", 101.0),
+                            _row("AAPL", "2026-07-01", 102.0),
+                        ]
+                    ),
+                    signal_repository=signal_repository,
+                    snapshot_repository=snapshot_repository,
+                    as_of_date="2026-07-01",
+                )
+
+            snapshots = snapshot_repository.list_snapshots(symbol="AAPL")
+
+        self.assertEqual(summary.saved, 2)
+        self.assertEqual(
+            [snapshot.market_date for snapshot in snapshots],
+            ["2026-06-29", "2026-06-30"],
+        )
+        self.assertEqual(
+            [snapshot.signal_id for snapshot in snapshots],
+            list(summary.saved_signal_ids),
+        )
+        self.assertEqual(
+            [snapshot.canonical_snapshot["identity"]["analysis_date"] for snapshot in snapshots],
+            ["2026-06-29", "2026-06-30"],
         )
 
 

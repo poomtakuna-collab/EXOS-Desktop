@@ -8,6 +8,7 @@ import sqlite3
 from typing import Protocol
 
 from src.canonical_result import CanonicalResultV1
+from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
 from src.signal_ledger import SignalRecord, build_signal_record_from_canonical_result
 from src.signal_ledger.sqlite_repository import SQLiteSignalLedgerRepository
 
@@ -30,6 +31,17 @@ class SignalRepository(Protocol):
         pass
 
 
+class DailyResearchSnapshotRepository(Protocol):
+    def save_snapshot(
+        self,
+        canonical_result: CanonicalResultV1,
+        *,
+        signal_id: str | None = None,
+        created_at: str = "",
+    ) -> object:
+        pass
+
+
 @dataclass(frozen=True)
 class ManualSignalSaveResult:
     status: str
@@ -49,6 +61,7 @@ def save_manual_signal_candidate(
     canonical_result: CanonicalResultV1 | None,
     *,
     repository: SignalRepository | None = None,
+    snapshot_repository: DailyResearchSnapshotRepository | None = None,
     database_path: Path | str | None = None,
 ) -> ManualSignalSaveResult:
     if not isinstance(canonical_result, CanonicalResultV1):
@@ -59,7 +72,12 @@ def save_manual_signal_candidate(
 
     signal = _with_signal_id(build_signal_record_from_canonical_result(canonical_result))
     if repository is not None:
-        return _save_with_repository(repository, signal)
+        return _save_with_repository(
+            repository,
+            signal,
+            canonical_result=canonical_result,
+            snapshot_repository=snapshot_repository,
+        )
 
     path = Path(database_path or DEFAULT_SIGNAL_LEDGER_DATABASE_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -73,8 +91,15 @@ def save_manual_signal_candidate(
 
     try:
         ledger_repository = SQLiteSignalLedgerRepository(connection)
+        snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
         ledger_repository.initialize_schema()
-        return _save_with_repository(ledger_repository, signal)
+        snapshot_repository.initialize_schema()
+        return _save_with_repository(
+            ledger_repository,
+            signal,
+            canonical_result=canonical_result,
+            snapshot_repository=snapshot_repository,
+        )
     except (sqlite3.Error, ValueError) as error:
         return ManualSignalSaveResult(
             status="error",
@@ -87,6 +112,9 @@ def save_manual_signal_candidate(
 def _save_with_repository(
     repository: SignalRepository,
     signal: SignalRecord,
+    *,
+    canonical_result: CanonicalResultV1 | None = None,
+    snapshot_repository: DailyResearchSnapshotRepository | None = None,
 ) -> ManualSignalSaveResult:
     try:
         existing_for_date = _existing_signal_for_candidate_market_date(repository, signal)
@@ -102,6 +130,12 @@ def _save_with_repository(
                 status="duplicate",
                 message=f"Snapshot already saved: {signal.signal_id}",
                 signal=existing,
+            )
+        if snapshot_repository is not None and canonical_result is not None:
+            snapshot_repository.save_snapshot(
+                canonical_result,
+                signal_id=signal.signal_id,
+                created_at=_market_date(signal),
             )
         saved_signal = repository.save_signal(signal)
     except (RuntimeError, ValueError, sqlite3.Error) as error:

@@ -18,6 +18,7 @@ from src.data_source.analysis_cutoff import (
     rows_through_analysis_cutoff,
 )
 from src.gui.research_signal_save import (
+    DailyResearchSnapshotRepository,
     ManualSignalSaveResult,
     SignalRepository,
     save_manual_signal_candidate,
@@ -61,6 +62,7 @@ def backfill_missing_research_signals(
     symbol: str,
     data_source: MarketDataSource,
     signal_repository: SignalRepository,
+    snapshot_repository: DailyResearchSnapshotRepository | None = None,
     row_limit: int | None = None,
     timeframe: str = DEFAULT_BACKFILL_TIMEFRAME,
     as_of_date: date | str | None = None,
@@ -117,6 +119,7 @@ def backfill_missing_research_signals(
             result = save_manual_signal_candidate(
                 canonical_result,
                 repository=signal_repository,
+                snapshot_repository=snapshot_repository,
             )
         except (RuntimeError, ValueError, TypeError, KeyError) as error:
             skipped_failed += 1

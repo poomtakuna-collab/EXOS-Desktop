@@ -23,6 +23,8 @@ The sprint should make EXOS able to preserve generated Daily Research Snapshots,
 - Outcome Tracking v1 foundation and Outcome Calculator v1 are implemented.
 - Signal Ledger repository foundation is implemented.
 - Signal Ledger SQLite Persistence v1 is implemented.
+- Daily Research Snapshot Persistence v2 foundation is implemented.
+- Daily Research Snapshot Persistence v2 is wired into explicit Manual Snapshot Save and Backfill flows.
 - Outcome SQLite Persistence v1 is implemented.
 - Outcome Evaluation Flow v1 foundation is implemented.
 - Performance Report v1 is implemented.
@@ -32,6 +34,7 @@ The sprint should make EXOS able to preserve generated Daily Research Snapshots,
 - EXOS Desktop Research Surface v1 is implemented.
 - EXOS Desktop Research real analysis/context loading foundation is implemented.
 - EXOS Desktop Snapshot History tab v0 is implemented.
+- EXOS Desktop Snapshot Detail Viewer prefers full v2 canonical snapshot payloads when available.
 - Chart -> Data Source v1 integration foundation is implemented.
 - Chart Data Source v1 integration coverage is implemented.
 - ChartWorkspace app integration coverage is implemented.
@@ -44,7 +47,7 @@ The sprint should make EXOS able to preserve generated Daily Research Snapshots,
 - EXOS Desktop Evidence Loop background worker and crash guard are implemented.
 - Desktop Snapshot terminology is implemented for user-facing save/history/performance surfaces.
 - Analysis Cutoff Policy v1 foundation is implemented.
-- Current full test baseline: 619 tests passing with `py -m unittest discover -s tests`.
+- Current full test baseline: 639 tests passing with `py -m unittest discover -s tests`.
 
 ## Completed Foundation Work
 
@@ -59,12 +62,15 @@ The sprint should make EXOS able to preserve generated Daily Research Snapshots,
 - Deterministic Outcome Evaluation Flow v1 from saved snapshots to persisted completed outcomes.
 - In-memory Signal Ledger repository.
 - SQLite-backed Signal Ledger repository for snapshot-compatible records and linked outcomes.
+- Additive immutable Daily Research Snapshot v2 repository for full lossless `CanonicalResultV1.to_dict()` JSON by symbol, market date, timeframe, canonical schema version, and persistence version.
+- Explicit snapshot creation flows now persist both the full v2 canonical snapshot row and the existing Signal Ledger compatibility row.
 - Deterministic Performance Report v1 from snapshot/outcome repositories, including Snapshot Health Summary fields for coverage, pending outcomes, duplicates, and latest dates.
 - Main EXOS Desktop Performance tab.
 - Selected-symbol scoped Performance tab metrics with global reference summary.
 - Main EXOS Desktop Research tab with grouped read-only context cards.
 - Read-only Research tab loading from Data Source v1 rows and Analysis Pipeline v2 canonical Brain output where available.
 - Main EXOS Desktop Snapshot History tab for saved snapshots and linked outcomes.
+- Snapshot Detail opens full v2 canonical Daily Research Snapshot JSON when present and falls back to legacy reduced SignalRecord detail when absent.
 - Chart Data Source v1 adapter foundation with legacy desktop loader fallback.
 - SQLite-backed Chart Data Source v1 integration coverage for adapter reads, fallback behavior, ordering, values, and read-only guarantees.
 - ChartWorkspace app-level coverage for adapter injection, successful loads, fallback paths, symbol switching, and repeated refreshes.

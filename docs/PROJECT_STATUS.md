@@ -62,6 +62,10 @@ Outcome Calculator v1 is implemented.
 
 Signal Ledger Persistence v1 foundation and SQLite repository are implemented.
 
+Daily Research Snapshot Persistence v2 foundation is implemented.
+
+Daily Research Snapshot Persistence v2 is wired into explicit Manual Snapshot Save and Backfill flows.
+
 Outcome SQLite Persistence v1 is implemented.
 
 Outcome Evaluation Flow v1 foundation is implemented.
@@ -79,6 +83,8 @@ EXOS Desktop Research Surface v0 is implemented.
 EXOS Desktop Research Surface v1 is implemented.
 
 EXOS Desktop Signal History tab v0 is implemented.
+
+EXOS Desktop Snapshot Detail Viewer is v2-aware and prefers full canonical Daily Research Snapshot payloads when available.
 
 Manual Signal Backfill Service foundation is implemented.
 
@@ -2055,6 +2061,54 @@ Current tests:
 - `tests/unit/test_signal_ledger_repository.py`
 - `tests/unit/test_signal_ledger_sqlite_repository.py`
 
+### Daily Research Snapshot Persistence v2 Foundation
+
+Status: Implemented.
+
+Daily Research Snapshot Persistence v2 adds an additive immutable SQLite persistence layer for full canonical daily research snapshots:
+
+- `DailyResearchSnapshotRecord`
+- `SQLiteDailyResearchSnapshotRepository`
+- `initialize_daily_research_snapshot_schema`
+
+The v2 table is `daily_research_snapshots`, separate from `signal_ledger_signals`.
+
+It stores the full lossless `CanonicalResultV1.to_dict()` payload as deterministic pretty/sorted JSON.
+
+It preserves existing `SignalRecord` and Signal Ledger compatibility contracts unchanged.
+
+The unique immutable identity is:
+
+- symbol
+- market date
+- timeframe
+- canonical schema version
+- persistence version
+
+Save behavior is insert-only:
+
+- same identity plus same payload hash returns the existing record idempotently
+- same identity plus different payload hash raises an immutable conflict
+- different schema/version records may coexist
+
+The stable `snapshot_record_id` is generated from the v2 identity and does not depend on legacy or empty `snapshot_id` values.
+
+It is wired into explicit Manual Snapshot Save and Manual Snapshot Backfill flows, where v2 canonical rows are saved alongside existing Signal Ledger compatibility records.
+
+Snapshot History detail now prefers the v2 canonical payload when available and falls back to the legacy reduced `SignalRecord` detail when v2 is missing.
+
+It is not wired into Outcome Evaluation or Performance reporting yet.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not modify `SignalRecord`.
+
+It does not modify existing Signal Ledger repository behavior.
+
+Current tests:
+
+- `tests/unit/test_daily_research_snapshot_sqlite_repository.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
@@ -2088,7 +2142,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 619 tests
+- 639 tests
 
 ## History
 
