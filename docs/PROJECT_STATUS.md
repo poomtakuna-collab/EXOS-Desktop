@@ -82,6 +82,8 @@ Chart Data Source v1 integration coverage is implemented.
 
 ChartWorkspace app integration coverage is implemented.
 
+ChartWorkspace shared StateManager constructor wiring bug is fixed.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1157,6 +1159,8 @@ Chart Data Source v1 integration coverage now verifies realistic SQLite-backed a
 
 ChartWorkspace app integration coverage now verifies the desktop Chart tab uses injected chart data loaders/adapters for successful loads, fallback paths, symbol switching, and repeated refreshes.
 
+ChartWorkspace now receives the main desktop shared `StateManager` through keyword-based construction, preserving dashboard symbol propagation into the Chart tab.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1182,7 +1186,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 560 tests passing
+- 561 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1750,7 +1754,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 560 tests
+- 561 tests
 
 ## History
 

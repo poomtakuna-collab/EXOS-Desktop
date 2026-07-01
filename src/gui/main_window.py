@@ -37,7 +37,10 @@ class MainWindow(QMainWindow):
         self._data_manager = DataManager()
         self._dashboard_symbols = dashboard_symbols or self._dashboard_manager.load_symbols()
         self._dashboard_list = QListWidget(self)
-        self._chart_workspace = ChartWorkspace(self._data_manager, self._state_manager)
+        self._chart_workspace = ChartWorkspace(
+            data_manager=self._data_manager,
+            state_manager=self._state_manager,
+        )
         self._research_panel = ResearchPanel(self._state_manager)
         self._performance_panel = PerformancePanel(state_manager=self._state_manager)
         self._signal_history_panel = SignalHistoryPanel(self._state_manager)
