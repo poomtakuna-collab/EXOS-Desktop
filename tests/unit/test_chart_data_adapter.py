@@ -85,6 +85,7 @@ class ChartDataAdapterTest(unittest.TestCase):
                 ]
             ),
             required_row_count=2,
+            today=lambda: date(2026, 7, 3),
         )
 
         result = adapter.get_historical_data("AAPL")

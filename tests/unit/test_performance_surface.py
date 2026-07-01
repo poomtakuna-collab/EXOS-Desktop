@@ -29,7 +29,11 @@ class PerformanceSurfaceTest(unittest.TestCase):
             last_outcome_evaluation_date="2026-07-11",
             win_rate=50.0,
             average_return=1.25,
+            median_return=1.5,
+            average_drawdown=-3.5,
             average_max_drawdown=-3.5,
+            best_outcome=6.0,
+            worst_outcome=-2.0,
             outcome_status_distribution={"negative": 1, "target_hit": 1},
             signal_type_breakdown={"breakout": 1, "setup": 2},
             confidence_bucket_breakdown={
@@ -65,6 +69,17 @@ class PerformanceSurfaceTest(unittest.TestCase):
                 "duplicate_snapshots": "1",
                 "last_snapshot_date": "2026-07-03",
                 "last_outcome_evaluation_date": "2026-07-11",
+            },
+        )
+        self.assertEqual(
+            view_model["performance_analytics"],
+            {
+                "average_return": "1.25%",
+                "median_return": "1.50%",
+                "win_rate": "50.00%",
+                "average_drawdown": "-3.50%",
+                "best_outcome": "6.00%",
+                "worst_outcome": "-2.00%",
             },
         )
         self.assertEqual(
@@ -107,6 +122,17 @@ class PerformanceSurfaceTest(unittest.TestCase):
     def test_view_model_handles_empty_report(self) -> None:
         view_model = build_performance_view_model(PerformanceReport())
 
+        self.assertEqual(
+            view_model["performance_analytics"],
+            {
+                "average_return": "0.00%",
+                "median_return": "0.00%",
+                "win_rate": "0.00%",
+                "average_drawdown": "0.00%",
+                "best_outcome": "0.00%",
+                "worst_outcome": "0.00%",
+            },
+        )
         self.assertEqual(
             view_model["snapshot_health"],
             {

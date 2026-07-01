@@ -31,6 +31,7 @@ class PerformancePanel(QWidget):
         self._scope_label = QLabel(self)
         self._global_summary_label = QLabel(self)
         self._summary_labels: dict[str, QLabel] = {}
+        self._performance_analytics_labels: dict[str, QLabel] = {}
         self._snapshot_health_labels: dict[str, QLabel] = {}
         self._outcome_distribution_label = QLabel(self)
         self._signal_breakdown_label = QLabel(self)
@@ -58,6 +59,8 @@ class PerformancePanel(QWidget):
 
         for key, value in view_model["summary"].items():
             self._summary_labels[key].setText(value)
+        for key, value in view_model["performance_analytics"].items():
+            self._performance_analytics_labels[key].setText(value)
         for key, value in view_model["snapshot_health"].items():
             self._snapshot_health_labels[key].setText(value)
 
@@ -87,6 +90,25 @@ class PerformancePanel(QWidget):
             summary_layout.addWidget(value_label, row, 1)
             self._summary_labels[key] = value_label
         summary_group.setLayout(summary_layout)
+
+        performance_analytics_group = QGroupBox("Performance Analytics", self)
+        performance_analytics_layout = QGridLayout()
+        for row, (key, label) in enumerate(
+            (
+                ("average_return", "Average Return"),
+                ("median_return", "Median Return"),
+                ("win_rate", "Win Rate"),
+                ("average_drawdown", "Average Drawdown"),
+                ("best_outcome", "Best Outcome"),
+                ("worst_outcome", "Worst Outcome"),
+            )
+        ):
+            name_label = QLabel(label, performance_analytics_group)
+            value_label = QLabel("", performance_analytics_group)
+            performance_analytics_layout.addWidget(name_label, row, 0)
+            performance_analytics_layout.addWidget(value_label, row, 1)
+            self._performance_analytics_labels[key] = value_label
+        performance_analytics_group.setLayout(performance_analytics_layout)
 
         snapshot_health_group = QGroupBox("Snapshot Health", self)
         snapshot_health_layout = QGridLayout()
@@ -129,6 +151,7 @@ class PerformancePanel(QWidget):
         layout.addWidget(self._scope_label)
         layout.addWidget(self._global_summary_label)
         layout.addWidget(summary_group)
+        layout.addWidget(performance_analytics_group)
         layout.addWidget(snapshot_health_group)
         layout.addWidget(outcome_group)
         layout.addWidget(signal_group)

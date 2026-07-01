@@ -51,7 +51,11 @@ class PerformanceReport:
     last_outcome_evaluation_date: str = ""
     win_rate: float = 0.0
     average_return: float = 0.0
+    median_return: float = 0.0
+    average_drawdown: float = 0.0
     average_max_drawdown: float = 0.0
+    best_outcome: float = 0.0
+    worst_outcome: float = 0.0
     outcome_status_distribution: dict[str, int] = field(default_factory=dict)
     signal_type_breakdown: dict[str, int] = field(default_factory=dict)
     confidence_bucket_breakdown: dict[str, int] = field(
@@ -70,7 +74,11 @@ class PerformanceReport:
             "last_outcome_evaluation_date": self.last_outcome_evaluation_date,
             "win_rate": self.win_rate,
             "average_return": self.average_return,
+            "median_return": self.median_return,
+            "average_drawdown": self.average_drawdown,
             "average_max_drawdown": self.average_max_drawdown,
+            "best_outcome": self.best_outcome,
+            "worst_outcome": self.worst_outcome,
             "outcome_status_distribution": dict(self.outcome_status_distribution),
             "signal_type_breakdown": dict(self.signal_type_breakdown),
             "confidence_bucket_breakdown": dict(self.confidence_bucket_breakdown),
@@ -109,7 +117,11 @@ def build_performance_report(
         last_outcome_evaluation_date=_last_outcome_evaluation_date(outcomes),
         win_rate=_percentage(_winning_outcome_count(outcomes), len(outcomes)),
         average_return=_average(return_values),
+        median_return=_median(return_values),
+        average_drawdown=_average(drawdown_values),
         average_max_drawdown=_average(drawdown_values),
+        best_outcome=_best(return_values),
+        worst_outcome=_worst(return_values),
         outcome_status_distribution=_outcome_status_distribution(outcomes),
         signal_type_breakdown=_signal_type_breakdown(signals),
         confidence_bucket_breakdown=_confidence_bucket_breakdown(signals),
@@ -256,6 +268,28 @@ def _average(values: list[float]) -> float:
     if not values:
         return 0.0
     return _rounded(sum(values) / len(values))
+
+
+def _median(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    sorted_values = sorted(values)
+    midpoint = len(sorted_values) // 2
+    if len(sorted_values) % 2:
+        return _rounded(sorted_values[midpoint])
+    return _rounded((sorted_values[midpoint - 1] + sorted_values[midpoint]) / 2.0)
+
+
+def _best(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    return _rounded(max(values))
+
+
+def _worst(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    return _rounded(min(values))
 
 
 def _rounded(value: float) -> float:

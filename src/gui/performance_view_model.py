@@ -64,6 +64,14 @@ def build_performance_view_model(
             "average_return": _format_percent(report.average_return),
             "average_max_drawdown": _format_percent(report.average_max_drawdown),
         },
+        "performance_analytics": {
+            "average_return": _format_percent(report.average_return),
+            "median_return": _format_percent(report.median_return),
+            "win_rate": _format_percent(report.win_rate),
+            "average_drawdown": _format_percent(report.average_drawdown),
+            "best_outcome": _format_percent(report.best_outcome),
+            "worst_outcome": _format_percent(report.worst_outcome),
+        },
         "snapshot_health": {
             "total_snapshots": str(report.total_signals),
             "completed_outcomes": str(report.completed_outcomes),

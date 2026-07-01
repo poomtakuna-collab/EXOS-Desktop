@@ -38,7 +38,11 @@ class PerformanceReportTest(unittest.TestCase):
         self.assertEqual(report.last_outcome_evaluation_date, "")
         self.assertEqual(report.win_rate, 0.0)
         self.assertEqual(report.average_return, 0.0)
+        self.assertEqual(report.median_return, 0.0)
+        self.assertEqual(report.average_drawdown, 0.0)
         self.assertEqual(report.average_max_drawdown, 0.0)
+        self.assertEqual(report.best_outcome, 0.0)
+        self.assertEqual(report.worst_outcome, 0.0)
         self.assertEqual(report.outcome_status_distribution, {})
         self.assertEqual(report.signal_type_breakdown, {})
         self.assertEqual(
@@ -75,7 +79,44 @@ class PerformanceReportTest(unittest.TestCase):
         self.assertEqual(report.total_outcomes, 3)
         self.assertEqual(report.win_rate, 33.3333)
         self.assertEqual(report.average_return, 0.6667)
+        self.assertEqual(report.median_return, 0.0)
+        self.assertEqual(report.average_drawdown, -3.0)
         self.assertEqual(report.average_max_drawdown, -3.0)
+        self.assertEqual(report.best_outcome, 5.0)
+        self.assertEqual(report.worst_outcome, -3.0)
+
+    def test_builds_performance_analytics_for_even_completed_outcomes(self) -> None:
+        signal_repository = InMemorySignalLedgerRepository()
+        outcome_repository = InMemoryOutcomeRepository()
+        outcome_repository.save_outcome(
+            "signal-1",
+            _outcome(OutcomeStatus.POSITIVE, 5.0, -2.0),
+            outcome_id="outcome-1",
+        )
+        outcome_repository.save_outcome(
+            "signal-2",
+            _outcome(OutcomeStatus.POSITIVE, 1.0, -1.0),
+            outcome_id="outcome-2",
+        )
+        outcome_repository.save_outcome(
+            "signal-3",
+            _outcome(OutcomeStatus.NEGATIVE, -3.0, -6.0),
+            outcome_id="outcome-3",
+        )
+        outcome_repository.save_outcome(
+            "signal-4",
+            _outcome(OutcomeStatus.POSITIVE, 9.0, -3.0),
+            outcome_id="outcome-4",
+        )
+
+        report = build_performance_report(signal_repository, outcome_repository)
+
+        self.assertEqual(report.average_return, 3.0)
+        self.assertEqual(report.median_return, 3.0)
+        self.assertEqual(report.win_rate, 75.0)
+        self.assertEqual(report.average_drawdown, -3.0)
+        self.assertEqual(report.best_outcome, 9.0)
+        self.assertEqual(report.worst_outcome, -3.0)
 
     def test_builds_snapshot_health_summary(self) -> None:
         signal_repository = InMemorySignalLedgerRepository()
@@ -292,7 +333,11 @@ class PerformanceReportTest(unittest.TestCase):
             last_outcome_evaluation_date="2026-07-11",
             win_rate=100.0,
             average_return=5.0,
+            median_return=5.0,
+            average_drawdown=-2.0,
             average_max_drawdown=-2.0,
+            best_outcome=5.0,
+            worst_outcome=5.0,
             outcome_status_distribution={"positive": 1},
             signal_type_breakdown={"setup": 1},
             confidence_bucket_breakdown={bucket: 0 for bucket in CONFIDENCE_BUCKETS},
@@ -313,7 +358,11 @@ class PerformanceReportTest(unittest.TestCase):
                 "last_outcome_evaluation_date",
                 "win_rate",
                 "average_return",
+                "median_return",
+                "average_drawdown",
                 "average_max_drawdown",
+                "best_outcome",
+                "worst_outcome",
                 "outcome_status_distribution",
                 "signal_type_breakdown",
                 "confidence_bucket_breakdown",
