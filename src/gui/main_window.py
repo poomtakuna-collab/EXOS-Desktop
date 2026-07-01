@@ -26,6 +26,7 @@ from src.gui.chart_workspace import ChartWorkspace
 from src.gui.developer_panel import DeveloperPanel
 from src.gui.performance_surface import PerformancePanel
 from src.gui.research_surface import ResearchPanel
+from src.gui.signal_history_surface import SignalHistoryPanel
 
 
 class MainWindow(QMainWindow):
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow):
         self._chart_workspace = ChartWorkspace(self._data_manager, self._state_manager)
         self._research_panel = ResearchPanel(self._state_manager)
         self._performance_panel = PerformancePanel(state_manager=self._state_manager)
+        self._signal_history_panel = SignalHistoryPanel(self._state_manager)
         self._developer_panel = DeveloperPanel(self._state_manager)
         self._developer_dock = QDockWidget("Developer Panel", self)
         self._developer_mode_action: QAction | None = None
@@ -78,6 +80,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._chart_workspace, "Chart")
         tabs.addTab(self._research_panel, "Research")
         tabs.addTab(self._performance_panel, "Performance")
+        tabs.addTab(self._signal_history_panel, "Signal History")
         self.setCentralWidget(tabs)
 
     def _create_dashboard_dock(self) -> None:
@@ -168,6 +171,7 @@ class MainWindow(QMainWindow):
         self._chart_workspace.refresh_from_state()
         self._research_panel.refresh()
         self._performance_panel.refresh()
+        self._signal_history_panel.refresh()
         self._developer_panel.refresh()
 
         if self._state_manager.current_symbol:

@@ -74,6 +74,8 @@ EXOS Desktop Research Surface v0 is implemented.
 
 EXOS Desktop Research Surface v1 is implemented.
 
+EXOS Desktop Signal History tab v0 is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1141,6 +1143,8 @@ EXOS Desktop Research Surface v0 introduced a read-only Research tab in the main
 
 EXOS Desktop Research Surface v1 refined the Research tab into compact grouped information cards.
 
+EXOS Desktop Signal History tab v0 introduced a read-only signal/outcome history tab for the selected dashboard symbol.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1166,7 +1170,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 537 tests passing
+- 543 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1561,6 +1565,50 @@ Current tests:
 
 - `tests/unit/test_research_surface.py`
 
+### EXOS Desktop Signal History tab v0
+
+Status: Implemented.
+
+EXOS Desktop Signal History tab v0 adds a read-only Signal History tab to the main `MainWindow` central workspace.
+
+The central desktop workspace now includes:
+
+- Chart tab
+- Research tab
+- Performance tab
+- Signal History tab
+
+When a dashboard/watchlist symbol is selected, the tab loads saved signals for that symbol from `database/exos.db` using the existing Signal Ledger SQLite repository in read-only mode.
+
+The table displays:
+
+- signal date
+- signal type
+- confidence
+- snapshot date/id
+- linked outcome count
+- latest linked outcome status / return
+
+Missing database files, missing Signal Ledger tables, no selected symbol, and no matching records render graceful empty states.
+
+The UI uses a thin Qt panel and a Qt-free view-model/data-loading helper:
+
+- `SignalHistoryPanel`
+- `load_desktop_signal_history_view_model`
+- `build_signal_history_view_model`
+
+It does not create standalone demo scripts.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not add AI, broker, portfolio, trading actions, or runtime auto-persistence.
+
+Current tests:
+
+- `tests/unit/test_signal_history_surface.py`
+
 ### Signal Ledger Persistence v1 Foundation
 
 Status: Storage-neutral repository foundation and SQLite repository implemented.
@@ -1640,7 +1688,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 537 tests
+- 543 tests
 
 ## History
 
