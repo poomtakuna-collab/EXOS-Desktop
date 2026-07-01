@@ -942,6 +942,45 @@ Current tests:
 
 - `tests/unit/test_volume_context_calculator.py`
 
+### Relative Strength Context Calculator v1
+
+Status: Implemented.
+
+Relative Strength Context Calculator v1 adds a deterministic pure calculator in `src/context` that derives `RelativeStrengthContext` from local performance inputs:
+
+- symbol OHLCV rows
+- optional market benchmark OHLCV rows
+- optional sector benchmark OHLCV rows
+- explicit symbol, benchmark, or sector performance values
+
+The calculator compares symbol performance against available benchmark data and classifies relative strength as:
+
+- `outperform`
+- `neutral`
+- `underperform`
+- `unknown`
+
+It returns `stock_vs_market` and `stock_vs_sector` as the existing contract's numeric relative-strength quality fields.
+
+It is exported through the context package as:
+
+- `calculate_relative_strength_context`
+- `calculate_relative_strength_context_from_analysis`
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_relative_strength_calculator.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
