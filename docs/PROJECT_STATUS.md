@@ -1161,6 +1161,10 @@ ChartWorkspace app integration coverage now verifies the desktop Chart tab uses 
 
 ChartWorkspace now receives the main desktop shared `StateManager` through keyword-based construction, preserving dashboard symbol propagation into the Chart tab.
 
+SQLiteDataSource limited OHLCV loading now selects the latest matching rows and returns them in chronological ascending order for chart consumers.
+
+OHLCV cache freshness now checks the latest cached daily row date instead of treating row count alone as fresh. Full caches older than the freshness threshold fall through to the existing provider-backed refresh path.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1186,7 +1190,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 561 tests passing
+- 570 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1661,6 +1665,10 @@ Chart appearance and rendering behavior are preserved.
 
 The default desktop adapter opens `database/exos.db` read-only for SQLite Data Source v1 reads.
 
+Limited SQLite OHLCV reads select the newest matching rows first, then return the chart-facing row set in date-ascending order.
+
+Normal cached chart loads remain read-only. When a full cached set is stale, the explicit historical refresh path can fall back to `DataManager`, provider fetch, and SQLite upsert.
+
 It does not retire the legacy chart loader yet.
 
 It does not introduce a new engine.
@@ -1671,6 +1679,7 @@ It does not add AI, broker, portfolio, trading actions, or runtime auto-persiste
 
 Current tests:
 
+- `tests/unit/test_data_manager.py`
 - `tests/unit/test_chart_data_adapter.py`
 - `tests/integration/test_chart_data_adapter_sqlite_integration.py`
 - `tests/integration/test_chart_workspace_adapter_integration.py`
@@ -1754,7 +1763,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 561 tests
+- 570 tests
 
 ## History
 

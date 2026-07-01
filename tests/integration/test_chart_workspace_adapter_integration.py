@@ -189,8 +189,8 @@ class ChartWorkspaceAdapterIntegrationTest(unittest.TestCase):
             legacy_data_loader=legacy,
             data_source=MemoryDataSource(
                 [
-                    _row("AAPL", "2026-01-01", 100.0),
-                    _row("AAPL", "2026-01-02", 101.0),
+                    _row("AAPL", "2026-07-01", 100.0),
+                    _row("AAPL", "2026-07-02", 101.0),
                 ]
             ),
             required_row_count=2,
@@ -205,7 +205,7 @@ class ChartWorkspaceAdapterIntegrationTest(unittest.TestCase):
 
         self.assertEqual(
             [row["date"] for row in workspace._chart.rendered_rows()],
-            ["2026-01-01", "2026-01-02"],
+            ["2026-07-01", "2026-07-02"],
         )
         self.assertEqual(state.market_data_rows, 2)
         self.assertEqual(state.market_data_source, "memory")
@@ -219,7 +219,7 @@ class ChartWorkspaceAdapterIntegrationTest(unittest.TestCase):
             cached_sequence=(
                 HistoricalDataResult(rows=[], source="legacy-cache"),
                 HistoricalDataResult(
-                    rows=[_chart_row("legacy-1", 90.0), _chart_row("legacy-2", 91.0)],
+                    rows=[_chart_row("2026-07-01", 90.0), _chart_row("2026-07-02", 91.0)],
                     source="legacy-cache",
                 ),
             ),
@@ -243,7 +243,7 @@ class ChartWorkspaceAdapterIntegrationTest(unittest.TestCase):
 
         self.assertEqual(
             [row["date"] for row in workspace._chart.rendered_rows()],
-            ["legacy-1", "legacy-2"],
+            ["2026-07-01", "2026-07-02"],
         )
         self.assertEqual(legacy.cached_calls, 2)
         self.assertEqual(legacy.historical_calls, 1)
@@ -254,7 +254,7 @@ class ChartWorkspaceAdapterIntegrationTest(unittest.TestCase):
         legacy = _LegacyLoader(
             cached_sequence=(
                 HistoricalDataResult(
-                    rows=[_chart_row("legacy-1", 90.0), _chart_row("legacy-2", 91.0)],
+                    rows=[_chart_row("2026-07-01", 90.0), _chart_row("2026-07-02", 91.0)],
                     source="legacy-cache",
                 ),
             ),
@@ -274,10 +274,44 @@ class ChartWorkspaceAdapterIntegrationTest(unittest.TestCase):
 
         self.assertEqual(
             [row["date"] for row in workspace._chart.rendered_rows()],
-            ["legacy-1", "legacy-2"],
+            ["2026-07-01", "2026-07-02"],
         )
         self.assertEqual(state.market_data_source, "legacy-cache")
         self.assertEqual(legacy.cached_calls, 1)
+
+    def test_full_stale_cached_rows_trigger_refresh_path(self) -> None:
+        state = StateManager()
+        state.set_current_symbol("AAPL")
+        loader = _LegacyLoader(
+            cached_sequence=(
+                HistoricalDataResult(
+                    rows=[_chart_row("2026-06-25", 90.0), _chart_row("2026-06-26", 91.0)],
+                    source="legacy-cache",
+                ),
+                HistoricalDataResult(
+                    rows=[_chart_row("2026-07-01", 92.0), _chart_row("2026-07-02", 93.0)],
+                    source="legacy-cache",
+                ),
+            ),
+            historical=HistoricalDataResult(
+                rows=[_chart_row("2026-07-02", 93.0)],
+                source="legacy-live",
+            ),
+        )
+        workspace = ChartWorkspace(
+            data_manager=_UnusedDataManager(),
+            chart_data_loader=loader,
+            state_manager=state,
+        )
+
+        workspace.refresh_from_state()
+
+        self.assertEqual(loader.cached_calls, 2)
+        self.assertEqual(loader.historical_calls, 1)
+        self.assertEqual(
+            [row["date"] for row in workspace._chart.rendered_rows()],
+            ["2026-07-01", "2026-07-02"],
+        )
 
     def test_symbol_switching_triggers_adapter_reloads(self) -> None:
         state = StateManager()
@@ -294,7 +328,7 @@ class ChartWorkspaceAdapterIntegrationTest(unittest.TestCase):
         workspace.refresh_from_state()
 
         self.assertEqual(loader.cached_symbols, ["AAPL", "MSFT"])
-        self.assertEqual(workspace._chart.rendered_rows()[-1]["date"], "MSFT-2")
+        self.assertEqual(workspace._chart.rendered_rows()[-1]["date"], "2026-07-02")
         self.assertEqual(state.market_data_source, "adapter:MSFT")
 
     def test_repeated_refresh_requests_adapter_each_time(self) -> None:
@@ -360,8 +394,8 @@ class _SymbolAwareLoader:
         self.cached_symbols.append(safe_symbol)
         return HistoricalDataResult(
             rows=[
-                _chart_row(f"{safe_symbol}-1", 100.0),
-                _chart_row(f"{safe_symbol}-2", 101.0),
+                _chart_row("2026-07-01", 100.0),
+                _chart_row("2026-07-02", 101.0),
             ],
             source=f"adapter:{safe_symbol}",
         )

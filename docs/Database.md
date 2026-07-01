@@ -39,9 +39,11 @@ Unique key:
 
 DataManager checks SQLite before requesting data from an external provider.
 
-If at least 300 rows exist for a symbol, EXOS uses the local database.
+If at least 2500 rows exist for a symbol and the latest cached date is fresh, EXOS uses the local database.
 
-If fewer than 300 rows exist, EXOS requests data from Yahoo Finance and upserts it into SQLite.
+If fewer than 2500 rows exist, or the latest cached date is stale, EXOS requests data from Yahoo Finance and upserts it into SQLite.
+
+The current daily OHLCV freshness threshold is three calendar days. This keeps a Friday close fresh over a weekend while allowing the app to refresh by midweek if new trading days were not cached.
 
 ## Trade Journal
 

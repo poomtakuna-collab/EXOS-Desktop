@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from pathlib import Path
-from typing import Protocol
+from typing import Callable, Protocol
 
 from src.data import (
     REQUIRED_ROW_COUNT,
     DataManager,
     HistoricalDataResult,
     MarketDataRow,
+    is_historical_data_fresh,
 )
 from src.data_source import MarketDataRequest, MarketDataSource, SQLiteDataSource
 
@@ -33,11 +35,13 @@ class ChartDataAdapter:
         data_source: MarketDataSource | None = None,
         database_path: Path | str | None = None,
         required_row_count: int = REQUIRED_ROW_COUNT,
+        today: Callable[[], date] | None = None,
     ) -> None:
         self._legacy_data_loader = legacy_data_loader or DataManager()
         self._data_source = data_source
         self._database_path = Path(database_path or DEFAULT_CHART_DATABASE_PATH)
         self._required_row_count = required_row_count
+        self._today = today or date.today
 
     def get_cached_historical_data(self, symbol: str) -> HistoricalDataResult:
         data_source_result = self._load_from_data_source(symbol)
@@ -50,6 +54,7 @@ class ChartDataAdapter:
         if (
             data_source_result is not None
             and len(data_source_result.rows) >= self._required_row_count
+            and is_historical_data_fresh(data_source_result, as_of_date=self._today())
         ):
             return data_source_result
         return self._legacy_data_loader.get_historical_data(symbol)

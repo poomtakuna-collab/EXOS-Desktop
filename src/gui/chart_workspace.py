@@ -14,6 +14,7 @@ from src.data import (
     DataManager,
     HistoricalDataResult,
     MarketDataRow,
+    is_historical_data_fresh,
 )
 from src.gui.chart_data_adapter import ChartDataAdapter, LegacyChartDataLoader
 from src.gui.candlestick_chart import CandlestickChart
@@ -127,7 +128,10 @@ class ChartWorkspace(QWidget):
             return
 
         last_load_time = perf_counter() - start_time
-        if len(historical_data.rows) >= REQUIRED_ROW_COUNT:
+        if (
+            len(historical_data.rows) >= REQUIRED_ROW_COUNT
+            and is_historical_data_fresh(historical_data)
+        ):
             self._show_historical_data(historical_data, last_load_time)
             return
 

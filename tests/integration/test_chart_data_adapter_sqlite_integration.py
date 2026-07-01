@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 from src.data import HistoricalDataResult
@@ -22,6 +23,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
+                today=lambda: date(2026, 1, 4),
             )
 
             result = adapter.get_cached_historical_data("aapl")
@@ -37,6 +39,31 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
             self.assertTrue(all("symbol" not in row for row in result.rows))
             self.assertEqual(legacy.cached_calls, 0)
 
+    def test_chart_adapter_receives_latest_limited_sqlite_rows_in_ascending_order(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            _create_database(db_path, _extended_rows())
+            legacy = _LegacyLoader(
+                cached=HistoricalDataResult(rows=[_chart_row("legacy", 1.0)], source="legacy"),
+                historical=HistoricalDataResult(rows=[], source="legacy-live"),
+            )
+            adapter = ChartDataAdapter(
+                legacy_data_loader=legacy,
+                database_path=db_path,
+                required_row_count=4,
+                today=lambda: date(2026, 1, 4),
+            )
+
+            result = adapter.get_cached_historical_data("AAPL")
+
+            self.assertEqual(result.source, "sqlite")
+            self.assertEqual(
+                [row["date"] for row in result.rows],
+                ["2026-01-03", "2026-01-04", "2026-01-05", "2026-01-06"],
+            )
+            self.assertEqual([row["close"] for row in result.rows], [103.0, 104.0, 105.0, 106.0])
+            self.assertEqual(legacy.cached_calls, 0)
+
     def test_historical_load_uses_sqlite_only_when_required_count_is_available(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = Path(temp_dir) / "exos.db"
@@ -49,6 +76,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
+                today=lambda: date(2026, 1, 4),
             )
 
             result = adapter.get_historical_data("AAPL")
@@ -89,6 +117,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
+                today=lambda: date(2026, 1, 4),
             )
 
             sqlite_result = adapter.get_cached_historical_data("AAPL")
@@ -135,6 +164,7 @@ class ChartDataAdapterSQLiteIntegrationTest(unittest.TestCase):
                 legacy_data_loader=legacy,
                 database_path=db_path,
                 required_row_count=4,
+                today=lambda: date(2026, 1, 4),
             )
 
             adapter.get_cached_historical_data("AAPL")
@@ -222,6 +252,18 @@ def _mixed_rows() -> list[dict[str, object]]:
         _db_row("AAPL", "2026-01-03", 103.0),
         _db_row("AAPL", "2026-01-01", 101.0),
         {**_db_row("AAPL", "2026-01-05", 105.0), "row_type": "future"},
+        _db_row("AAPL", "2026-01-02", 102.0),
+        _db_row("AAPL", "2026-01-04", 104.0),
+    ]
+
+
+def _extended_rows() -> list[dict[str, object]]:
+    return [
+        _db_row("MSFT", "2026-01-04", 204.0),
+        _db_row("AAPL", "2026-01-06", 106.0),
+        _db_row("AAPL", "2026-01-01", 101.0),
+        _db_row("AAPL", "2026-01-05", 105.0),
+        _db_row("AAPL", "2026-01-03", 103.0),
         _db_row("AAPL", "2026-01-02", 102.0),
         _db_row("AAPL", "2026-01-04", 104.0),
     ]

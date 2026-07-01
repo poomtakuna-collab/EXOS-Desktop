@@ -28,6 +28,26 @@ class DatabaseManager:
 
         return [self._row_to_market_data(row) for row in reversed(rows)]
 
+    def get_latest_ohlcv_daily_date(self, symbol: str) -> str | None:
+        normalized_symbol = symbol.strip().upper()
+        if not normalized_symbol:
+            return None
+
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT MAX(date) AS latest_date
+                FROM ohlcv_daily
+                WHERE symbol = ?
+                """,
+                (normalized_symbol,),
+            ).fetchone()
+
+        if row is None:
+            return None
+        latest_date = row["latest_date"]
+        return str(latest_date) if latest_date is not None else None
+
     def upsert_ohlcv_daily(
         self, symbol: str, rows: list[MarketDataRow], source: str
     ) -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 import sqlite3
 import tempfile
 import unittest
@@ -76,6 +77,28 @@ class ChartDataAdapterTest(unittest.TestCase):
             legacy_data_loader=legacy,
             data_source=MemoryDataSource([_row("2026-07-01", 100.0, symbol="AAPL")]),
             required_row_count=2,
+        )
+
+        result = adapter.get_historical_data("AAPL")
+
+        self.assertEqual(result.source, "legacy-live")
+        self.assertEqual(legacy.historical_calls, 1)
+
+    def test_historical_load_falls_back_when_data_source_rows_are_stale(self) -> None:
+        legacy = _LegacyLoader(
+            cached=HistoricalDataResult(rows=[], source="legacy"),
+            historical=HistoricalDataResult(rows=[_row("legacy-live", 91.0)], source="legacy-live"),
+        )
+        adapter = ChartDataAdapter(
+            legacy_data_loader=legacy,
+            data_source=MemoryDataSource(
+                [
+                    _row("2026-06-25", 100.0, symbol="AAPL"),
+                    _row("2026-06-26", 101.0, symbol="AAPL"),
+                ]
+            ),
+            required_row_count=2,
+            today=lambda: date(2026, 7, 1),
         )
 
         result = adapter.get_historical_data("AAPL")

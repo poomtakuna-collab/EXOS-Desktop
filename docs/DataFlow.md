@@ -51,14 +51,14 @@ When a user selects a symbol:
 3. ChartWorkspace receives the selected symbol.
 4. DataManager requests historical data for current_symbol.
 5. DataManager checks local storage first.
-6. If local data exists and is fresh, use local data.
-7. If local data is missing or stale, request data from DataProvider.
+6. If local data has enough rows and the latest cached date is fresh, use local data.
+7. If local data is missing, short, or stale by latest cached date, request data from DataProvider.
 8. DataProvider returns normalized OHLCV data.
 9. DataManager passes data to storage and chart layer.
 
 Default historical range:
 
-- 300 trading days
+- 2500 trading days
 
 ## Local Storage
 
@@ -76,6 +76,7 @@ The application should avoid downloading the same data repeatedly.
 Each symbol should track:
 
 - symbol
+- latest cached date
 - last_updated
 - available_start_date
 - available_end_date

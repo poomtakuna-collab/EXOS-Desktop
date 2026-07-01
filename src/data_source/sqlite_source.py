@@ -40,14 +40,25 @@ class SQLiteDataSource:
         if role_filter is not None:
             where_clauses.append(role_filter)
 
-        sql = """
+        if request.limit is not None:
+            sql = """
+            SELECT symbol, date, open, high, low, close, volume, source
+            FROM (
+                SELECT symbol, date, open, high, low, close, volume, source
+                FROM ohlcv_daily
+                WHERE """ + "\n                  AND ".join(where_clauses) + """
+                ORDER BY symbol DESC, date DESC
+                LIMIT ?
+            ) latest_ohlcv
+            ORDER BY symbol ASC, date ASC
+            """
+            parameters.append(request.limit)
+        else:
+            sql = """
             SELECT symbol, date, open, high, low, close, volume, source
             FROM ohlcv_daily
             WHERE """ + "\n              AND ".join(where_clauses)
-        sql += "\n            ORDER BY symbol ASC, date ASC"
-        if request.limit is not None:
-            sql += "\n            LIMIT ?"
-            parameters.append(request.limit)
+            sql += "\n            ORDER BY symbol ASC, date ASC"
 
         cursor = self.connection.execute(sql, tuple(parameters))
         rows = [_with_timeframe(_row_to_dict(cursor, row), request.timeframe) for row in cursor.fetchall()]

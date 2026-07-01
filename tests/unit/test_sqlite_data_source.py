@@ -31,6 +31,17 @@ class SQLiteDataSourceTest(unittest.TestCase):
         self.assertTrue(all(row["symbol"] == "AAPL" for row in result.rows))
         self.assertTrue(all(row["timeframe"] == "1D" for row in result.rows))
 
+    def test_limited_load_returns_latest_rows_in_ascending_order(self) -> None:
+        conn = _connection()
+        _create_ohlcv_daily(conn)
+        _insert_rows(conn, _rows())
+        source = SQLiteDataSource(conn)
+
+        result = source.load_ohlcv(MarketDataRequest(symbol="AAPL", limit=2))
+
+        self.assertEqual([row["date"] for row in result.rows], ["2026-01-03", "2026-01-04"])
+        self.assertEqual([row["close"] for row in result.rows], [103.0, 104.0])
+
     def test_filters_by_symbol_start_end_and_limit(self) -> None:
         conn = _connection()
         _create_ohlcv_daily(conn)
@@ -46,7 +57,26 @@ class SQLiteDataSourceTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual([row["date"] for row in result.rows], ["2026-01-02", "2026-01-03"])
+        self.assertEqual([row["date"] for row in result.rows], ["2026-01-03", "2026-01-04"])
+
+    def test_unlimited_date_range_load_remains_deterministic(self) -> None:
+        conn = _connection()
+        _create_ohlcv_daily(conn)
+        _insert_rows(conn, _rows())
+        source = SQLiteDataSource(conn)
+
+        result = source.load_ohlcv(
+            MarketDataRequest(
+                symbol="AAPL",
+                start_date="2026-01-02",
+                end_date="2026-01-04",
+            )
+        )
+
+        self.assertEqual(
+            [row["date"] for row in result.rows],
+            ["2026-01-02", "2026-01-03", "2026-01-04"],
+        )
 
     def test_future_rows_use_existing_backtest_loader_behavior(self) -> None:
         conn = _connection()
