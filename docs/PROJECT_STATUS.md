@@ -54,6 +54,8 @@ Context Engine v1 is complete.
 
 Signal Ledger v1 foundation is implemented.
 
+Outcome Tracking v1 foundation is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1094,6 +1096,51 @@ Current tests:
 
 - `tests/unit/test_signal_ledger_contracts.py`
 
+### Outcome Tracking v1 Foundation
+
+Status: Implemented as a storage-neutral contracts foundation.
+
+Outcome Tracking v1 Foundation introduces `src/outcome_tracking` with immutable serializable contracts for tracking outcomes after EXOS-generated signals:
+
+- `OutcomeStatus`
+- `OutcomeRecord`
+
+The foundation captures:
+
+- symbol
+- signal date
+- evaluation date
+- horizon days
+- entry price
+- close price
+- return percentage
+- max runup percentage
+- max drawdown percentage
+- target hit flag
+- stop hit flag
+- outcome status / rating
+- notes
+
+It is deterministic and storage-neutral.
+
+It does not implement outcome calculators yet.
+
+It does not implement persistence yet.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_outcome_tracking_contracts.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
@@ -1127,7 +1174,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 425 tests
+- 434 tests
 
 ## History
 
