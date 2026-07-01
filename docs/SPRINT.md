@@ -29,8 +29,9 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - EXOS Desktop Symbol-scoped Performance v1 is implemented.
 - EXOS Desktop Research Surface v1 is implemented.
 - EXOS Desktop Signal History tab v0 is implemented.
+- Chart -> Data Source v1 integration foundation is implemented.
 - Canonical Result Model v1 contracts and adapter foundation are implemented.
-- Current full test baseline: 543 tests passing with `py -m unittest discover -s tests`.
+- Current full test baseline: 549 tests passing with `py -m unittest discover -s tests`.
 
 ## Completed Foundation Work
 
@@ -49,15 +50,17 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Selected-symbol scoped Performance tab metrics with global reference summary.
 - Main EXOS Desktop Research tab with grouped read-only context cards.
 - Main EXOS Desktop Signal History tab for saved signals and linked outcomes.
+- Chart Data Source v1 adapter foundation with legacy desktop loader fallback.
 - Canonical Result Model v1 typed output contracts.
 - Canonical Result adapter foundation for identity, Brain, prediction, and diagnostics sections.
 
 ## Next Prioritized Tasks
 
-1. Chart -> Data Source v1 integration
-   - Move the desktop chart data-loading path toward the existing Data Source v1 boundary.
+1. Complete Chart -> Data Source v1 integration
+   - Continue moving the desktop chart data-loading path toward the existing Data Source v1 boundary.
    - Keep the desktop as the single growing app.
    - Preserve current chart behavior while routing through deterministic read-only data-source contracts where feasible.
+   - Define the retirement criteria for the legacy chart loader before removing it.
 
 2. Canonical Result -> Signal adapter
    - Add pure adapter helpers that derive `SignalRecord` candidates from `CanonicalResultV1`.

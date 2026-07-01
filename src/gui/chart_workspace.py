@@ -15,6 +15,7 @@ from src.data import (
     HistoricalDataResult,
     MarketDataRow,
 )
+from src.gui.chart_data_adapter import ChartDataAdapter, LegacyChartDataLoader
 from src.gui.candlestick_chart import CandlestickChart
 from src.indicators import build_indicator_snapshot
 
@@ -32,11 +33,15 @@ class ChartWorkspace(QWidget):
     def __init__(
         self,
         data_manager: DataManager | None = None,
+        chart_data_loader: LegacyChartDataLoader | None = None,
         state_manager: StateManager | None = None,
         dev_sample_fallback_enabled: bool = False,
     ) -> None:
         super().__init__()
         self._data_manager = data_manager or DataManager()
+        self._chart_data_loader = chart_data_loader or ChartDataAdapter(
+            legacy_data_loader=self._data_manager
+        )
         self._state_manager = state_manager or StateManager()
         self._dev_sample_fallback_enabled = dev_sample_fallback_enabled
         self._timeframe = DEFAULT_TIMEFRAME
@@ -116,7 +121,7 @@ class ChartWorkspace(QWidget):
 
         start_time = perf_counter()
         try:
-            historical_data = self._data_manager.get_cached_historical_data(symbol)
+            historical_data = self._chart_data_loader.get_cached_historical_data(symbol)
         except DataLoadError as error:
             self._handle_load_error(str(error))
             return
@@ -150,7 +155,7 @@ class ChartWorkspace(QWidget):
     ) -> None:
         start_time = perf_counter()
         try:
-            fetched_data = self._data_manager.get_historical_data(symbol)
+            fetched_data = self._chart_data_loader.get_historical_data(symbol)
         except DataLoadError as error:
             self._show_no_data_status(
                 symbol=symbol,
@@ -160,7 +165,7 @@ class ChartWorkspace(QWidget):
             )
             return
 
-        cached_data = self._data_manager.get_cached_historical_data(symbol)
+        cached_data = self._chart_data_loader.get_cached_historical_data(symbol)
         load_time = cache_check_time + (perf_counter() - start_time)
         if cached_data.rows:
             self._show_historical_data(cached_data, load_time)

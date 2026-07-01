@@ -76,6 +76,8 @@ EXOS Desktop Research Surface v1 is implemented.
 
 EXOS Desktop Signal History tab v0 is implemented.
 
+Chart -> Data Source v1 integration foundation is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1145,6 +1147,8 @@ EXOS Desktop Research Surface v1 refined the Research tab into compact grouped i
 
 EXOS Desktop Signal History tab v0 introduced a read-only signal/outcome history tab for the selected dashboard symbol.
 
+Chart -> Data Source v1 integration foundation introduced a thin chart data adapter that tries Data Source v1 before falling back to the legacy desktop data loader.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1170,7 +1174,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 543 tests passing
+- 549 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1609,6 +1613,54 @@ Current tests:
 
 - `tests/unit/test_signal_history_surface.py`
 
+### Chart -> Data Source v1 Integration Foundation
+
+Status: Implemented.
+
+Chart -> Data Source v1 Integration Foundation introduces a thin deterministic chart data adapter between the desktop Chart surface and data loading:
+
+- `ChartDataAdapter`
+- `LegacyChartDataLoader`
+
+The current legacy chart path remains available and unchanged as a fallback:
+
+Chart tab
+-> `ChartWorkspace`
+-> `DataManager.get_cached_historical_data`
+-> SQLite cache through `DatabaseManager`
+-> if insufficient rows, `DataManager.get_historical_data`
+-> legacy provider fetch / SQLite upsert path
+-> existing chart rendering
+
+The foundation path is:
+
+Chart tab
+-> `ChartWorkspace`
+-> `ChartDataAdapter`
+-> Data Source v1 `MarketDataSource.load_ohlcv`
+-> existing Data Source v1 implementations such as `SQLiteDataSource`
+-> existing chart rendering
+
+If Data Source v1 has no rows, has insufficient rows for the refresh path, is unavailable, or raises a supported load error, the adapter falls back to the existing legacy `DataManager` path.
+
+The chart widget still receives the existing `HistoricalDataResult` shape.
+
+Chart appearance and rendering behavior are preserved.
+
+The default desktop adapter opens `database/exos.db` read-only for SQLite Data Source v1 reads.
+
+It does not retire the legacy chart loader yet.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not add AI, broker, portfolio, trading actions, or runtime auto-persistence.
+
+Current tests:
+
+- `tests/unit/test_chart_data_adapter.py`
+
 ### Signal Ledger Persistence v1 Foundation
 
 Status: Storage-neutral repository foundation and SQLite repository implemented.
@@ -1688,7 +1740,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 543 tests
+- 549 tests
 
 ## History
 
