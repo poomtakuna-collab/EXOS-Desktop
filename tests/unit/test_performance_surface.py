@@ -1,0 +1,173 @@
+from __future__ import annotations
+
+import sqlite3
+import tempfile
+import unittest
+from pathlib import Path
+
+from src.gui.performance_view_model import (
+    build_performance_view_model,
+    load_desktop_performance_report,
+)
+from src.outcome_tracking import OutcomeRecord, OutcomeStatus
+from src.outcome_tracking.sqlite_repository import SQLiteOutcomeRepository
+from src.performance_report import PerformanceReport
+from src.signal_ledger import SignalRecord, SignalSnapshotReference, SignalType
+from src.signal_ledger.sqlite_repository import SQLiteSignalLedgerRepository
+
+
+class PerformanceSurfaceTest(unittest.TestCase):
+    def test_view_model_formats_summary_and_distributions(self) -> None:
+        report = PerformanceReport(
+            total_signals=3,
+            total_outcomes=2,
+            win_rate=50.0,
+            average_return=1.25,
+            average_max_drawdown=-3.5,
+            outcome_status_distribution={"negative": 1, "target_hit": 1},
+            signal_type_breakdown={"breakout": 1, "setup": 2},
+            confidence_bucket_breakdown={
+                "unknown": 0,
+                "0-20": 0,
+                "20-40": 0,
+                "40-60": 1,
+                "60-80": 1,
+                "80-100": 1,
+            },
+        )
+
+        view_model = build_performance_view_model(report)
+
+        self.assertEqual(
+            view_model["summary"],
+            {
+                "total_signals": "3",
+                "total_outcomes": "2",
+                "win_rate": "50.00%",
+                "average_return": "1.25%",
+                "average_max_drawdown": "-3.50%",
+            },
+        )
+        self.assertEqual(
+            view_model["outcome_status_distribution"],
+            "Negative: 1\nTarget Hit: 1",
+        )
+        self.assertEqual(
+            view_model["signal_type_breakdown"],
+            "Breakout: 1\nSetup: 2",
+        )
+        self.assertIn("80 100: 1", view_model["confidence_bucket_breakdown"])
+        self.assertEqual(view_model["status"], "Read-only performance report.")
+
+    def test_view_model_handles_empty_report(self) -> None:
+        view_model = build_performance_view_model(PerformanceReport())
+
+        self.assertEqual(view_model["outcome_status_distribution"], "No data")
+        self.assertEqual(view_model["signal_type_breakdown"], "No data")
+        self.assertIn("Unknown: 0", view_model["confidence_bucket_breakdown"])
+        self.assertEqual(
+            view_model["status"],
+            "No saved signal or outcome records found.",
+        )
+
+    def test_missing_database_path_returns_empty_report_without_creating_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "missing.db"
+
+            report = load_desktop_performance_report(db_path)
+
+            self.assertFalse(db_path.exists())
+            self.assertEqual(report.total_signals, 0)
+            self.assertEqual(report.total_outcomes, 0)
+
+    def test_existing_database_without_performance_tables_returns_empty_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            connection = sqlite3.connect(db_path)
+            try:
+                connection.execute("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)")
+                connection.commit()
+            finally:
+                connection.close()
+
+            report = load_desktop_performance_report(db_path)
+
+            self.assertEqual(report.total_signals, 0)
+            self.assertEqual(report.total_outcomes, 0)
+
+    def test_existing_performance_tables_are_loaded_read_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            connection = sqlite3.connect(db_path)
+            try:
+                signal_repository = SQLiteSignalLedgerRepository(connection)
+                outcome_repository = SQLiteOutcomeRepository(connection)
+                signal_repository.initialize_schema()
+                outcome_repository.initialize_schema()
+                signal_repository.save_signal(_signal("signal-1", SignalType.SETUP, 75.0))
+                signal_repository.save_signal(_signal("signal-2", SignalType.BREAKOUT, 85.0))
+                outcome_repository.save_outcome(
+                    "signal-1",
+                    _outcome(OutcomeStatus.POSITIVE, 5.0, -2.0),
+                    outcome_id="outcome-1",
+                )
+                outcome_repository.save_outcome(
+                    "signal-2",
+                    _outcome(OutcomeStatus.NEGATIVE, -3.0, -6.0),
+                    outcome_id="outcome-2",
+                )
+            finally:
+                connection.close()
+
+            report = load_desktop_performance_report(db_path)
+
+            self.assertEqual(report.total_signals, 2)
+            self.assertEqual(report.total_outcomes, 2)
+            self.assertEqual(report.win_rate, 50.0)
+            self.assertEqual(report.average_return, 1.0)
+            self.assertEqual(report.average_max_drawdown, -4.0)
+
+
+def _signal(
+    signal_id: str,
+    signal_type: SignalType,
+    confidence: float,
+) -> SignalRecord:
+    return SignalRecord(
+        signal_id=signal_id,
+        symbol="AAPL",
+        signal_date="2026-07-01",
+        snapshot_reference=SignalSnapshotReference(
+            snapshot_id=f"snapshot-{signal_id}",
+            snapshot_date="2026-07-01",
+            timeframe="1D",
+            source="fixture",
+        ),
+        signal_type=signal_type,
+        confidence=confidence,
+    )
+
+
+def _outcome(
+    status: OutcomeStatus,
+    return_pct: float,
+    max_drawdown_pct: float,
+) -> OutcomeRecord:
+    return OutcomeRecord(
+        symbol="AAPL",
+        signal_date="2026-07-01",
+        evaluation_date="2026-07-11",
+        horizon_days=10,
+        entry_price=100.0,
+        close_price=100.0 + return_pct,
+        return_pct=return_pct,
+        max_runup_pct=max(return_pct, 0.0),
+        max_drawdown_pct=max_drawdown_pct,
+        hit_target=False,
+        hit_stop=False,
+        outcome_status=status,
+    )
+
+
+if __name__ == "__main__":
+    unittest.main()

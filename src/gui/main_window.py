@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QPushButton,
+    QTabWidget,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -23,6 +24,7 @@ from src.core.state_manager import StateManager
 from src.data import DataManager
 from src.gui.chart_workspace import ChartWorkspace
 from src.gui.developer_panel import DeveloperPanel
+from src.gui.performance_surface import PerformancePanel
 
 
 class MainWindow(QMainWindow):
@@ -34,6 +36,7 @@ class MainWindow(QMainWindow):
         self._dashboard_symbols = dashboard_symbols or self._dashboard_manager.load_symbols()
         self._dashboard_list = QListWidget(self)
         self._chart_workspace = ChartWorkspace(self._data_manager, self._state_manager)
+        self._performance_panel = PerformancePanel()
         self._developer_panel = DeveloperPanel(self._state_manager)
         self._developer_dock = QDockWidget("Developer Panel", self)
         self._developer_mode_action: QAction | None = None
@@ -68,7 +71,10 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, toolbar)
 
     def _create_central_workspace(self) -> None:
-        self.setCentralWidget(self._chart_workspace)
+        tabs = QTabWidget(self)
+        tabs.addTab(self._chart_workspace, "Chart")
+        tabs.addTab(self._performance_panel, "Performance")
+        self.setCentralWidget(tabs)
 
     def _create_dashboard_dock(self) -> None:
         dashboard_dock = QDockWidget(f"Dashboard ({MARKET_SCOPE})", self)
@@ -156,6 +162,7 @@ class MainWindow(QMainWindow):
 
     def _update_current_symbol_views(self) -> None:
         self._chart_workspace.refresh_from_state()
+        self._performance_panel.refresh()
         self._developer_panel.refresh()
 
         if self._state_manager.current_symbol:

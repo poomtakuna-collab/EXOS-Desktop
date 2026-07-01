@@ -66,6 +66,8 @@ Outcome SQLite Persistence v1 is implemented.
 
 Performance Report v1 is implemented.
 
+EXOS Desktop Performance Surface v0 is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1125,6 +1127,8 @@ Outcome SQLite Persistence v1 introduced an explicit opt-in SQLite repository fo
 
 Performance Report v1 introduced deterministic aggregate reporting from signal and outcome repositories.
 
+EXOS Desktop Performance Surface v0 introduced a read-only Performance tab in the main desktop app.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1150,7 +1154,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 521 tests passing
+- 526 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1372,6 +1376,54 @@ Current tests:
 
 - `tests/unit/test_performance_report.py`
 
+### EXOS Desktop Performance Surface v0
+
+Status: Implemented.
+
+EXOS Desktop Performance Surface v0 adds a read-only Performance tab to the main `MainWindow` central workspace.
+
+The central desktop workspace now includes:
+
+- Chart tab
+- Performance tab
+
+The Performance tab displays Performance Report v1 output:
+
+- total signals
+- total outcomes
+- win rate
+- average return
+- average max drawdown
+- outcome status distribution
+- signal type breakdown
+- confidence bucket breakdown
+
+The UI uses a thin Qt panel and a Qt-free view-model/helper module:
+
+- `PerformancePanel`
+- `load_desktop_performance_report`
+- `build_performance_view_model`
+
+The data loader opens `database/exos.db` read-only when it exists and uses existing SQLite repository implementations only when their tables are present.
+
+Missing database files or missing repository tables render an empty report without creating or modifying storage.
+
+The UI provides a manual Refresh action.
+
+Business logic remains in `src/performance_report`.
+
+It does not create standalone demo scripts.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not add AI, network, broker, portfolio, or trading actions.
+
+Current tests:
+
+- `tests/unit/test_performance_surface.py`
+
 ### Signal Ledger Persistence v1 Foundation
 
 Status: Storage-neutral repository foundation and SQLite repository implemented.
@@ -1451,7 +1503,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 521 tests
+- 526 tests
 
 ## History
 
