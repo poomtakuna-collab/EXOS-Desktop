@@ -6,6 +6,10 @@ from src.context.support_resistance_calculator import (
     calculate_support_resistance_context,
     calculate_support_resistance_context_from_analysis,
 )
+from src.context.volume_context_calculator import (
+    calculate_volume_context,
+    calculate_volume_context_from_analysis,
+)
 from src.context.types import (
     ContextRequest,
     ContextResult,
@@ -28,4 +32,6 @@ __all__ = [
     "calculate_market_context_from_analysis",
     "calculate_support_resistance_context",
     "calculate_support_resistance_context_from_analysis",
+    "calculate_volume_context",
+    "calculate_volume_context_from_analysis",
 ]

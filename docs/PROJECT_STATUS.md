@@ -902,6 +902,46 @@ Current tests:
 
 - `tests/unit/test_support_resistance_calculator.py`
 
+### Volume Context Calculator v1
+
+Status: Implemented.
+
+Volume Context Calculator v1 adds a deterministic pure calculator in `src/context` that derives `VolumeContext` from available local analysis inputs:
+
+- snapshot volume fields
+- indicator volume fields
+- supplied OHLCV volume rows
+- explicit current, average, or relative volume values
+
+The calculator estimates relative volume when enough local data exists and classifies volume regime as:
+
+- `low`
+- `normal`
+- `high`
+- `spike`
+- `unknown`
+
+It returns `relative_volume` as the existing contract's numeric volume-quality field and `volume_state` as the regime label.
+
+It is exported through the context package as:
+
+- `calculate_volume_context`
+- `calculate_volume_context_from_analysis`
+
+It does not modify frozen Brain v1 contracts.
+
+It does not write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_volume_context_calculator.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
