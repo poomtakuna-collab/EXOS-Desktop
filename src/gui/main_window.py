@@ -25,6 +25,7 @@ from src.data import DataManager
 from src.gui.chart_workspace import ChartWorkspace
 from src.gui.developer_panel import DeveloperPanel
 from src.gui.performance_surface import PerformancePanel
+from src.gui.research_surface import ResearchPanel
 
 
 class MainWindow(QMainWindow):
@@ -36,6 +37,7 @@ class MainWindow(QMainWindow):
         self._dashboard_symbols = dashboard_symbols or self._dashboard_manager.load_symbols()
         self._dashboard_list = QListWidget(self)
         self._chart_workspace = ChartWorkspace(self._data_manager, self._state_manager)
+        self._research_panel = ResearchPanel(self._state_manager)
         self._performance_panel = PerformancePanel()
         self._developer_panel = DeveloperPanel(self._state_manager)
         self._developer_dock = QDockWidget("Developer Panel", self)
@@ -50,6 +52,7 @@ class MainWindow(QMainWindow):
         self._create_dashboard_dock()
         self._create_developer_dock()
         self._chart_workspace.data_changed.connect(self._developer_panel.refresh)
+        self._chart_workspace.data_changed.connect(self._research_panel.refresh)
         self._update_current_symbol_views()
 
     def _create_menu_bar(self) -> None:
@@ -73,6 +76,7 @@ class MainWindow(QMainWindow):
     def _create_central_workspace(self) -> None:
         tabs = QTabWidget(self)
         tabs.addTab(self._chart_workspace, "Chart")
+        tabs.addTab(self._research_panel, "Research")
         tabs.addTab(self._performance_panel, "Performance")
         self.setCentralWidget(tabs)
 
@@ -162,6 +166,7 @@ class MainWindow(QMainWindow):
 
     def _update_current_symbol_views(self) -> None:
         self._chart_workspace.refresh_from_state()
+        self._research_panel.refresh()
         self._performance_panel.refresh()
         self._developer_panel.refresh()
 

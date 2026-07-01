@@ -68,6 +68,10 @@ Performance Report v1 is implemented.
 
 EXOS Desktop Performance Surface v0 is implemented.
 
+EXOS Desktop Research Surface v0 is implemented.
+
+EXOS Desktop Research Surface v1 is implemented.
+
 Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
 
 Market Learning Engine v1 remains complete.
@@ -1129,6 +1133,10 @@ Performance Report v1 introduced deterministic aggregate reporting from signal a
 
 EXOS Desktop Performance Surface v0 introduced a read-only Performance tab in the main desktop app.
 
+EXOS Desktop Research Surface v0 introduced a read-only Research tab in the main desktop app.
+
+EXOS Desktop Research Surface v1 refined the Research tab into compact grouped information cards.
+
 Signal Ledger repository foundation introduced a storage-neutral repository protocol and deterministic in-memory repository for signals and associated outcomes.
 
 Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for durable `SignalRecord` and linked `OutcomeRecord` storage.
@@ -1154,7 +1162,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 526 tests passing
+- 532 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1424,6 +1432,95 @@ Current tests:
 
 - `tests/unit/test_performance_surface.py`
 
+### EXOS Desktop Research Surface v0
+
+Status: Implemented.
+
+EXOS Desktop Research Surface v0 adds a read-only Research tab to the main `MainWindow` central workspace.
+
+The central desktop workspace now includes:
+
+- Chart tab
+- Research tab
+- Performance tab
+
+When a dashboard symbol is selected, the Research tab displays the selected symbol and available deterministic research sections:
+
+- Symbol
+- Market Context
+- Sector Context
+- Relative Strength
+- Volume Context
+- Support / Resistance
+- Prediction Summary
+- Strategy Summary
+- Signal Summary placeholder
+
+The Research tab uses current `StateManager` selection and indicator snapshot data populated by the existing chart/data-loading path.
+
+Available context sections are derived through existing context calculators.
+
+Prediction and Strategy sections use existing deterministic summary builders with empty-safe inputs.
+
+Signal Summary is explicitly shown as a v0 placeholder.
+
+The UI uses a thin Qt panel and a Qt-free view-model/helper module:
+
+- `ResearchPanel`
+- `build_research_view_model`
+
+Graceful empty states are shown when no symbol is selected or no deterministic snapshot data is loaded.
+
+It does not create standalone demo scripts.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 contracts.
+
+It does not add AI, broker, portfolio, trading actions, or runtime auto-persistence.
+
+Current tests:
+
+- `tests/unit/test_research_surface.py`
+
+### EXOS Desktop Research Surface v1
+
+Status: Implemented.
+
+EXOS Desktop Research Surface v1 refines the existing Research tab into grouped card-style panels.
+
+Cards include:
+
+- Symbol
+- Market Context
+- Sector Context
+- Relative Strength
+- Volume
+- Support / Resistance
+- Prediction
+- Strategy
+- Signal Summary placeholder
+
+Each card uses compact label/value rows and consistent spacing.
+
+Unknown or missing values are rendered as muted placeholders instead of repeated `unknown` text.
+
+The Research Qt widget consumes only the card view model.
+
+The Qt-free view model exposes future-ready rows for values such as confidence, probability-compatible evidence, score, similarity, and notes.
+
+Business logic remains in existing context and analysis summary modules.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 or Context Engine contracts.
+
+It does not add AI, broker, portfolio, trading actions, or runtime auto-persistence.
+
+Current tests:
+
+- `tests/unit/test_research_surface.py`
+
 ### Signal Ledger Persistence v1 Foundation
 
 Status: Storage-neutral repository foundation and SQLite repository implemented.
@@ -1503,7 +1600,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 526 tests
+- 532 tests
 
 ## History
 
