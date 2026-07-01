@@ -28,12 +28,13 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - EXOS Desktop Performance Surface v0 is implemented.
 - EXOS Desktop Symbol-scoped Performance v1 is implemented.
 - EXOS Desktop Research Surface v1 is implemented.
+- EXOS Desktop Research real analysis/context loading foundation is implemented.
 - EXOS Desktop Signal History tab v0 is implemented.
 - Chart -> Data Source v1 integration foundation is implemented.
 - Chart Data Source v1 integration coverage is implemented.
 - ChartWorkspace app integration coverage is implemented.
 - Canonical Result Model v1 contracts and adapter foundation are implemented.
-- Current full test baseline: 560 tests passing with `py -m unittest discover -s tests`.
+- Current full test baseline: 573 tests passing with `py -m unittest discover -s tests`.
 
 ## Completed Foundation Work
 
@@ -51,6 +52,7 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Main EXOS Desktop Performance tab.
 - Selected-symbol scoped Performance tab metrics with global reference summary.
 - Main EXOS Desktop Research tab with grouped read-only context cards.
+- Read-only Research tab loading from Data Source v1 rows and Analysis Pipeline v2 canonical Brain output where available.
 - Main EXOS Desktop Signal History tab for saved signals and linked outcomes.
 - Chart Data Source v1 adapter foundation with legacy desktop loader fallback.
 - SQLite-backed Chart Data Source v1 integration coverage for adapter reads, fallback behavior, ordering, values, and read-only guarantees.
@@ -60,24 +62,26 @@ The sprint should make EXOS able to preserve generated research signals, track t
 
 ## Next Prioritized Tasks
 
-1. Complete Chart -> Data Source v1 integration
-   - Continue moving the desktop chart data-loading path toward the existing Data Source v1 boundary.
-   - Keep the desktop as the single growing app.
-   - Preserve current chart behavior while routing through deterministic read-only data-source contracts where feasible.
-   - Define the retirement criteria for the legacy chart loader before removing it.
-
-2. Canonical Result -> Signal adapter
+1. Canonical Result -> Signal adapter
    - Add pure adapter helpers that derive `SignalRecord` candidates from `CanonicalResultV1`.
    - Do not wire into runtime automatically yet.
 
-3. Signal creation workflow design
-   - Design how a user will explicitly save deterministic research output as a signal.
+2. Explicit/manual Signal creation flow
+   - Let the user intentionally save deterministic research output as a signal.
    - No runtime auto-persistence.
    - No trading actions.
 
-4. Desktop polish pass
-   - Improve tab ergonomics and readability after Chart -> Data Source v1 integration.
-   - Prefer small view-model-backed UI improvements over new surfaces.
+3. Outcome evaluation flow
+   - Evaluate saved signals against future OHLCV rows.
+   - Persist outcomes through existing repositories.
+
+4. Performance report with real accumulated signal data
+   - Feed Performance Report v1 from saved signals and evaluated outcomes.
+   - Keep global and selected-symbol views useful.
+
+5. Context validation/backtest comparison
+   - Compare Brain v1 against Brain v1 plus context layers.
+   - Adopt only context signals that demonstrate measurable improvement.
 
 ## Definition of Done
 
@@ -92,6 +96,7 @@ The sprint should make EXOS able to preserve generated research signals, track t
 ## Risks / Guardrails
 
 - Do not add new engines before measurable performance reporting exists.
+- Do not add new engines until current engines are measurable.
 - Do not start Portfolio Engine.
 - Do not add an AI decision layer.
 - AI, when added later, must explain structured EXOS outputs only and must not decide.

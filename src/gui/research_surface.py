@@ -11,7 +11,10 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.state_manager import StateManager
-from src.gui.research_view_model import build_research_view_model
+from src.gui.research_view_model import (
+    build_research_view_model,
+    load_desktop_research_view_model,
+)
 
 
 class ResearchPanel(QWidget):
@@ -25,7 +28,7 @@ class ResearchPanel(QWidget):
         self.refresh()
 
     def refresh(self) -> None:
-        view_model = build_research_view_model(
+        view_model = load_desktop_research_view_model(
             selected_symbol=self._state_manager.current_symbol,
             indicator_snapshot=self._state_manager.indicator_snapshot,
         )

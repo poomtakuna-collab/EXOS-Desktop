@@ -2,40 +2,50 @@
 
 Long-term development roadmap for EXOS Desktop.
 
-Current implementation progress is tracked separately in `PROJECT_STATUS.md`.
+Current implementation detail is tracked in `docs/PROJECT_STATUS.md`.
 
 ---
 
-# Vision
+## Vision
 
 Build EXOS into a local NASDAQ investment research platform.
 
-EXOS is not intended to replace TradingView.
-
-Its purpose is to:
-
-* Collect historical market data
-* Calculate indicators
-* Build investment statistics
-* Discover repeatable market patterns
-* Estimate evidence-based probabilities
-* Project probability-derived price zones
-* Backtest strategies
-* Measure strategy performance
-* Build statistical market context
-* Explain results using AI
+EXOS is not intended to replace TradingView. Its purpose is to collect reproducible market data, calculate deterministic evidence, preserve research signals, evaluate outcomes, and explain what the evidence says.
 
 The primary trading system is POOM+.
 
 Market scope is limited to NASDAQ.
 
+EXOS outputs evidence, probabilities, projected price zones, and research context. It does not output broker actions or automated buy/sell decisions.
+
 ---
 
-# EXOS Brain v1
+## Current Phase
+
+**Evidence Loop + Desktop Integration**
+
+The current priority is to close the measurable loop:
+
+```
+Research Output
+-> Signal
+-> Outcome
+-> Performance Report
+-> Desktop Review
+-> Backtest / Context Validation
+```
+
+This phase is about measuring whether deterministic EXOS outputs are useful before adding new engines.
+
+---
+
+## Implementation Status
+
+### Brain v1
 
 **Status:** Complete and frozen.
 
-Architecture:
+Implemented pipeline:
 
 ```
 Market Data
@@ -50,333 +60,303 @@ Market Data
 -> Prediction
 ```
 
-Future enhancements should extend this pipeline rather than modifying existing engine contracts unless fixing a verified bug.
+Frozen contracts should not be modified unless fixing a verified bug.
 
----
-
-# Phase 1 - Core Indicators
+### Core Indicators
 
 **Status:** Complete and frozen.
 
-## Goal
+Implemented:
 
-Convert market rows into a stable EXOS Snapshot contract.
+- Indicator Engine v1
+- EW Engine v1
+- Volume Pressure Engine v1
+- Trend Slope Engine v1
+- Squeeze Engine v1
+- Market Structure Engine v1
+- Snapshot Builder v1
+- Score Engine v1
 
-### Completed
-
-* Indicator Engine v1
-* EW Engine v1
-* Volume Pressure Engine v1
-* Trend Slope Engine v1
-* Squeeze Engine v1
-* Market Structure Engine v1
-* Snapshot Builder v1
-* Score Engine v1
-
-### Rule
-
-Core Indicators v1 remains frozen unless a verified bug exists.
-
----
-
-# Phase 2 - Market Learning Engine
+### Market Learning
 
 **Status:** Complete.
 
-## Goal
+Implemented:
 
-Learn which market conditions tend to appear before future price movement.
+- Statistics DB
+- Snapshot Store
+- Snapshot Collector
+- Outcome Calculator foundation for market-learning outcomes
+- Pattern Discovery
+- Pattern Library
+- Similarity Engine
+- Pipeline smoke coverage
 
-### Completed
+Design remains database-first. `snapshot_id` is the central reference, searchable values are stored as columns, and full EXOS snapshots are stored as JSON.
 
-* Statistics DB
-* Snapshot Store
-* Snapshot Collector
-* Outcome Calculator
-* Pattern Discovery
-* Pattern Library
-* Similarity Engine
-* Pipeline Smoke Test
-
-### Design
-
-* Database-first.
-* `snapshot_id` is the central reference.
-* Important searchable values are stored as columns.
-* Full EXOS snapshots are stored as JSON.
-* Outcomes are calculated once sufficient future OHLCV rows exist.
-* Pattern Discovery and Similarity are deterministic statistical systems, not AI or machine learning.
-
-### Schema
-
-`docs/MARKET_LEARNING_SCHEMA.md`
-
----
-
-# Phase 3 - Probability Engine
+### Probability and Prediction
 
 **Status:** Complete.
 
-## Goal
+Implemented:
 
-Convert historical evidence into probability-based outputs and projected price zones.
+- Probability Engine v1
+- Similar-pattern weighting
+- Expected return estimation
+- Expected risk estimation
+- Safe defaults
+- Prediction Engine v1
+- Price Projection Engine v1
+- Target Zone Engine
+- Risk Zone Engine
+- Prediction Summary Engine
 
-Probability outputs are evidence-based metrics.
+Future work is calibration and scenario explanation, not a new prediction engine.
 
-Prediction outputs are price projections, not recommendations.
-
-### Implemented
-
-* Probability Engine v1
-* Similar Pattern weighting
-* Expected return estimation
-* Expected risk estimation
-* Safe defaults
-* Prediction Engine v1
-* Price Projection Engine v1
-* Target Zone Engine
-* Risk Zone Engine
-* Prediction Summary Engine
-
-### Planned
-
-* Scenario summaries
-* Probability calibration improvements
-
----
-
-# Phase 4 - Strategy & Backtest
+### Strategy and Backtest
 
 **Status:** Core implementation complete.
 
-## Goal
+Implemented:
 
-Evaluate deterministic trading strategies using historical evidence.
+- Strategy Engine
+- Strategy contracts
+- Strategy scoring
+- Validation framework
+- Replay Engine
+- Metrics Aggregator
+- Backtest Pipeline
+- Backtest Report
+- SQLite-backed Backtest
+- Backtest Persistence
+- Validation Report
+- Trade Simulator
+- Trade Outcome Model
 
-### Implemented
+Remaining work:
 
-* Strategy Engine
-* Strategy contracts
-* Strategy scoring
-* Validation framework
-* Replay Engine
-* Metrics Aggregator
-* Backtest Pipeline
-* Backtest Report
-* SQLite-backed Backtest
-* Backtest Persistence
-* Validation Report
-* Trade Simulator
-* Trade Outcome Model
+- Historical replay persistence from stored datasets
+- Advanced Backtest reporting/query APIs
+- Context validation/backtest comparison
+- UI Backtest reports
 
-### Planned
+Backtest should become the validation layer for future EXOS features.
 
-* Historical replay persistence
-* Entry rule evaluation
-* Exit rule evaluation
-* Holding rule evaluation
-* Signal Ledger
-* Trade Journal
-* Outcome Tracking
-* Strategy performance reports
-* Advanced Backtest reporting APIs
+### Context Engine v1
 
-### Design
+**Status:** Complete.
 
-Backtest should become the primary validation layer for every future EXOS feature.
+Context Engine v1 extends Brain v1 without modifying frozen Brain contracts.
 
-Every new analysis component should prove measurable improvement through historical testing before becoming part of the default pipeline.
+Implemented:
 
----
+- Context contracts
+- Market Context
+- Sector Context
+- Relative Strength
+- Volume Context
+- Support / Resistance Context
+- Deterministic context calculators and summaries
+- Context-aware Research tab view-model support
 
-# EXOS Brain v2 - Context Engine
+Future work is validation, comparison, and better surfacing of real context outputs in Desktop.
 
-**Status:** Context Engine v1 Foundation implemented.
+### Data Source v1
 
-## Goal
+**Status:** Implemented.
 
-Provide deterministic market context around every stock analysis.
+Implemented:
 
-Context Engine extends Brain v1 without modifying frozen contracts.
+- Data Source contracts
+- MemoryDataSource
+- SQLiteDataSource
+- AnalysisService read-only loading architecture
+- ChartDataAdapter bridge for Desktop chart loading
+- SQLite-backed chart adapter integration coverage
+- Legacy desktop data-loader fallback
+- Limited OHLCV reads return the latest N rows in chronological order
+- Cache freshness checks use latest cached date, not row count alone
 
-### Planned Context Layers
+SQLite remains the source of truth for local structured market data.
 
-* Context contracts foundation
-* Market Context
-* Sector Context
-* Industry Context
-* Relative Strength
-* Relative Volume
-* Support / Resistance Context
-* Optional Macro Context
+The legacy chart loader remains available as fallback until Data Source v1 fully owns refresh and synchronization behavior.
 
-### Example Flow
+### Signal Ledger
 
-```
-Market
--> Sector
--> Industry
--> Stock
--> Snapshot
--> Probability
--> Prediction
--> Strategy
--> Backtest
-```
+**Status:** Foundation and SQLite persistence implemented.
 
-### Design Principles
+Implemented:
 
-* Deterministic only
-* No AI
-* Independently testable
-* Optional layers
-* Database-driven
-* Backtest every context layer independently
-* Not wired into the default pipeline until each layer proves measurable value
+- Signal contracts
+- SignalSnapshotReference
+- SignalRecord
+- In-memory Signal Ledger repository
+- SQLite Signal Ledger repository
+- Linked outcome storage through the Signal Ledger repository
+- Deterministic JSON-safe serialization
 
-### Future Validation
+Not yet implemented:
 
-Compare:
+- Canonical Result -> Signal adapter
+- Explicit/manual Signal creation flow
+- Runtime Signal persistence from Desktop actions
 
-* Brain v1
-* Brain v1 + Market Context
-* Brain v1 + Sector Context
-* Brain v1 + Relative Strength
-* Brain v1 + Support / Resistance
-* Combined Context
+### Outcome Tracking
 
-Purpose:
+**Status:** Foundation, calculator, and SQLite persistence implemented.
 
-Only adopt context layers that demonstrate measurable statistical improvement.
+Implemented:
 
----
+- Outcome contracts
+- OutcomeRecord
+- Outcome status model
+- Pure outcome calculation from future OHLCV rows
+- Standalone Outcome SQLite repository
+- Outcome persistence tests with temporary SQLite databases
 
-# Phase 5 - AI Analysis / Overlay
+Not yet implemented:
 
-**Status:** Deterministic pipeline complete.
+- End-to-end Outcome evaluation flow for accumulated saved signals
+- Desktop action/workflow for evaluating outcomes
 
-AI overlay not implemented.
+### Performance Reporting
 
-## Goal
+**Status:** Performance Report v1 implemented.
 
-Explain structured EXOS outputs.
+Implemented:
 
-AI does **not** make investment decisions.
+- Total signals
+- Total outcomes
+- Win rate
+- Average return
+- Average max drawdown
+- Outcome status distribution
+- Signal type breakdown
+- Confidence bucket breakdown
+- JSON-safe `to_dict()`
+- Empty-data handling
+- Symbol-scoped Desktop Performance surface
 
-AI does **not** generate buy/sell recommendations.
+Next work is to feed the report with real accumulated signal and outcome data from the explicit evidence loop.
 
-AI may:
+### EXOS Desktop
 
-* Explain market conditions
-* Summarize statistics
-* Compare historical situations
-* Generate research reports
-* Explain probability outputs
-* Explain strategy evaluation
+**Status:** Main app is the single growing Desktop surface.
 
-### Implemented
+Implemented tabs:
 
-* Analysis Pipeline
-* Analysis Request / Result
-* Pipeline configuration
-* Deterministic orchestration
-* Snapshot integration
-* Probability integration
-* Prediction integration
-* Strategy integration
-* Backtest integration
-* Analysis Report
+- Chart
+- Research
+- Performance
+- Signal History
 
-### Not Implemented
+Current Desktop behavior:
 
-* AI explanation layer
-* Latest snapshot loading
-* DB-backed analysis orchestration
+- Chart loads through Data Source v1 where possible.
+- Chart falls back to the legacy DataManager/provider path when data is missing, insufficient, stale, or unavailable.
+- Normal cached chart reads remain read-only.
+- Research tab shows grouped deterministic context/research cards.
+- Performance tab shows global and selected-symbol report data.
+- Signal History tab reads saved signals and linked outcomes from SQLite when available.
 
----
-
-# Phase 6 - Data Source
-
-**Status:** Core implementation complete.
-
-## Goal
-
-Provide a stable read-only interface for all future orchestration.
-
-### Implemented
-
-* DataSource contracts
-* MemoryDataSource
-* SQLiteDataSource
-* AnalysisService
-* Read-only loading architecture
-
-### Future
-
-* Live market providers
-* Multi-source loading
-* Data synchronization
-* Historical import pipeline
+No standalone demo scripts should be added for new Desktop surfaces.
 
 ---
 
-# Later Research
+## Next Priorities
 
-Planned:
+1. Research tab loads real analysis/context output
+   - Connect the Research tab to actual deterministic analysis/context results for the selected symbol.
+   - Keep business logic in existing modules and view-model helpers.
 
-* Signal Ledger / Trade Journal
-* Outcome Tracking
-* Statistical performance reporting
-* Scenario modelling
-* Probability calibration
-* Pattern confidence calibration
-* Context Engine validation
-* Statistical feature evaluation
-* Advanced market behaviour research
+2. Canonical Result -> Signal adapter
+   - Add pure adapter helpers that derive `SignalRecord` candidates from `CanonicalResultV1`.
+   - Do not wire automatic persistence.
 
----
+3. Explicit/manual Signal creation flow
+   - Let the user intentionally save deterministic research output as a signal.
+   - No auto-trading, no broker action, no runtime surprise persistence.
 
-# Later UI Work
+4. Outcome evaluation flow
+   - Evaluate saved signals against future OHLCV rows.
+   - Persist outcomes through existing repositories.
 
-* Pattern Discovery reports
-* Statistical dashboards
-* Context visualisation
-* Support / Resistance overlays
-* Relative Strength panels
-* Zoom / Pan improvements
-* Better chart settings
+5. Performance report with real accumulated signal data
+   - Feed Performance Report v1 from saved signals and evaluated outcomes.
+   - Keep global and symbol-scoped views.
 
----
-
-# Parked / Future (Long-Term)
-
-These features become valuable only after sufficient historical evidence exists.
-
-* Portfolio / Risk Evaluation
-* Position sizing
-* Portfolio diversification analysis
-* Correlation analysis
-* Capital allocation
-* Portfolio optimisation
-
-These are intentionally postponed because EXOS is currently focused on becoming an evidence-driven research platform rather than a portfolio management system.
-
-Portfolio Engine work should remain experimental / future / parked until real EXOS usage proves portfolio-level workflows are needed.
+6. Context validation/backtest comparison
+   - Compare Brain v1 against Brain v1 plus context layers.
+   - Adopt only context signals that demonstrate measurable improvement.
 
 ---
 
-# Design Principles
+## Later Work
 
-* SQLite is the source of truth.
-* Historical data must be reproducible.
-* Statistics come before strategy.
-* Probability comes before strategy.
-* Strategy must be validated through Backtesting.
-* Every new analysis layer should prove measurable value.
-* Context Engine extends Brain v1 without modifying frozen contracts.
-* AI explains evidence; it does not guess.
-* AI never replaces deterministic analysis.
-* EXOS outputs evidence, probabilities, and projected price zones - not buy/sell recommendations.
-* Keep the architecture modular.
-* Prioritize correctness over feature count.
-* Build statistical confidence before adding automation.
+### AI Overlay
+
+**Status:** Later, explanation-only.
+
+AI may eventually:
+
+- Explain market conditions
+- Summarize deterministic statistics
+- Compare historical situations
+- Generate research reports
+- Explain probability outputs
+- Explain strategy evaluation
+
+AI must not:
+
+- Make investment decisions
+- Generate broker actions
+- Replace deterministic analysis
+- Invent evidence outside structured EXOS outputs
+
+### Advanced Research
+
+Later research areas:
+
+- Scenario modelling
+- Probability calibration
+- Pattern confidence calibration
+- Statistical feature evaluation
+- Support / Resistance overlays
+- Relative Strength panels
+- Pattern Discovery reports
+- Statistical dashboards
+
+### Portfolio Engine
+
+**Status:** Parked.
+
+Portfolio/Risk work remains intentionally postponed:
+
+- Portfolio / Risk Evaluation
+- Position sizing
+- Diversification analysis
+- Correlation analysis
+- Capital allocation
+- Portfolio optimisation
+
+These workflows become useful only after EXOS has enough measured signal/outcome evidence to justify portfolio-level decisions.
+
+---
+
+## Design Principles
+
+- SQLite is the source of truth.
+- Historical data must be reproducible.
+- Statistics come before strategy.
+- Probability comes before strategy.
+- Strategy must be validated through backtesting.
+- Every new analysis layer should prove measurable value.
+- Do not add new engines until current engines are measurable.
+- Context Engine extends Brain v1 without modifying frozen contracts.
+- Signal and outcome persistence must be explicit and deterministic.
+- AI explains evidence; it does not guess.
+- AI never replaces deterministic analysis.
+- EXOS outputs evidence, probabilities, and projected price zones, not buy/sell recommendations.
+- Keep the architecture modular.
+- Prioritize correctness over feature count.
+- Build statistical confidence before adding automation.

@@ -1151,6 +1151,8 @@ EXOS Desktop Research Surface v0 introduced a read-only Research tab in the main
 
 EXOS Desktop Research Surface v1 refined the Research tab into compact grouped information cards.
 
+EXOS Desktop Research real analysis/context loading foundation connects the Research tab to read-only Data Source v1 rows and Analysis Pipeline v2 canonical Brain output when available.
+
 EXOS Desktop Signal History tab v0 introduced a read-only signal/outcome history tab for the selected dashboard symbol.
 
 Chart -> Data Source v1 integration foundation introduced a thin chart data adapter that tries Data Source v1 before falling back to the legacy desktop data loader.
@@ -1190,7 +1192,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 570 tests passing
+- 573 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1585,6 +1587,49 @@ Current tests:
 
 - `tests/unit/test_research_surface.py`
 
+### EXOS Desktop Research Real Analysis Loading Foundation
+
+Status: Implemented.
+
+The Research tab now attempts to load real deterministic research context for the selected dashboard symbol from existing local data.
+
+The read-only loading path is:
+
+Research tab
+-> `load_desktop_research_view_model`
+-> Data Source v1 `MarketDataSource.load_ohlcv`
+-> default read-only `SQLiteDataSource` over `database/exos.db`
+-> Analysis Pipeline v2 canonical Brain adapter
+-> existing Context calculators
+-> existing Prediction and Strategy summary helpers
+-> grouped Research card view model
+
+When local OHLCV rows are available, the Research cards can now show real deterministic values for:
+
+- Market Context
+- Volume
+- Support / Resistance
+- Prediction Summary safe defaults from canonical Brain output
+- Strategy Summary derived from deterministic prediction output where available
+
+Sector Context and Relative Strength remain placeholder-capable when no sector or benchmark rows are available.
+
+Signal Summary remains a placeholder until explicit Signal creation is implemented.
+
+Missing databases, missing rows, and analysis failures render graceful empty or error states without writing to storage.
+
+Normal Research loading remains read-only and does not call providers.
+
+It does not introduce a new engine.
+
+It does not modify frozen Brain v1 or Context Engine contracts.
+
+It does not add AI, broker, portfolio, trading actions, or auto-persistence.
+
+Current tests:
+
+- `tests/unit/test_research_surface.py`
+
 ### EXOS Desktop Signal History tab v0
 
 Status: Implemented.
@@ -1763,7 +1808,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 570 tests
+- 573 tests
 
 ## History
 
