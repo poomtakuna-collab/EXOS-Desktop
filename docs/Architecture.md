@@ -47,6 +47,15 @@ Market Data
 -> Persistence
 -> Report / UI / optional AI explanation
 
+Near-term roadmap focus after Foundation v1 is:
+
+- Signal Ledger / Trade Journal
+- Outcome Tracking
+- Statistical performance reporting
+- EXOS Context Engine v1
+
+Portfolio / Risk Evaluation is postponed. EXOS is a NASDAQ investment research platform first, not a portfolio management system. Portfolio work should remain experimental / future / parked until real EXOS usage proves it is needed.
+
 ## Layered Architecture
 
 ### Presentation Layer
@@ -175,6 +184,8 @@ Backtest v1 has four additive paths with separate ownership:
 
 New backtest work must name which path it extends. Direct validation features should extend the direct Backtest & Validation v1 path first. Historical replay from stored snapshots should extend the read-only dataset runner and persistence layers without changing frozen replay contracts. Persistence work should not run simulation or strategy logic.
 
+Backtest must not depend on Portfolio Engine. Portfolio / Risk Evaluation is parked and must remain outside default backtest execution.
+
 ### persistence
 
 Persistence modules are owned by `src/backtest` and are described in the backtest ownership map. They form a boundary for storing and retrieving explicit Backtest v1 records.
@@ -190,6 +201,44 @@ Persistence modules should not implement strategy logic, trade simulation, portf
 - Read-only SQLite source
 
 `MarketDataSource` implementations load OHLCV and future rows. They should return deterministic rows and avoid mutating source data.
+
+Data Source must not depend on Portfolio Engine. Portfolio-specific account or position loading should be introduced only through a future explicit adapter if the parked Portfolio/Risk milestone is resumed.
+
+### context
+
+`src/context` owns the Context Engine v1 Foundation contracts.
+
+Context Engine v1 Foundation is additive and contracts-only. It defines immutable serializable context records for future market, sector, relative strength, volume, and support/resistance work.
+
+Current Context Engine foundation contracts:
+
+- `ContextRequest`
+- `MarketContext`
+- `SectorContext`
+- `RelativeStrengthContext`
+- `VolumeContext`
+- `SupportResistanceContext`
+- `ContextResult`
+
+Context Engine is not wired into the default pipeline yet.
+
+Strategy, Backtest, Analysis Pipeline, Data Source, and GUI should not depend on Context Engine until explicit context layers are implemented, tested, and proven through Backtest.
+
+Context Engine must not call AI, broker, live trading, or network services.
+
+### portfolio
+
+Portfolio / Risk Evaluation is parked as a future / experimental area.
+
+Current roadmap direction:
+
+- Do not wire Portfolio Engine into the default pipeline.
+- Do not make Strategy, Backtest, Analysis Pipeline, Data Source, or Context Engine depend on Portfolio Engine.
+- Do not treat portfolio allocation, diversification, or optimisation as near-term EXOS requirements.
+- Keep any existing portfolio code isolated and deterministic if present.
+- Keep any existing portfolio tests only while they pass and do not block the research-platform roadmap.
+
+Portfolio work may be reconsidered later if real EXOS usage shows that portfolio-level allocation, exposure, or capital-management workflows are needed.
 
 ### application/gui
 
@@ -225,7 +274,7 @@ Package-level `__init__` exports are convenience facades. An exported name is av
 - Canonical v1: direct Backtest & Validation v1 APIs such as trade outcome, trade simulator, `BacktestResultV1`, direct runner, and validation report for new direct validation work.
 - Supporting: read-only DB-backed dataset runner and Backtest Persistence v1 contracts, schema, writer, reader, and orchestrator.
 - Legacy: in-memory replay framework for compatibility and request-row Analysis Pipeline backtests.
-- Future/experimental: walk-forward, portfolio, advanced report/query, or other additive layers only when added outside frozen contracts.
+- Future/experimental: walk-forward and advanced report/query layers only when added outside frozen contracts. Portfolio-related layers are parked until real usage proves they are needed.
 
 ### src.data_source
 
@@ -233,7 +282,15 @@ Package-level `__init__` exports are convenience facades. An exported name is av
 - Canonical v1: `MarketDataSource` contract, request/result records, `MarketDataRow`, and deterministic read-only source implementations.
 - Supporting: in-memory source for tests and deterministic orchestration.
 - Legacy: older data/database paths outside `src.data_source`.
-- Future/experimental: additive source adapters that preserve the read-only boundary and deterministic result contracts.
+- Future/experimental: additive source adapters that preserve the read-only boundary and deterministic result contracts. Portfolio/account sources are parked and should not be introduced as near-term dependencies.
+
+### src.context
+
+- Frozen: none currently designated.
+- Canonical v1 foundation: immutable serializable context contracts in `src/context`.
+- Supporting: future deterministic context calculators that consume explicit market data inputs.
+- Legacy: none.
+- Future/experimental: market, sector, industry, relative strength, volume, support/resistance, and optional macro context layers after validation.
 
 ### src.analysis_pipeline
 
@@ -242,7 +299,7 @@ Package-level `__init__` exports are convenience facades. An exported name is av
 - Canonical v2: `analyze_symbol_v2()`, backed by Canonical Brain Adapter v1, v2-local Strategy / Backtest / Validation adapters, and opt-in Backtest Persistence v1 delegation.
 - Supporting: report building and adapters that translate data-source rows into deterministic analysis outputs.
 - Legacy: `analyze_symbol()` and other orchestration paths that rely on older statistics probability/prediction helpers unless explicitly aligned with the canonical Brain v1 path.
-- Future/experimental: additive pipeline versions that route through canonical Brain v1 engines without mutating frozen contracts.
+- Future/experimental: additive pipeline versions that route through canonical Brain v1 engines without mutating frozen contracts. Portfolio orchestration is parked and should not be part of default analysis pipelines.
 
 ## Canonical Analysis Pipeline Alignment
 

@@ -48,6 +48,12 @@ Data Source v1 public contracts, deterministic memory source, and read-only SQLi
 
 Analysis Service v1 is implemented.
 
+Near-term EXOS focus is Signal Ledger / Trade Journal, Outcome Tracking, statistical performance reporting, and EXOS Context Engine v1.
+
+Context Engine v1 Foundation is implemented.
+
+Portfolio / Risk Evaluation is postponed and parked until real EXOS usage proves it is needed.
+
 Market Learning Engine v1 remains complete.
 
 Similar Pattern Resolver v1 is implemented as an additive pure analysis engine.
@@ -803,16 +809,54 @@ Current tests:
 - `tests/unit/test_analysis_service.py`
 - `tests/smoke/test_analysis_service.py`
 
+### Context Engine v1 Foundation
+
+Status: Implemented as an additive contracts-only foundation.
+
+Context Engine v1 Foundation introduces `src/context` with immutable serializable context contracts:
+
+- `ContextRequest`
+- `MarketContext`
+- `SectorContext`
+- `RelativeStrengthContext`
+- `VolumeContext`
+- `SupportResistanceContext`
+- `ContextResult`
+
+The foundation is deterministic and has no runtime dependency on frozen Brain v1 internals.
+
+It is not wired into the default Analysis Pipeline, Strategy Engine, Backtest, Data Source, or GUI.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+Current tests:
+
+- `tests/unit/test_context_contracts.py`
+
 ## Not Implemented Yet
 
 - Analysis Pipeline latest snapshot loading
 - Analysis Pipeline DB-backed Backtest orchestration
 - Historical replay persistence from stored datasets
-- Portfolio / Risk Evaluation
 - Advanced Backtest Persistence report/query APIs
 - UI Backtest reports
 - AI Analysis / Overlay
 - UI reports for Market Learning and Prediction output
+
+## Parked / Future
+
+- Portfolio / Risk Evaluation
+- Portfolio allocation
+- Portfolio diversification analysis
+- Correlation analysis
+- Capital allocation
+- Portfolio optimisation
+
+These are intentionally postponed. EXOS is currently focused on NASDAQ investment research, signal/outcome tracking, statistical performance reporting, and deterministic Context Engine work rather than portfolio management.
 
 ## Run
 
@@ -826,7 +870,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 343 tests
+- 350 tests
 
 ## History
 

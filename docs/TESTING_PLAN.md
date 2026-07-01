@@ -187,22 +187,20 @@ The Backtest Framework tests verify:
 
 Current test count:
 
-- 162 tests
+- 350 tests
 
 Current gaps:
 
 - No dedicated unit tests for Core Indicators v1.
 - No dedicated unit tests for Snapshot Builder v1.
-- No dedicated unit tests for database persistence.
-- No dedicated unit tests for Probability Engine v1.
-- No dedicated unit tests for Prediction Engine v1.
+- No dedicated unit tests for `DatabaseManager`.
+- No dedicated unit tests for legacy statistics probability/prediction helpers.
 - No regression fixtures for frozen engine contracts.
 - No GUI tests.
 - No integration tests using the on-disk SQLite database.
 - No Analysis Pipeline latest snapshot loading tests yet.
 - No Analysis Pipeline DB-backed Backtest orchestration tests yet.
-- No database-backed Backtest persistence tests yet.
-- No Backtest persistence write/read round-trip tests yet.
+- No historical replay persistence tests from stored datasets yet.
 
 ## Proposed Test Structure
 
@@ -273,8 +271,8 @@ Missing:
 - Pattern Discovery query tests.
 - Pattern Library rebuild tests.
 - Similarity scoring tests.
-- Probability Engine no-evidence and weighted-evidence tests.
-- Prediction Engine target/risk zone tests.
+- Legacy statistics probability helper edge-case tests.
+- Legacy statistics prediction helper edge-case tests.
 
 Priority:
 
@@ -486,8 +484,8 @@ Reason:
 ## Priority Order
 
 1. Snapshot contract regression tests.
-2. Probability Engine v1 unit tests.
-3. Prediction Engine v1 unit tests.
+2. Expand Probability Engine v1 edge-case coverage.
+3. Expand Prediction Engine v1 edge-case coverage.
 4. Outcome Calculator unit tests.
 5. Snapshot Store unit tests.
 6. Pattern Discovery / Pattern Library tests.
@@ -498,9 +496,9 @@ Reason:
 11. Timeframe aggregation tests.
 12. Strategy Engine v1 integration tests.
 13. Expand Backtest Framework integration tests.
-14. SQLite-backed Backtest Data Layer unit tests.
+14. Expand SQLite-backed Backtest Data Layer edge-case tests.
 15. Database-backed Backtest integration tests.
-16. Backtest persistence schema and round-trip tests.
+16. Expand Backtest persistence schema and round-trip tests.
 17. Analysis Pipeline orchestration contract tests.
 18. Data Source v1 adapter tests.
 19. AI overlay explanation tests with deterministic fixtures.

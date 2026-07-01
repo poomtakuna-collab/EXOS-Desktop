@@ -139,7 +139,7 @@ Reason:
 
 Consequence:
 
-Future Context Engine outputs may be consumed by Probability, Strategy, Backtest, Portfolio / Risk, or AI reports after the Backtest foundation exists.
+Future Context Engine outputs may be consumed by Probability, Strategy, Backtest, statistical performance reports, or AI reports after the Backtest foundation exists.
 
 Backtest should eventually compare:
 
@@ -149,3 +149,30 @@ Backtest should eventually compare:
 - Brain v1 + Sector + Industry Context
 
 Context layers must extend the pipeline rather than modifying completed v1 engine contracts.
+
+## ADR-008: Portfolio / Risk Evaluation Parked
+
+Status: Accepted.
+
+Decision:
+
+Portfolio / Risk Evaluation is postponed and parked as a future / experimental area.
+
+EXOS is a NASDAQ investment research platform first, not a portfolio management system.
+
+Reason:
+
+- Near-term EXOS value comes from signal logging, trade journaling, outcome tracking, statistical performance reporting, and deterministic market context.
+- Portfolio allocation, diversification, correlation analysis, and capital optimisation require real usage patterns before the correct product shape is clear.
+- Adding portfolio dependencies too early would pull EXOS toward account management instead of evidence-driven research.
+- Strategy, Backtest, Analysis Pipeline, Data Source, and Context Engine should remain independent of portfolio state.
+
+Consequence:
+
+Portfolio Engine code, if present, should remain experimental / future / parked.
+
+Portfolio Engine must not be wired into the default pipeline.
+
+Portfolio Engine must not become a dependency of Strategy, Backtest, Analysis Pipeline, Data Source, or Context Engine.
+
+Portfolio / Risk Evaluation may be reconsidered only after real EXOS usage proves that portfolio-level workflows are needed.
