@@ -766,7 +766,7 @@ Current adapter support is intentionally minimal:
 
 Adapters are duck-typed and do not import Analysis Pipeline, Brain, Strategy, Backtest, Context, Signal Ledger, Outcome Tracking, database, network, broker, or AI modules.
 
-Canonical Result Model v1 is not wired into Analysis Pipeline v1, Analysis Pipeline v2, GUI, AI, persistence, or Signal Ledger creation yet.
+Canonical Result Model v1 is not wired into Analysis Pipeline v1, Analysis Pipeline v2, GUI, AI, persistence, or runtime Signal Ledger creation yet.
 
 It does not call AI.
 
@@ -780,6 +780,55 @@ Current tests:
 
 - `tests/unit/test_canonical_result_adapters.py`
 - `tests/unit/test_canonical_result_contracts.py`
+
+### Canonical Result -> Signal Adapter v1
+
+Status: Implemented.
+
+Canonical Result -> Signal Adapter v1 adds a pure adapter for creating deterministic `SignalRecord` candidates from `CanonicalResultV1`:
+
+- `build_signal_record_from_canonical_result`
+
+The adapter maps available canonical fields into the existing Signal Ledger contract:
+
+- symbol
+- signal date
+- snapshot id
+- snapshot date
+- timeframe
+- source
+- signal type
+- confidence
+- context summary
+- strategy summary
+- prediction summary nested under `strategy_summary["prediction_summary"]`
+- notes
+
+`CanonicalSignalSummaryV1` fields take precedence where present.
+
+Missing context, strategy, prediction, or malformed optional sections produce deterministic defaults without raising.
+
+The adapter does not modify `SignalRecord`.
+
+The adapter does not modify `CanonicalResultV1`.
+
+It does not create signals automatically.
+
+It does not call repositories.
+
+It does not read from or write to the database.
+
+It does not call AI.
+
+It does not call network services.
+
+It does not call broker or live trading paths.
+
+It does not import GUI modules.
+
+Current tests:
+
+- `tests/unit/test_canonical_result_signal_adapter.py`
 
 ### Similar Pattern Resolver v1
 
@@ -1173,7 +1222,9 @@ Signal Ledger SQLite Persistence v1 introduced a SQLite-backed repository for du
 
 Canonical Result Model v1 introduced immutable serializable contracts and a pure duck-typed adapter foundation for mapping existing analysis result dictionaries or objects into canonical identity, Brain, prediction, and diagnostics sections.
 
-Canonical Result Model v1 remains additive and is not wired into Analysis Pipeline v1, Analysis Pipeline v2, GUI, AI, persistence, or Signal Ledger creation yet.
+Canonical Result Model v1 remains additive and is not wired into Analysis Pipeline v1, Analysis Pipeline v2, GUI, AI, persistence, or runtime Signal Ledger creation yet.
+
+Canonical Result -> Signal Adapter v1 now provides a pure candidate adapter from `CanonicalResultV1` to `SignalRecord`.
 
 No new runtime features were implemented as part of this session finalization.
 
@@ -1192,7 +1243,7 @@ The completed foundation modules do not call broker or live trading paths.
 Verification:
 
 - `py -m unittest discover -s tests`
-- 573 tests passing
+- 582 tests passing
 
 ### Signal Ledger v1 Foundation
 
@@ -1808,7 +1859,7 @@ Pipeline smoke test:
 
 Current test count:
 
-- 573 tests
+- 582 tests
 
 ## History
 

@@ -34,7 +34,8 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - Chart Data Source v1 integration coverage is implemented.
 - ChartWorkspace app integration coverage is implemented.
 - Canonical Result Model v1 contracts and adapter foundation are implemented.
-- Current full test baseline: 573 tests passing with `py -m unittest discover -s tests`.
+- Canonical Result -> Signal Adapter v1 is implemented.
+- Current full test baseline: 582 tests passing with `py -m unittest discover -s tests`.
 
 ## Completed Foundation Work
 
@@ -59,27 +60,24 @@ The sprint should make EXOS able to preserve generated research signals, track t
 - ChartWorkspace app-level coverage for adapter injection, successful loads, fallback paths, symbol switching, and repeated refreshes.
 - Canonical Result Model v1 typed output contracts.
 - Canonical Result adapter foundation for identity, Brain, prediction, and diagnostics sections.
+- Pure Canonical Result -> Signal adapter for deterministic `SignalRecord` candidates.
 
 ## Next Prioritized Tasks
 
-1. Canonical Result -> Signal adapter
-   - Add pure adapter helpers that derive `SignalRecord` candidates from `CanonicalResultV1`.
-   - Do not wire into runtime automatically yet.
-
-2. Explicit/manual Signal creation flow
+1. Explicit/manual Signal creation flow
    - Let the user intentionally save deterministic research output as a signal.
    - No runtime auto-persistence.
    - No trading actions.
 
-3. Outcome evaluation flow
+2. Outcome evaluation flow
    - Evaluate saved signals against future OHLCV rows.
    - Persist outcomes through existing repositories.
 
-4. Performance report with real accumulated signal data
+3. Performance report with real accumulated signal data
    - Feed Performance Report v1 from saved signals and evaluated outcomes.
    - Keep global and selected-symbol views useful.
 
-5. Context validation/backtest comparison
+4. Context validation/backtest comparison
    - Compare Brain v1 against Brain v1 plus context layers.
    - Adopt only context signals that demonstrate measurable improvement.
 

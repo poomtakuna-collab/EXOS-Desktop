@@ -1,0 +1,217 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
+
+from src.canonical_result import (
+    CanonicalContextResultV1,
+    CanonicalPredictionResultV1,
+    CanonicalResultV1,
+    CanonicalSignalSummaryV1,
+    CanonicalStrategyResultV1,
+)
+from src.signal_ledger.contracts import (
+    SignalRecord,
+    SignalSnapshotReference,
+    SignalType,
+)
+
+
+ADAPTER_VERSION_V1 = "canonical_result_to_signal_adapter_v1"
+
+
+def build_signal_record_from_canonical_result(
+    canonical_result: CanonicalResultV1 | None,
+) -> SignalRecord:
+    result = canonical_result if isinstance(canonical_result, CanonicalResultV1) else CanonicalResultV1()
+    signal_summary = _signal_summary(result.signal_summary)
+
+    symbol = _first_text(
+        _field(signal_summary, "symbol"),
+        _field(result.identity, "symbol"),
+    ).upper()
+    signal_date = _first_text(
+        _field(signal_summary, "signal_date"),
+        _field(result.identity, "analysis_date"),
+        _field(result.identity, "snapshot_date"),
+    )
+
+    prediction_summary = _prediction_summary(result, signal_summary)
+    strategy_summary = _strategy_summary(result, signal_summary, prediction_summary)
+
+    return SignalRecord(
+        symbol=symbol,
+        signal_date=signal_date,
+        snapshot_reference=SignalSnapshotReference(
+            snapshot_id=_first_text(
+                _field(signal_summary, "snapshot_id"),
+                _field(result.identity, "snapshot_id"),
+            ),
+            snapshot_date=_first_text(
+                _field(signal_summary, "snapshot_date"),
+                _field(result.identity, "snapshot_date"),
+            ),
+            timeframe=_first_text(
+                _field(signal_summary, "timeframe"),
+                _field(result.identity, "timeframe"),
+            ),
+            source=_first_text(
+                _field(result.identity, "source"),
+                _field(result.identity, "pipeline_name"),
+                _field(result.diagnostics, "source_pipeline"),
+            ),
+        ),
+        context_summary=_context_summary(result, signal_summary),
+        strategy_summary=strategy_summary,
+        signal_type=_signal_type(_first_text(_field(signal_summary, "signal_type"))),
+        confidence=_confidence(result, signal_summary),
+        notes=_notes(result, signal_summary),
+    )
+
+
+def _signal_summary(value: object) -> CanonicalSignalSummaryV1 | None:
+    return value if isinstance(value, CanonicalSignalSummaryV1) else None
+
+
+def _prediction_summary(
+    result: CanonicalResultV1,
+    signal_summary: CanonicalSignalSummaryV1 | None,
+) -> dict[str, Any]:
+    summary_prediction = _plain_mapping(_field(signal_summary, "prediction_summary"))
+    if summary_prediction:
+        return summary_prediction
+
+    prediction = _field(result, "prediction")
+    if isinstance(prediction, CanonicalPredictionResultV1):
+        return prediction.to_dict()
+
+    brain_summary = _plain_mapping(_field(result.brain, "prediction_summary"))
+    if brain_summary:
+        return brain_summary
+    return {}
+
+
+def _context_summary(
+    result: CanonicalResultV1,
+    signal_summary: CanonicalSignalSummaryV1 | None,
+) -> dict[str, Any]:
+    summary_context = _plain_mapping(_field(signal_summary, "context_summary"))
+    if summary_context:
+        return summary_context
+
+    context = _field(result, "context")
+    if isinstance(context, CanonicalContextResultV1):
+        return context.to_dict()
+    return {}
+
+
+def _strategy_summary(
+    result: CanonicalResultV1,
+    signal_summary: CanonicalSignalSummaryV1 | None,
+    prediction_summary: dict[str, Any],
+) -> dict[str, Any]:
+    summary_strategy = _plain_mapping(_field(signal_summary, "strategy_summary"))
+    strategy = _field(result, "strategy")
+    if not summary_strategy and isinstance(strategy, CanonicalStrategyResultV1):
+        summary_strategy = strategy.to_dict()
+
+    output = dict(summary_strategy)
+    if prediction_summary:
+        output["prediction_summary"] = prediction_summary
+    return output
+
+
+def _confidence(
+    result: CanonicalResultV1,
+    signal_summary: CanonicalSignalSummaryV1 | None,
+) -> float | None:
+    for value in (
+        _field(signal_summary, "confidence"),
+        _field(_field(result, "prediction"), "confidence"),
+        _plain_mapping(_field(result.brain, "prediction_summary")).get("confidence"),
+    ):
+        number = _optional_float(value)
+        if number is not None:
+            return number
+    return None
+
+
+def _signal_type(value: str) -> SignalType | str:
+    normalized = value.strip().lower()
+    if not normalized:
+        return SignalType.UNKNOWN
+    try:
+        return SignalType(normalized)
+    except ValueError:
+        return normalized
+
+
+def _notes(
+    result: CanonicalResultV1,
+    signal_summary: CanonicalSignalSummaryV1 | None,
+) -> tuple[str, ...]:
+    notes: list[str] = [f"Generated by {ADAPTER_VERSION_V1}."]
+    notes.extend(_text_items(_field(signal_summary, "notes")))
+    notes.extend(_text_items(_field(_field(result, "prediction"), "notes")))
+    notes.extend(_text_items(_field(_field(result, "strategy"), "notes")))
+    notes.extend(_text_items(_field(result.context, "warnings")))
+    notes.extend(_text_items(_field(result.diagnostics, "warnings")))
+    notes.extend(_text_items(_field(result.diagnostics, "notes")))
+    return tuple(dict.fromkeys(notes))
+
+
+def _field(source: object, name: str) -> Any:
+    if source is None:
+        return None
+    if isinstance(source, Mapping):
+        return source.get(name)
+    return getattr(source, name, None)
+
+
+def _first_text(*values: object) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _plain_mapping(value: object) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {}
+    return {
+        str(key): _plain_value(item)
+        for key, item in value.items()
+    }
+
+
+def _plain_value(value: object) -> Any:
+    if isinstance(value, Mapping):
+        return _plain_mapping(value)
+    if isinstance(value, tuple):
+        return [_plain_value(item) for item in value]
+    if isinstance(value, list):
+        return [_plain_value(item) for item in value]
+    return value
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _text_items(value: object) -> list[str]:
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [
+        text
+        for item in value
+        if (text := str(item or "").strip())
+    ]
