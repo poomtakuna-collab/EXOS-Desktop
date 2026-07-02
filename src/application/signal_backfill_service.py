@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import date
 from typing import Any
@@ -57,6 +57,22 @@ class SignalBackfillSummary:
         }
 
 
+@dataclass(frozen=True)
+class SignalBackfillProgress:
+    symbol: str
+    current: int
+    total: int
+    market_date: str = ""
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "symbol": self.symbol,
+            "current": self.current,
+            "total": self.total,
+            "market_date": self.market_date,
+        }
+
+
 def backfill_missing_research_signals(
     *,
     symbol: str,
@@ -66,6 +82,7 @@ def backfill_missing_research_signals(
     row_limit: int | None = None,
     timeframe: str = DEFAULT_BACKFILL_TIMEFRAME,
     as_of_date: date | str | None = None,
+    progress_callback: Callable[[SignalBackfillProgress], None] | None = None,
 ) -> SignalBackfillSummary:
     normalized_symbol = str(symbol or "").strip().upper()
     if not normalized_symbol:
@@ -93,7 +110,17 @@ def backfill_missing_research_signals(
     skipped_existing = 0
     skipped_failed = 0
 
-    for market_date in eligible_dates:
+    total_dates = len(eligible_dates)
+    for index, market_date in enumerate(eligible_dates, start=1):
+        _emit_progress(
+            progress_callback,
+            SignalBackfillProgress(
+                symbol=normalized_symbol,
+                current=index,
+                total=total_dates,
+                market_date=market_date,
+            ),
+        )
         if signal_exists_for_market_date(
             signal_repository,
             symbol=normalized_symbol,
@@ -149,6 +176,18 @@ def backfill_missing_research_signals(
         skipped_dates=tuple(skipped_dates),
         errors=tuple(errors),
     )
+
+
+def _emit_progress(
+    progress_callback: Callable[[SignalBackfillProgress], None] | None,
+    progress: SignalBackfillProgress,
+) -> None:
+    if progress_callback is None:
+        return
+    try:
+        progress_callback(progress)
+    except Exception:
+        return
 
 
 def _canonical_result_for_market_date(

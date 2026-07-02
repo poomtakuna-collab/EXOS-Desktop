@@ -76,7 +76,62 @@ class ResearchSignalSaveTest(unittest.TestCase):
             self.assertIsNotNone(saved_signal)
             self.assertIsNotNone(saved_snapshot)
             self.assertEqual(saved_snapshot.signal_id, result.signal.signal_id)
-            self.assertEqual(saved_snapshot.canonical_snapshot, _canonical_result().to_dict())
+            payload = saved_snapshot.canonical_snapshot
+            self.assertEqual(
+                payload["identity"]["payload_schema_version"],
+                "snapshot_payload_v2",
+            )
+            self.assertEqual(
+                tuple(payload),
+                (
+                    "analysis",
+                    "compatibility",
+                    "context",
+                    "diagnostics",
+                    "display_summary",
+                    "identity",
+                    "input",
+                    "provenance",
+                    "strategy",
+                ),
+            )
+            self.assertEqual(
+                payload["compatibility"]["signal_id"],
+                result.signal.signal_id,
+            )
+            self.assertEqual(
+                payload["compatibility"]["legacy_signal_record_projection"]["signal_id"],
+                result.signal.signal_id,
+            )
+
+    def test_saved_snapshot_payload_keeps_signal_record_compatibility_row(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+
+            result = save_manual_signal_candidate(
+                _canonical_result(),
+                database_path=db_path,
+            )
+
+            self.assertTrue(result.saved)
+            connection = sqlite3.connect(db_path)
+            try:
+                signal_repository = SQLiteSignalLedgerRepository(connection)
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+                saved_signal = signal_repository.load_signal(result.signal.signal_id)
+                saved_snapshot = snapshot_repository.load_snapshot_for_signal_id(
+                    result.signal.signal_id
+                )
+            finally:
+                connection.close()
+
+            self.assertIsNotNone(saved_signal)
+            self.assertIsNotNone(saved_snapshot)
+            self.assertEqual(saved_signal.signal_id, result.signal.signal_id)
+            self.assertEqual(
+                saved_snapshot.canonical_snapshot["compatibility"]["legacy_signal_record_projection"]["signal_id"],
+                result.signal.signal_id,
+            )
 
     def test_v2_conflict_does_not_create_compatibility_record(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

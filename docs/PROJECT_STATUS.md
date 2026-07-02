@@ -92,6 +92,18 @@ Manual Evidence Loop Runner foundation is implemented.
 
 EXOS Desktop Manual Evidence Loop action is implemented.
 
+EXOS Desktop Manual Evidence Loop progress display is implemented.
+
+Developer Reset Snapshot Tool is implemented and exposed through the EXOS Desktop Developer UI.
+
+Snapshot Payload Inspection Report is complete.
+
+SnapshotPayloadV2 contract and pure builder are implemented.
+
+SnapshotPayloadV2 is wired into Daily Research Snapshot save JSON while preserving the existing table schema and SignalRecord compatibility projection.
+
+Snapshot Detail UI displays SnapshotPayloadV2 sections in dedicated read-only tabs.
+
 Chart -> Data Source v1 integration foundation is implemented.
 
 Chart Data Source v1 integration coverage is implemented.
@@ -960,7 +972,7 @@ Status: Implemented.
 
 EXOS Desktop now provides an explicit `Run Evidence Loop` toolbar action for the selected dashboard/watchlist symbol.
 
-The action starts a background Qt worker for `run_manual_evidence_loop`, disables the action while running, refreshes Signal History and Performance after completion, and surfaces a lightweight status-bar summary or safe error status.
+The action starts a background Qt worker for `run_manual_evidence_loop`, disables the action while running, reports status-bar progress as backfilled snapshot dates are processed, refreshes Signal History and Performance after completion, and surfaces a lightweight status-bar summary or safe error status.
 
 It does not run on startup.
 

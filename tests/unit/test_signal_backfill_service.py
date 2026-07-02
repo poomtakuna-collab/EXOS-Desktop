@@ -155,8 +155,62 @@ class SignalBackfillServiceTest(unittest.TestCase):
             list(summary.saved_signal_ids),
         )
         self.assertEqual(
-            [snapshot.canonical_snapshot["identity"]["analysis_date"] for snapshot in snapshots],
+            [snapshot.canonical_snapshot["identity"]["payload_schema_version"] for snapshot in snapshots],
+            ["snapshot_payload_v2", "snapshot_payload_v2"],
+        )
+        self.assertEqual(
+            [snapshot.canonical_snapshot["identity"]["market_date"] for snapshot in snapshots],
             ["2026-06-29", "2026-06-30"],
+        )
+        self.assertEqual(
+            [
+                snapshot.canonical_snapshot["compatibility"]["legacy_signal_record_projection"]["signal_id"]
+                for snapshot in snapshots
+            ],
+            list(summary.saved_signal_ids),
+        )
+
+    def test_backfill_reports_progress_for_each_eligible_market_date(self) -> None:
+        repository = InMemorySignalLedgerRepository()
+        observed_progress: list[dict[str, object]] = []
+
+        with patch(
+            "src.application.signal_backfill_service.analyze_symbol_v2",
+            side_effect=_fake_analysis,
+        ):
+            summary = backfill_missing_research_signals(
+                symbol="aapl",
+                data_source=MemoryDataSource(
+                    [
+                        _row("AAPL", "2026-06-29", 100.0),
+                        _row("AAPL", "2026-06-30", 101.0),
+                        _row("AAPL", "2026-07-01", 102.0),
+                    ]
+                ),
+                signal_repository=repository,
+                as_of_date="2026-07-01",
+                progress_callback=lambda progress: observed_progress.append(
+                    progress.to_dict()
+                ),
+            )
+
+        self.assertEqual(summary.saved, 2)
+        self.assertEqual(
+            observed_progress,
+            [
+                {
+                    "symbol": "AAPL",
+                    "current": 1,
+                    "total": 2,
+                    "market_date": "2026-06-29",
+                },
+                {
+                    "symbol": "AAPL",
+                    "current": 2,
+                    "total": 2,
+                    "market_date": "2026-06-30",
+                },
+            ],
         )
 
 

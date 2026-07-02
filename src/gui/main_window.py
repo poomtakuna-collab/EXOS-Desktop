@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QTabWidget,
     QToolBar,
@@ -26,6 +27,7 @@ from src.core.market_scope import MARKET_SCOPE
 from src.core.state_manager import StateManager
 from src.data import DataManager
 from src.data_source import SQLiteDataSource
+from src.developer import reset_snapshots
 from src.gui.chart_workspace import ChartWorkspace
 from src.gui.developer_panel import DeveloperPanel
 from src.gui.performance_view_model import DEFAULT_PERFORMANCE_DATABASE_PATH
@@ -54,6 +56,7 @@ class MainWindow(QMainWindow):
         self._developer_panel = DeveloperPanel(self._state_manager)
         self._developer_dock = QDockWidget("Developer Panel", self)
         self._developer_mode_action: QAction | None = None
+        self._reset_snapshots_action: QAction | None = None
         self._evidence_loop_action: QAction | None = None
         self._evidence_loop_thread: QThread | None = None
         self._evidence_loop_worker: _EvidenceLoopWorker | None = None
@@ -80,10 +83,15 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_action)
 
         view_menu = self.menuBar().addMenu("View")
-        self._developer_mode_action = QAction("Developer Mode", self)
+        self._developer_mode_action = QAction("Developer Panel", self)
         self._developer_mode_action.setCheckable(True)
         self._developer_mode_action.toggled.connect(self._set_developer_mode_visible)
         view_menu.addAction(self._developer_mode_action)
+
+        developer_menu = self.menuBar().addMenu("Developer")
+        self._reset_snapshots_action = QAction("Reset Snapshots...", self)
+        self._reset_snapshots_action.triggered.connect(self._confirm_and_reset_snapshots)
+        developer_menu.addAction(self._reset_snapshots_action)
 
     def _create_toolbar(self) -> None:
         toolbar = QToolBar("Main Toolbar", self)
@@ -218,6 +226,7 @@ class MainWindow(QMainWindow):
         worker = _EvidenceLoopWorker(symbol=symbol, database_path=database_path)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
+        worker.progress.connect(self._handle_evidence_loop_progress)
         worker.finished.connect(self._handle_evidence_loop_finished)
         worker.failed.connect(self._handle_evidence_loop_failed)
         worker.finished.connect(thread.quit)
@@ -230,15 +239,30 @@ class MainWindow(QMainWindow):
         self._evidence_loop_worker = worker
         thread.start()
 
+    def _handle_evidence_loop_progress(self, progress: object) -> None:
+        current = getattr(progress, "current", 0)
+        total = getattr(progress, "total", 0)
+        symbol = str(getattr(progress, "symbol", "") or "").strip().upper()
+        market_date = str(getattr(progress, "market_date", "") or "").strip()
+        detail = " ".join(value for value in (symbol, market_date) if value)
+        message = f"Evidence Loop running: {current} / {total} snapshots"
+        if detail:
+            message = f"{message} | {detail}"
+        self.statusBar().showMessage(message)
+
     def _handle_evidence_loop_finished(self, summary: object) -> None:
         try:
             self._signal_history_panel.refresh()
             self._performance_panel.refresh()
-            signals_created = getattr(summary, "signals_created", 0)
+            snapshots_processed = getattr(
+                summary,
+                "snapshots_processed",
+                getattr(summary, "signals_created", 0),
+            )
             outcomes_evaluated = getattr(summary, "outcomes_evaluated", 0)
             self.statusBar().showMessage(
                 "Evidence Loop complete: "
-                f"{signals_created} snapshots, "
+                f"{snapshots_processed} snapshots, "
                 f"{outcomes_evaluated} outcomes."
             )
         except Exception as error:
@@ -267,8 +291,39 @@ class MainWindow(QMainWindow):
         if self._developer_mode_action is not None:
             self._developer_mode_action.setChecked(visible)
 
+    def _confirm_and_reset_snapshots(self) -> None:
+        response = QMessageBox.warning(
+            self,
+            "Reset Snapshot Test Data",
+            "Delete saved snapshot test data from the development database?\n\n"
+            "This clears snapshot records only. Market data, settings, outcomes, "
+            "performance records, and other tables are left unchanged.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if response != QMessageBox.Yes:
+            self.statusBar().showMessage("Snapshot reset cancelled.")
+            return
+
+        try:
+            result = reset_snapshots(
+                DEFAULT_PERFORMANCE_DATABASE_PATH,
+                confirm=True,
+            )
+        except Exception as error:
+            self.statusBar().showMessage(f"Snapshot reset failed: {error}")
+            return
+
+        self._signal_history_panel.refresh()
+        self._performance_panel.refresh()
+        self._developer_panel.refresh()
+        self.statusBar().showMessage(
+            f"Snapshot reset complete: {result.total_deleted} rows deleted."
+        )
+
 
 class _EvidenceLoopWorker(QObject):
+    progress = Signal(object)
     finished = Signal(object)
     failed = Signal(str)
 
@@ -290,6 +345,7 @@ class _EvidenceLoopWorker(QObject):
                     data_source=SQLiteDataSource(connection),
                     signal_repository=signal_repository,
                     outcome_repository=outcome_repository,
+                    progress_callback=self.progress.emit,
                 )
             finally:
                 connection.close()

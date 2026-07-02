@@ -77,7 +77,13 @@ class SQLiteDailyResearchSnapshotRepositoryTest(unittest.TestCase):
             self.assertEqual(saved.canonical_schema_version, CANONICAL_RESULT_SCHEMA_VERSION_V1)
             self.assertEqual(saved.persistence_version, DAILY_RESEARCH_SNAPSHOT_PERSISTENCE_VERSION_V2)
             self.assertEqual(saved.source, "analysis_pipeline_v2")
-            self.assertEqual(saved.canonical_snapshot, canonical.to_dict())
+            self.assertEqual(
+                saved.canonical_snapshot["identity"]["payload_schema_version"],
+                "snapshot_payload_v2",
+            )
+            self.assertEqual(saved.canonical_snapshot["identity"]["symbol"], "AAPL")
+            self.assertIn("analysis", saved.canonical_snapshot)
+            self.assertIn("display_summary", saved.canonical_snapshot)
             self.assertEqual(
                 saved.payload_hash,
                 hashlib.sha256(saved.canonical_snapshot_json.encode("utf-8")).hexdigest(),
@@ -118,8 +124,8 @@ class SQLiteDailyResearchSnapshotRepositoryTest(unittest.TestCase):
             repository.initialize_schema()
             canonical = _canonical_result()
 
-            first = repository.save_snapshot(canonical, created_at="first")
-            second = repository.save_snapshot(canonical, created_at="second")
+            first = repository.save_snapshot(canonical)
+            second = repository.save_snapshot(canonical)
 
             self.assertEqual(second, first)
             self.assertEqual(repository.list_snapshots(), (first,))

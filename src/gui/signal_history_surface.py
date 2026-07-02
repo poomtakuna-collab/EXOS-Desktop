@@ -115,7 +115,8 @@ class SnapshotDetailDialog(QDialog):
         layout.addWidget(_header_group(view_model.get("header"), self))
 
         tabs = QTabWidget(self)
-        groups = view_model.get("groups")
+        detail_tabs = view_model.get("tabs")
+        groups = detail_tabs if isinstance(detail_tabs, tuple) else view_model.get("groups")
         if isinstance(groups, tuple):
             for group in groups:
                 if isinstance(group, dict):

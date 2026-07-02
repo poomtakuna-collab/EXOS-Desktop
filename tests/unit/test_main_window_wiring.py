@@ -85,6 +85,121 @@ class MainWindowWiringTest(unittest.TestCase):
             connections,
         )
 
+    def test_developer_menu_reset_snapshots_action_triggers_confirmed_reset(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "connect"
+        ]
+        connections = {
+            (
+                _attribute_name(call.func.value),
+                _attribute_name(call.args[0]) if call.args else "",
+            )
+            for call in calls
+        }
+
+        self.assertIn(
+            (
+                "self._reset_snapshots_action.triggered",
+                "self._confirm_and_reset_snapshots",
+            ),
+            connections,
+        )
+
+    def test_view_menu_can_open_developer_panel(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "connect"
+        ]
+        connections = {
+            (
+                _attribute_name(call.func.value),
+                _attribute_name(call.args[0]) if call.args else "",
+            )
+            for call in calls
+        }
+
+        self.assertIn(
+            (
+                "self._developer_mode_action.toggled",
+                "self._set_developer_mode_visible",
+            ),
+            connections,
+        )
+
+    def test_developer_reset_snapshots_menu_labels_are_visible(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        string_constants = {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
+
+        self.assertIn("View", string_constants)
+        self.assertIn("Developer Panel", string_constants)
+        self.assertIn("Developer", string_constants)
+        self.assertIn("Reset Snapshots...", string_constants)
+
+    def test_developer_panel_does_not_add_reset_button_clutter(self) -> None:
+        tree = ast.parse(Path("src/gui/developer_panel.py").read_text(encoding="utf-8"))
+        imported_names: set[str] = set()
+        string_constants = {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                imported_names.update(alias.name for alias in node.names)
+
+        self.assertNotIn("QPushButton", imported_names)
+        self.assertNotIn("Reset Snapshot Test Data", string_constants)
+
+    def test_confirmed_snapshot_reset_shows_dialog_and_refreshes_views(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_confirm_and_reset_snapshots")
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+            and not (
+                isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Constant)
+            )
+        }
+        keyword_pairs = {
+            (
+                _call_name(call),
+                keyword.arg,
+                _attribute_name(keyword.value)
+                if isinstance(keyword.value, ast.Attribute)
+                else keyword.value.value
+                if isinstance(keyword.value, ast.Constant)
+                else "",
+            )
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+            for keyword in call.keywords
+        }
+
+        self.assertIn("QMessageBox.warning", called_names)
+        self.assertIn("reset_snapshots", called_names)
+        self.assertIn(("reset_snapshots", "confirm", True), keyword_pairs)
+        self.assertIn("self._signal_history_panel.refresh", called_names)
+        self.assertIn("self._performance_panel.refresh", called_names)
+        self.assertIn("self._developer_panel.refresh", called_names)
+
     def test_manual_evidence_loop_starts_background_worker_without_sync_runner_call(self) -> None:
         tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
         method = _method(tree, "_run_manual_evidence_loop")
@@ -102,6 +217,7 @@ class MainWindowWiringTest(unittest.TestCase):
         self.assertIn("QThread", called_names)
         self.assertIn("_EvidenceLoopWorker", called_names)
         self.assertIn("worker.moveToThread", called_names)
+        self.assertIn("worker.progress.connect", called_names)
         self.assertIn("thread.start", called_names)
         self.assertIn("self._evidence_loop_action.setEnabled", called_names)
         self.assertIn("self.statusBar().showMessage", called_names)
@@ -113,11 +229,61 @@ class MainWindowWiringTest(unittest.TestCase):
             _call_name(call)
             for call in ast.walk(method)
             if isinstance(call, ast.Call)
+            and not (
+                isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Constant)
+            )
         }
 
         self.assertIn("run_manual_evidence_loop", called_names)
         self.assertIn("self.finished.emit", called_names)
         self.assertIn("self.failed.emit", called_names)
+
+    def test_evidence_loop_worker_forwards_progress_callback_to_runner(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "run")
+        runner_calls = [
+            call
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+            and _call_name(call) == "run_manual_evidence_loop"
+        ]
+
+        self.assertEqual(len(runner_calls), 1)
+        keywords = {keyword.arg: keyword.value for keyword in runner_calls[0].keywords}
+        self.assertEqual(
+            _attribute_name(keywords["progress_callback"]),
+            "self.progress.emit",
+        )
+
+    def test_evidence_loop_progress_updates_status_bar_with_count_and_symbol_date(
+        self,
+    ) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_handle_evidence_loop_progress")
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+            and not (
+                isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Constant)
+            )
+        }
+        string_constants = {
+            node.value
+            for node in ast.walk(method)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
+
+        self.assertIn("getattr", called_names)
+        self.assertIn("self.statusBar().showMessage", called_names)
+        self.assertIn("current", string_constants)
+        self.assertIn("total", string_constants)
+        self.assertIn("symbol", string_constants)
+        self.assertIn("market_date", string_constants)
+        self.assertIn(" snapshots", string_constants)
 
     def test_evidence_loop_worker_catches_unexpected_exceptions(self) -> None:
         tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
@@ -192,11 +358,18 @@ class MainWindowWiringTest(unittest.TestCase):
             for call in ast.walk(method)
             if isinstance(call, ast.Call)
         }
+        string_constants = {
+            node.value
+            for node in ast.walk(method)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
 
         self.assertIn("self._signal_history_panel.refresh", called_names)
         self.assertIn("self._performance_panel.refresh", called_names)
         self.assertIn("self._evidence_loop_action.setEnabled", called_names)
         self.assertIn("self.statusBar().showMessage", called_names)
+        self.assertIn("snapshots_processed", string_constants)
 
     def test_evidence_loop_error_reenables_action_and_shows_status(self) -> None:
         tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))

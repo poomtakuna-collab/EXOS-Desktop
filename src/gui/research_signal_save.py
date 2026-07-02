@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
-from typing import Protocol
+from typing import Any, Protocol
 
 from src.canonical_result import CanonicalResultV1
 from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
@@ -38,6 +38,7 @@ class DailyResearchSnapshotRepository(Protocol):
         *,
         signal_id: str | None = None,
         created_at: str = "",
+        compatibility: dict[str, Any] | None = None,
     ) -> object:
         pass
 
@@ -136,6 +137,11 @@ def _save_with_repository(
                 canonical_result,
                 signal_id=signal.signal_id,
                 created_at=_market_date(signal),
+                compatibility={
+                    "signal_id": signal.signal_id,
+                    "legacy_snapshot_id": signal.snapshot_reference.snapshot_id,
+                    "legacy_signal_record_projection": signal.to_dict(),
+                },
             )
         saved_signal = repository.save_signal(signal)
     except (RuntimeError, ValueError, sqlite3.Error) as error:

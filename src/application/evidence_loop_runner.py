@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
 from src.application.signal_backfill_service import (
+    SignalBackfillProgress,
     SignalBackfillSummary,
     backfill_missing_research_signals,
 )
@@ -30,10 +31,19 @@ class ManualEvidenceLoopSummary:
     def outcomes_evaluated(self) -> int:
         return self.outcome_evaluation.evaluated
 
+    @property
+    def snapshots_processed(self) -> int:
+        return (
+            self.backfill.saved
+            + self.backfill.skipped_existing
+            + self.backfill.skipped_failed
+        )
+
     def to_dict(self) -> dict[str, object]:
         return {
             "symbol": self.symbol,
             "signals_created": self.signals_created,
+            "snapshots_processed": self.snapshots_processed,
             "outcomes_evaluated": self.outcomes_evaluated,
             "backfill": self.backfill.to_dict(),
             "outcome_evaluation": self.outcome_evaluation.to_dict(),
@@ -51,6 +61,7 @@ def run_manual_evidence_loop(
     as_of_date: date | str | None = None,
     default_horizon_days: int = 10,
     future_rows_by_signal_id: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    progress_callback: Callable[[SignalBackfillProgress], None] | None = None,
 ) -> ManualEvidenceLoopSummary:
     normalized_symbol = str(symbol or "").strip().upper()
     backfill_summary = backfill_missing_research_signals(
@@ -60,6 +71,7 @@ def run_manual_evidence_loop(
         row_limit=row_limit,
         timeframe=timeframe,
         as_of_date=as_of_date,
+        progress_callback=progress_callback,
     )
     future_rows = future_rows_by_signal_id or _future_rows_by_signal_id(
         symbol=normalized_symbol,

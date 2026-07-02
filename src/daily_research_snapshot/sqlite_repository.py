@@ -4,9 +4,10 @@ from dataclasses import dataclass
 import hashlib
 import json
 import sqlite3
-from typing import Any
+from typing import Any, Mapping
 
 from src.canonical_result import CANONICAL_RESULT_SCHEMA_VERSION_V1, CanonicalResultV1
+from src.snapshot_payload_v2 import build_snapshot_payload_v2
 
 
 DAILY_RESEARCH_SNAPSHOT_PERSISTENCE_VERSION_V2 = "daily_research_snapshot_v2"
@@ -99,11 +100,13 @@ class SQLiteDailyResearchSnapshotRepository:
         *,
         signal_id: str | None = None,
         created_at: str = "",
+        compatibility: Mapping[str, Any] | None = None,
     ) -> DailyResearchSnapshotRecord:
         record = build_daily_research_snapshot_record(
             canonical_result,
             signal_id=signal_id,
             created_at=created_at,
+            compatibility=compatibility,
         )
         existing = self.load_snapshot(
             symbol=record.symbol,
@@ -113,7 +116,10 @@ class SQLiteDailyResearchSnapshotRepository:
             persistence_version=record.persistence_version,
         )
         if existing is not None:
-            if existing.payload_hash == record.payload_hash:
+            if _same_payload_ignoring_created_at(
+                existing.canonical_snapshot,
+                record.canonical_snapshot,
+            ):
                 return existing
             raise DailyResearchSnapshotConflictError(
                 "daily research snapshot identity already exists with different payload"
@@ -271,12 +277,20 @@ def build_daily_research_snapshot_record(
     *,
     signal_id: str | None = None,
     created_at: str = "",
+    compatibility: Mapping[str, Any] | None = None,
 ) -> DailyResearchSnapshotRecord:
     if not isinstance(canonical_result, CanonicalResultV1):
         raise TypeError("canonical_result must be CanonicalResultV1")
 
     payload = canonical_result.to_dict()
-    canonical_json = _canonical_json(payload)
+    snapshot_payload = build_snapshot_payload_v2(
+        canonical_result=canonical_result,
+        compatibility={
+            **dict(compatibility or {}),
+            "signal_id": _optional_text(signal_id) or str((compatibility or {}).get("signal_id") or ""),
+        },
+    ).to_dict()
+    canonical_json = _canonical_json(snapshot_payload)
     payload_hash = _sha256(canonical_json)
     symbol = _normalize_symbol(_identity_value(payload, "symbol"))
     market_date = _required_text(
@@ -421,3 +435,18 @@ def _required_text(value: object, name: str) -> str:
 def _optional_text(value: object) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _same_payload_ignoring_created_at(
+    first: dict[str, Any],
+    second: dict[str, Any],
+) -> bool:
+    return _without_created_at(first) == _without_created_at(second)
+
+
+def _without_created_at(payload: dict[str, Any]) -> dict[str, Any]:
+    copied = json.loads(json.dumps(payload, sort_keys=True, default=str))
+    provenance = copied.get("provenance")
+    if isinstance(provenance, dict):
+        provenance.pop("created_at", None)
+    return copied

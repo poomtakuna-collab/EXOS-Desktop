@@ -5,7 +5,10 @@ import unittest
 from unittest.mock import patch
 
 from src.application.evidence_loop_runner import run_manual_evidence_loop
-from src.application.signal_backfill_service import SignalBackfillSummary
+from src.application.signal_backfill_service import (
+    SignalBackfillProgress,
+    SignalBackfillSummary,
+)
 from src.data_source import MemoryDataSource
 from src.outcome_tracking import OutcomeEvaluationSummary
 from src.outcome_tracking.repository import InMemoryOutcomeRepository
@@ -46,7 +49,12 @@ class ManualEvidenceLoopRunnerTest(unittest.TestCase):
     def test_summary_reports_signals_created_and_outcomes_evaluated_or_skipped(self) -> None:
         with patch(
             "src.application.evidence_loop_runner.backfill_missing_research_signals",
-            return_value=SignalBackfillSummary(symbol="AAPL", saved=2),
+            return_value=SignalBackfillSummary(
+                symbol="AAPL",
+                saved=2,
+                skipped_existing=3,
+                skipped_failed=1,
+            ),
         ), patch(
             "src.application.evidence_loop_runner.evaluate_saved_signal_outcomes",
             return_value=OutcomeEvaluationSummary(
@@ -65,6 +73,7 @@ class ManualEvidenceLoopRunnerTest(unittest.TestCase):
 
         self.assertEqual(summary.symbol, "AAPL")
         self.assertEqual(summary.signals_created, 2)
+        self.assertEqual(summary.snapshots_processed, 6)
         self.assertEqual(summary.outcomes_evaluated, 1)
         self.assertEqual(summary.outcome_evaluation.skipped_existing, 1)
         self.assertEqual(summary.outcome_evaluation.skipped_insufficient_future_rows, 2)
@@ -114,6 +123,50 @@ class ManualEvidenceLoopRunnerTest(unittest.TestCase):
         self.assertEqual(summary.outcomes_evaluated, 0)
         self.assertEqual(summary.outcome_evaluation.skipped_insufficient_future_rows, 1)
         self.assertEqual(summary.outcome_evaluation.skipped_unavailable_inputs, 1)
+
+    def test_progress_callback_is_forwarded_to_backfill(self) -> None:
+        progress_events: list[SignalBackfillProgress] = []
+
+        def backfill(**kwargs: object) -> SignalBackfillSummary:
+            callback = kwargs["progress_callback"]
+            self.assertTrue(callable(callback))
+            callback(
+                SignalBackfillProgress(
+                    symbol="AAPL",
+                    current=1,
+                    total=2,
+                    market_date="2026-06-29",
+                )
+            )
+            return SignalBackfillSummary(symbol="AAPL", saved=1)
+
+        with patch(
+            "src.application.evidence_loop_runner.backfill_missing_research_signals",
+            side_effect=backfill,
+        ), patch(
+            "src.application.evidence_loop_runner.evaluate_saved_signal_outcomes",
+            return_value=OutcomeEvaluationSummary(evaluated=0),
+        ):
+            run_manual_evidence_loop(
+                symbol="AAPL",
+                data_source=MemoryDataSource([]),
+                signal_repository=InMemorySignalLedgerRepository(),
+                outcome_repository=InMemoryOutcomeRepository(),
+                future_rows_by_signal_id={},
+                progress_callback=progress_events.append,
+            )
+
+        self.assertEqual(
+            [progress.to_dict() for progress in progress_events],
+            [
+                {
+                    "symbol": "AAPL",
+                    "current": 1,
+                    "total": 2,
+                    "market_date": "2026-06-29",
+                }
+            ],
+        )
 
 
 if __name__ == "__main__":

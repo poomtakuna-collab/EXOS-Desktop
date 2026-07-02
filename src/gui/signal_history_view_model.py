@@ -190,7 +190,7 @@ def build_snapshot_detail_view_model(
             ),
         ),
         "raw_json": _json_pretty(raw_payload),
-        "status": "Legacy Reduced Snapshot",
+        "status": "Legacy Compatibility Projection",
     }
 
 
@@ -204,6 +204,15 @@ def build_v2_snapshot_detail_view_model(
 
     canonical = snapshot.canonical_snapshot
     latest_outcome = outcomes[-1] if outcomes else None
+    if _is_snapshot_payload_v2(canonical):
+        return {
+            "title": f"Snapshot Detail - {snapshot.symbol or '-'}",
+            "header": _v2_detail_header(snapshot=snapshot, latest_outcome=latest_outcome),
+            "tabs": _snapshot_payload_v2_tabs(canonical),
+            "raw_json": _json_pretty(canonical),
+            "status": "Snapshot Payload v2",
+        }
+
     return {
         "title": f"Snapshot Detail - {snapshot.symbol or '-'}",
         "header": _v2_detail_header(snapshot=snapshot, latest_outcome=latest_outcome),
@@ -365,6 +374,27 @@ def _detail_group(
     }
 
 
+def _snapshot_payload_v2_tabs(canonical: dict[str, Any]) -> tuple[dict[str, object], ...]:
+    return (
+        _payload_section_tab(canonical, "Identity", "identity"),
+        _payload_section_tab(canonical, "Provenance", "provenance"),
+        _payload_section_tab(canonical, "Input", "input"),
+        _payload_section_tab(canonical, "Analysis", "analysis"),
+        _payload_section_tab(canonical, "Context", "context"),
+        _payload_section_tab(canonical, "Strategy", "strategy"),
+        _payload_section_tab(canonical, "Diagnostics", "diagnostics"),
+        _payload_section_tab(canonical, "Compatibility", "compatibility"),
+    )
+
+
+def _payload_section_tab(
+    canonical: dict[str, Any],
+    title: str,
+    section_name: str,
+) -> dict[str, object]:
+    return _detail_group(title, _dict_items(_v2_section(canonical, section_name)))
+
+
 def _dict_items(value: dict[str, Any]) -> tuple[tuple[str, object], ...]:
     return tuple(
         (_format_label(str(key)), value[key])
@@ -381,10 +411,27 @@ def _v2_snapshot_id(snapshot: DailyResearchSnapshotRecord) -> str:
     canonical = snapshot.canonical_snapshot
     identity = canonical.get("identity")
     if isinstance(identity, dict):
-        value = str(identity.get("snapshot_id") or "").strip()
+        value = str(
+            identity.get("snapshot_id")
+            or identity.get("legacy_snapshot_id")
+            or ""
+        ).strip()
+        if value:
+            return value
+    compatibility = canonical.get("compatibility")
+    if isinstance(compatibility, dict):
+        value = str(compatibility.get("legacy_snapshot_id") or "").strip()
         if value:
             return value
     return snapshot.snapshot_record_id or "-"
+
+
+def _is_snapshot_payload_v2(canonical: dict[str, Any]) -> bool:
+    identity = canonical.get("identity")
+    return bool(
+        isinstance(identity, dict)
+        and identity.get("payload_schema_version") == "snapshot_payload_v2"
+    )
 
 
 def _v2_brain_version(canonical: dict[str, Any]) -> str:
@@ -402,6 +449,14 @@ def _v2_brain_version(canonical: dict[str, Any]) -> str:
                 value = str(metadata.get(key) or "").strip()
                 if value:
                     return value
+    provenance = canonical.get("provenance")
+    if isinstance(provenance, dict):
+        adapter_versions = provenance.get("adapter_versions")
+        if isinstance(adapter_versions, dict):
+            for key in ("canonical_result", "canonical_brain", "builder"):
+                value = str(adapter_versions.get(key) or "").strip()
+                if value:
+                    return value
     return "-"
 
 
@@ -412,7 +467,11 @@ def _v2_section(canonical: dict[str, Any], name: str) -> dict[str, Any]:
 
 def _v2_indicators(canonical: dict[str, Any]) -> dict[str, Any]:
     brain = _v2_section(canonical, "brain")
+    if not brain:
+        brain = _v2_section(canonical, "analysis")
     snapshot = brain.get("snapshot")
+    if not isinstance(snapshot, dict):
+        snapshot = brain.get("brain_snapshot")
     if not isinstance(snapshot, dict):
         return {}
     indicators = snapshot.get("indicators")
@@ -424,8 +483,14 @@ def _v2_prediction(canonical: dict[str, Any]) -> dict[str, Any]:
     if prediction:
         return prediction
     brain = _v2_section(canonical, "brain")
+    if not brain:
+        brain = _v2_section(canonical, "analysis")
     summary = brain.get("prediction_summary")
-    return summary if isinstance(summary, dict) else {}
+    if isinstance(summary, dict):
+        return summary
+    display = _v2_section(canonical, "display_summary")
+    compact = display.get("compact_prediction")
+    return compact if isinstance(compact, dict) else {}
 
 def _prediction_summary(signal: SignalRecord) -> dict[str, Any]:
     for source in (signal.context_summary, signal.strategy_summary):

@@ -284,13 +284,31 @@ class SignalHistorySurfaceTest(unittest.TestCase):
                 signal_id="signal-1",
             )
 
-            self.assertEqual(view_model["status"], "Full Canonical Snapshot")
+            self.assertEqual(view_model["status"], "Snapshot Payload v2")
             header = view_model["header"]
             self.assertEqual(header[0]["value"], "AAPL")
             self.assertEqual(header[1]["value"], "2026-07-01")
             self.assertEqual(header[2]["value"], "canonical-snapshot-1")
-            self.assertEqual(header[3]["value"], "pipeline-v2")
-            self.assertEqual(view_model["raw_json"], _json_pretty(canonical.to_dict()))
+            self.assertEqual(header[3]["value"], "analysis_pipeline_v2")
+            self.assertEqual(
+                [tab["title"] for tab in view_model["tabs"]],
+                [
+                    "Identity",
+                    "Provenance",
+                    "Input",
+                    "Analysis",
+                    "Context",
+                    "Strategy",
+                    "Diagnostics",
+                    "Compatibility",
+                ],
+            )
+            identity_items = view_model["tabs"][0]["items"]
+            self.assertIn(
+                {"label": "Payload Schema Version", "value": "snapshot_payload_v2"},
+                identity_items,
+            )
+            self.assertIn('"payload_schema_version": "snapshot_payload_v2"', view_model["raw_json"])
             self.assertIn('"resolver_output"', view_model["raw_json"])
 
     def test_snapshot_detail_falls_back_to_legacy_when_v2_missing(self) -> None:
@@ -309,7 +327,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
                 signal_id="signal-1",
             )
 
-            self.assertEqual(view_model["status"], "Legacy Reduced Snapshot")
+            self.assertEqual(view_model["status"], "Legacy Compatibility Projection")
             self.assertIn('"signal_id": "signal-1"', view_model["raw_json"])
 
     def test_snapshot_detail_missing_v2_table_is_safe(self) -> None:
@@ -328,7 +346,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
                 signal_id="signal-1",
             )
 
-            self.assertEqual(view_model["status"], "Legacy Reduced Snapshot")
+            self.assertEqual(view_model["status"], "Legacy Compatibility Projection")
 
     def test_snapshot_detail_can_find_v2_by_symbol_market_date_and_timeframe(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -350,8 +368,8 @@ class SignalHistorySurfaceTest(unittest.TestCase):
                 signal_id="signal-1",
             )
 
-            self.assertEqual(view_model["status"], "Full Canonical Snapshot")
-            self.assertEqual(view_model["raw_json"], _json_pretty(canonical.to_dict()))
+            self.assertEqual(view_model["status"], "Snapshot Payload v2")
+            self.assertIn('"payload_schema_version": "snapshot_payload_v2"', view_model["raw_json"])
 
     def test_history_rows_include_hidden_signal_id_for_detail_loading(self) -> None:
         signal = _signal("signal-1", "AAPL", SignalType.SETUP, 75.0)
@@ -388,6 +406,14 @@ class SignalHistorySurfaceTest(unittest.TestCase):
         )
         self.assertIn("load_desktop_snapshot_detail_view_model", called_names)
         self.assertIn("SnapshotDetailDialog", called_names)
+
+    def test_snapshot_detail_dialog_prefers_v2_tabs_when_available(self) -> None:
+        tree = ast.parse(Path("src/gui/signal_history_surface.py").read_text(encoding="utf-8"))
+        dialog_init = _class_method(tree, "SnapshotDetailDialog", "__init__")
+        source = ast.unparse(dialog_init)
+
+        self.assertIn("detail_tabs = view_model.get('tabs')", source)
+        self.assertIn("detail_tabs if isinstance(detail_tabs, tuple) else view_model.get('groups')", source)
 
 
 def _signal(
@@ -480,6 +506,16 @@ def _method(tree: ast.Module, name: str) -> ast.FunctionDef:
         if isinstance(node, ast.FunctionDef) and node.name == name:
             return node
     raise AssertionError(f"Missing method: {name}")
+
+
+def _class_method(tree: ast.Module, class_name: str, method_name: str) -> ast.FunctionDef:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != class_name:
+            continue
+        for item in node.body:
+            if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                return item
+    raise AssertionError(f"Missing method: {class_name}.{method_name}")
 
 
 if __name__ == "__main__":
