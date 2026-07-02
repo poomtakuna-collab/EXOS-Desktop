@@ -12,10 +12,11 @@ from src.canonical_result import (
     CanonicalPredictionResultV1,
     CanonicalResultV1,
 )
-from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
+from src.daily_research_snapshot import DailyResearchSnapshotRecord, SQLiteDailyResearchSnapshotRepository
 from src.gui.signal_history_view_model import (
     SIGNAL_HISTORY_COLUMNS,
     build_snapshot_detail_view_model,
+    build_v2_snapshot_detail_view_model,
     build_signal_history_view_model,
     load_desktop_snapshot_detail_view_model,
     load_desktop_signal_history_view_model,
@@ -293,6 +294,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
             self.assertEqual(
                 [tab["title"] for tab in view_model["tabs"]],
                 [
+                    "Summary",
                     "Identity",
                     "Provenance",
                     "Input",
@@ -303,13 +305,64 @@ class SignalHistorySurfaceTest(unittest.TestCase):
                     "Compatibility",
                 ],
             )
-            identity_items = view_model["tabs"][0]["items"]
+            identity_items = view_model["tabs"][1]["items"]
             self.assertIn(
                 {"label": "Payload Schema Version", "value": "snapshot_payload_v2"},
                 identity_items,
             )
             self.assertIn('"payload_schema_version": "snapshot_payload_v2"', view_model["raw_json"])
             self.assertIn('"resolver_output"', view_model["raw_json"])
+
+    def test_snapshot_payload_v2_summary_tab_formats_key_fields(self) -> None:
+        payload = _snapshot_payload_v2_fixture()
+        view_model = build_v2_snapshot_detail_view_model(
+            snapshot=_daily_snapshot_record(payload),
+        )
+
+        tabs = view_model["tabs"]
+        self.assertEqual(tabs[0]["title"], "Summary")
+        self.assertEqual(tabs[0]["layout"], "inspector")
+        self.assertEqual(
+            [section["title"] for section in tabs[0]["sections"]],
+            [
+                "Identity",
+                "Input Window",
+                "Indicators",
+                "Brain / Score",
+                "Context",
+                "POOM Combo",
+                "Prediction",
+            ],
+        )
+        summary = {item["label"]: item["value"] for item in tabs[0]["items"]}
+        self.assertEqual(summary["Symbol"], "NVDA")
+        self.assertEqual(summary["Date"], "2026-07-01")
+        self.assertEqual(summary["Timeframe"], "1D")
+        self.assertEqual(summary["OHLCV Rows"], "2")
+        self.assertEqual(summary["First Date"], "2026-06-30")
+        self.assertEqual(summary["Last Date"], "2026-07-01")
+        self.assertEqual(summary["Close"], "123.45")
+        self.assertEqual(summary["EMA20"], "120.1")
+        self.assertEqual(summary["EMA50"], "118.2")
+        self.assertEqual(summary["EMA200"], "101")
+        self.assertEqual(summary["EMA Alignment"], "bullish")
+        self.assertIn("State: bullish", summary["Trend"])
+        self.assertIn("Direction: rising", summary["Trend Slope"])
+        self.assertIn("State: higher_high", summary["Market Structure"])
+        self.assertIn("State: fired", summary["Squeeze"])
+        self.assertEqual(summary["Overall Score"], "87.5")
+        self.assertEqual(summary["Rating"], "A")
+        self.assertEqual(summary["Recommendation"], "watchlist")
+        self.assertIn("State: risk_on", summary["Market Context"])
+        self.assertIn("Score: 68", summary["Sector Context"])
+        self.assertEqual(summary["EW"], "21.4286")
+        self.assertEqual(summary["Volume Pressure"], "100")
+        self.assertEqual(summary["POOM Trend Slope"], "11.1653")
+        self.assertEqual(summary["POOM Squeeze"], "none")
+        self.assertEqual(summary["BOS / CHoCH"], "BOS up")
+        self.assertIn("Probability: 0.68", summary["Probability"])
+        self.assertIn("Target: 130", summary["Projection"])
+        self.assertIn("Confidence: 72", summary["Prediction"])
 
     def test_snapshot_detail_falls_back_to_legacy_when_v2_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -474,6 +527,22 @@ class SignalHistorySurfaceTest(unittest.TestCase):
 
         self.assertIn("detail_tabs = view_model.get('tabs')", source)
         self.assertIn("detail_tabs if isinstance(detail_tabs, tuple) else view_model.get('groups')", source)
+        self.assertIn("_detail_tab_widget(group, self)", source)
+
+    def test_snapshot_detail_summary_uses_fixed_inspector_layout(self) -> None:
+        tree = ast.parse(Path("src/gui/signal_history_surface.py").read_text(encoding="utf-8"))
+        tab_widget = _method(tree, "_detail_tab_widget")
+        summary_widget = _method(tree, "_summary_inspector_widget")
+        section_widget = _method(tree, "_inspector_section_widget")
+        tab_source = ast.unparse(tab_widget)
+        summary_source = ast.unparse(summary_widget)
+        section_source = ast.unparse(section_widget)
+
+        self.assertIn("group_model.get('layout') == 'inspector'", tab_source)
+        self.assertIn("QScrollArea(parent)", summary_source)
+        self.assertIn("layout.addStretch(1)", summary_source)
+        self.assertIn("QSizePolicy.Policy.Maximum", section_source)
+        self.assertIn("layout.setVerticalSpacing(2)", section_source)
 
 
 def _signal(
@@ -520,6 +589,109 @@ def _canonical_result() -> CanonicalResultV1:
             expected_return_10d=4.5,
             best_pattern_id="pattern-1",
         ),
+    )
+
+
+def _snapshot_payload_v2_fixture() -> dict[str, object]:
+    return {
+        "identity": {
+            "payload_schema_version": "snapshot_payload_v2",
+            "symbol": "NVDA",
+            "market_date": "2026-07-01",
+            "timeframe": "1D",
+            "legacy_snapshot_id": "snapshot-v2-1",
+            "source": "analysis_pipeline_v2",
+        },
+        "provenance": {"created_at": "2026-07-01T12:00:00+00:00"},
+        "input": {
+            "ohlcv_window": {
+                "row_count": 2,
+                "first_date": "2026-06-30",
+                "last_date": "2026-07-01",
+                "rows": [
+                    {
+                        "date": "2026-06-30",
+                        "open": 120.0,
+                        "high": 122.0,
+                        "low": 119.0,
+                        "close": 121.0,
+                        "volume": 1000,
+                    },
+                    {
+                        "date": "2026-07-01",
+                        "open": 121.0,
+                        "high": 124.0,
+                        "low": 120.0,
+                        "close": 123.45,
+                        "volume": 1100,
+                    },
+                ],
+            }
+        },
+        "analysis": {
+            "brain_snapshot": {
+                "indicators": {
+                    "ema20": 120.1,
+                    "ema50": 118.2,
+                    "ema200": 101.0,
+                    "ema_alignment": "bullish",
+                },
+                "trend": {"state": "bullish", "score": 82},
+                "trend_slope": {"direction": "rising", "score": 79},
+                "market_structure": {"state": "higher_high", "score": 75},
+                "squeeze": {"state": "fired", "score": 70},
+                "score": {
+                    "overall_score": 87.5,
+                    "rating": "A",
+                    "recommendation": "watchlist",
+                },
+            },
+            "probability": {"probability": 0.68, "confidence": 72},
+            "projection": {"target": 130.0, "expected_return_10d": 5.3},
+            "prediction_summary": {"confidence": 72, "evidence_count": 12},
+            "poom_combo": {
+                "ew_norm": 21.4286,
+                "volume_pressure": 100.0,
+                "trend_slope": 11.1653,
+                "in_squeeze": False,
+                "squeeze_up": False,
+                "squeeze_down": False,
+                "bos_up": True,
+                "bos_down": False,
+                "choch_up": False,
+                "choch_down": False,
+                "msb_last_high": 20.5,
+                "msb_last_low": None,
+                "msb_dir": 1,
+                "signal_summary": {"structure": "bos_up"},
+            },
+        },
+        "context": {
+            "market_context": {"state": "risk_on", "score": 74},
+            "sector_context": {"state": "leading", "score": 68},
+        },
+        "strategy": {},
+        "display_summary": {"signal_type": "setup"},
+        "diagnostics": {},
+        "compatibility": {},
+    }
+
+
+def _daily_snapshot_record(payload: dict[str, object]) -> DailyResearchSnapshotRecord:
+    identity = payload["identity"]
+    assert isinstance(identity, dict)
+    return DailyResearchSnapshotRecord(
+        snapshot_record_id="snapshot-record-1",
+        symbol=str(identity["symbol"]),
+        market_date=str(identity["market_date"]),
+        timeframe=str(identity["timeframe"]),
+        canonical_schema_version="snapshot_payload_v2",
+        persistence_version="daily_research_snapshot_v2",
+        canonical_snapshot_json=_json_pretty(payload),
+        signal_id=None,
+        payload_hash="hash",
+        source=str(identity["source"]),
+        created_at="2026-07-01T12:00:00+00:00",
     )
 
 

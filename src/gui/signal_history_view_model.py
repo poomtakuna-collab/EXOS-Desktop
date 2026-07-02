@@ -437,6 +437,7 @@ def _detail_group(
 
 def _snapshot_payload_v2_tabs(canonical: dict[str, Any]) -> tuple[dict[str, object], ...]:
     return (
+        _snapshot_payload_v2_summary_tab(canonical),
         _payload_section_tab(canonical, "Identity", "identity"),
         _payload_section_tab(canonical, "Provenance", "provenance"),
         _payload_section_tab(canonical, "Input", "input"),
@@ -446,6 +447,108 @@ def _snapshot_payload_v2_tabs(canonical: dict[str, Any]) -> tuple[dict[str, obje
         _payload_section_tab(canonical, "Diagnostics", "diagnostics"),
         _payload_section_tab(canonical, "Compatibility", "compatibility"),
     )
+
+
+def _snapshot_payload_v2_summary_tab(canonical: dict[str, Any]) -> dict[str, object]:
+    identity = _v2_section(canonical, "identity")
+    input_section = _v2_section(canonical, "input")
+    analysis = _v2_section(canonical, "analysis")
+    context = _v2_section(canonical, "context")
+    display = _v2_section(canonical, "display_summary")
+    ohlcv_window = _nested_dict(input_section, "ohlcv_window")
+    last_row = _last_ohlcv_row(ohlcv_window)
+    indicators = _v2_indicators(canonical)
+    brain_snapshot = _nested_dict(analysis, "brain_snapshot")
+    score = _nested_dict(brain_snapshot, "score")
+    poom_combo = _nested_dict(analysis, "poom_combo")
+
+    sections = (
+        _detail_group(
+            "Identity",
+            (
+                ("Symbol", identity.get("symbol")),
+                ("Date", identity.get("market_date")),
+                ("Timeframe", identity.get("timeframe")),
+            ),
+        ),
+        _detail_group(
+            "Input Window",
+            (
+                ("OHLCV Rows", ohlcv_window.get("row_count")),
+                ("First Date", ohlcv_window.get("first_date")),
+                ("Last Date", ohlcv_window.get("last_date")),
+                ("Close", _mapping_value(last_row, "close")),
+            ),
+        ),
+        _detail_group(
+            "Indicators",
+            (
+                ("EMA20", _mapping_value(indicators, "ema20")),
+                ("EMA50", _mapping_value(indicators, "ema50")),
+                ("EMA200", _mapping_value(indicators, "ema200")),
+                ("EMA Alignment", _mapping_value(indicators, "ema_alignment")),
+            ),
+        ),
+        _detail_group(
+            "Brain / Score",
+            (
+                ("Trend", _compact_summary(_nested_dict(brain_snapshot, "trend"))),
+                ("Trend Slope", _compact_summary(_nested_dict(brain_snapshot, "trend_slope"))),
+                (
+                    "Market Structure",
+                    _compact_summary(_nested_dict(brain_snapshot, "market_structure")),
+                ),
+                ("Squeeze", _compact_summary(_nested_dict(brain_snapshot, "squeeze"))),
+                ("Overall Score", _mapping_value(score, "overall_score", "score")),
+                ("Rating", _mapping_value(score, "rating", "grade")),
+                (
+                    "Recommendation",
+                    _first_detail_value(
+                        _mapping_value(score, "recommendation"),
+                        display.get("recommendation"),
+                    ),
+                ),
+            ),
+        ),
+        _detail_group("Context", _context_items(context)),
+        _detail_group(
+            "POOM Combo",
+            (
+                ("EW", _mapping_value(poom_combo, "ew_norm")),
+                ("Volume Pressure", _mapping_value(poom_combo, "volume_pressure")),
+                ("POOM Trend Slope", _mapping_value(poom_combo, "trend_slope")),
+                ("POOM Squeeze", _poom_squeeze_status(poom_combo)),
+                ("BOS / CHoCH", _poom_structure_status(poom_combo)),
+            ),
+        ),
+        _detail_group(
+            "Prediction",
+            (
+                ("Probability", _compact_summary(_nested_dict(analysis, "probability"))),
+                ("Projection", _compact_summary(_nested_dict(analysis, "projection"))),
+                (
+                    "Prediction",
+                    _compact_summary(
+                        _first_mapping_value(
+                            _nested_dict(analysis, "prediction_summary"),
+                            _nested_dict(display, "compact_prediction"),
+                        )
+                    ),
+                ),
+            ),
+        ),
+    )
+    return {
+        "title": "Summary",
+        "layout": "inspector",
+        "sections": sections,
+        "items": tuple(
+            item
+            for section in sections
+            for item in section.get("items", ())
+            if isinstance(item, dict)
+        ),
+    }
 
 
 def _payload_section_tab(
@@ -467,6 +570,121 @@ def _dict_items(value: dict[str, Any]) -> tuple[tuple[str, object], ...]:
 def _nested_dict(value: dict[str, Any], key: str) -> dict[str, Any]:
     candidate = value.get(key)
     return candidate if isinstance(candidate, dict) else {}
+
+
+def _last_ohlcv_row(ohlcv_window: dict[str, Any]) -> dict[str, Any]:
+    rows = ohlcv_window.get("rows")
+    if not isinstance(rows, list) or not rows:
+        return {}
+    last_row = rows[-1]
+    return last_row if isinstance(last_row, dict) else {}
+
+
+def _mapping_value(value: dict[str, Any], *keys: str) -> object:
+    for key in keys:
+        if key in value and value[key] not in (None, ""):
+            return value[key]
+    return None
+
+
+def _first_detail_value(*values: object) -> object:
+    for value in values:
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _first_mapping_value(*values: dict[str, Any]) -> dict[str, Any]:
+    for value in values:
+        if value:
+            return value
+    return {}
+
+
+def _compact_summary(value: dict[str, Any]) -> str:
+    if not value:
+        return "-"
+    preferred_keys = (
+        "state",
+        "status",
+        "direction",
+        "trend",
+        "phase",
+        "score",
+        "confidence",
+        "probability",
+        "target",
+        "expected_return",
+        "expected_return_10d",
+    )
+    parts = tuple(
+        f"{_format_label(key)}: {_format_detail_value(value[key])}"
+        for key in preferred_keys
+        if key in value and value[key] not in (None, "")
+    )
+    if parts:
+        return " | ".join(parts)
+    return _readable_mapping_summary(value)
+
+
+def _context_items(context: dict[str, Any]) -> tuple[tuple[str, object], ...]:
+    if not context:
+        return ()
+    return tuple(
+        (_format_label(key), _readable_mapping_summary(value))
+        for key, value in sorted(context.items())
+        if isinstance(value, dict)
+    )
+
+
+def _readable_mapping_summary(value: dict[str, Any]) -> str:
+    if not value:
+        return "-"
+    parts: list[str] = []
+    for key in sorted(value):
+        item = value[key]
+        if item in (None, ""):
+            continue
+        if isinstance(item, dict):
+            rendered = _readable_mapping_summary(item)
+        else:
+            rendered = _format_detail_value(item)
+        parts.append(f"{_format_label(str(key))}: {rendered}")
+        if len(parts) >= 6:
+            break
+    return " | ".join(parts) if parts else "-"
+
+
+def _poom_squeeze_status(poom_combo: dict[str, Any]) -> str:
+    if poom_combo.get("squeeze_up"):
+        return "release_up"
+    if poom_combo.get("squeeze_down"):
+        return "release_down"
+    if poom_combo.get("in_squeeze"):
+        return "in_squeeze"
+    return "none"
+
+
+def _poom_structure_status(poom_combo: dict[str, Any]) -> str:
+    parts: list[str] = []
+    if poom_combo.get("bos_up"):
+        parts.append("BOS up")
+    if poom_combo.get("bos_down"):
+        parts.append("BOS down")
+    if poom_combo.get("choch_up"):
+        parts.append("CHoCH up")
+    if poom_combo.get("choch_down"):
+        parts.append("CHoCH down")
+    if not parts:
+        direction = _mapping_value(poom_combo, "msb_dir")
+        if direction == 1:
+            parts.append("bullish")
+        elif direction == -1:
+            parts.append("bearish")
+        else:
+            parts.append("neutral")
+    return " | ".join(parts)
+
 
 def _v2_snapshot_id(snapshot: DailyResearchSnapshotRecord) -> str:
     canonical = snapshot.canonical_snapshot

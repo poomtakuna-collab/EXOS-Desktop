@@ -4,6 +4,8 @@ Status: inspection complete.
 
 This report inventories the current Daily Research Snapshot save path and identifies gaps for a future Snapshot Payload v2 contract. It is documentation only. No schema, payload, persistence, or frozen analysis engine behavior was changed.
 
+Contract note: SnapshotPayloadV2 is now frozen as the canonical EXOS analysis record. See `docs/SNAPSHOT_PAYLOAD_V2_CONTRACT.md` for the current frozen contract and compatibility rules.
+
 ## Save Path
 
 Manual Desktop save path:

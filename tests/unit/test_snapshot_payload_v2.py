@@ -74,6 +74,32 @@ class SnapshotPayloadV2Test(unittest.TestCase):
         self.assertEqual(window["last_date"], "2026-07-02")
         self.assertEqual(window["rows"], list(rows))
 
+    def test_poom_combo_is_added_to_analysis_when_rows_are_provided(self) -> None:
+        rows = tuple(
+            {
+                "date": f"row-{day + 1:02d}",
+                "open": 100.0 + day,
+                "high": 102.0 + day,
+                "low": 99.0 + day,
+                "close": 101.0 + day,
+                "volume": 1000.0 + day * 10,
+            }
+            for day in range(40)
+        )
+
+        payload = build_snapshot_payload_v2(
+            canonical_result=_canonical_result(),
+            request=_request(rows=rows),
+            ohlcv_rows=rows,
+            created_at=_created_at(),
+        ).to_dict()
+
+        poom_combo = payload["analysis"]["poom_combo"]
+        self.assertEqual(poom_combo["ew_norm"], 21.4286)
+        self.assertEqual(poom_combo["volume_pressure"], 100.0)
+        self.assertEqual(poom_combo["trend_slope"], 11.1653)
+        self.assertIn("signal_summary", poom_combo)
+
     def test_created_at_is_true_creation_timestamp(self) -> None:
         payload = build_snapshot_payload_v2(
             canonical_result=_canonical_result(),

@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from src.canonical_result import CanonicalResultV1
+from src.analysis.poom_combo import calculate_poom_combo_snapshot
 
 
 SNAPSHOT_PAYLOAD_SCHEMA_VERSION_V2 = "snapshot_payload_v2"
@@ -86,6 +87,7 @@ def build_snapshot_payload_v2(
     analysis_section = _analysis_section(
         analysis_result=analysis_result,
         canonical_payload=canonical_payload,
+        ohlcv_rows=safe_rows,
     )
     context_section = _mapping_from(source_context)
     strategy_section = _strategy_section(analysis_result, source_strategy)
@@ -224,6 +226,7 @@ def _analysis_section(
     *,
     analysis_result: object | None,
     canonical_payload: Mapping[str, Any],
+    ohlcv_rows: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
     brain = _mapping(canonical_payload.get("brain"))
     canonical_brain = _field(analysis_result, "canonical_brain")
@@ -238,6 +241,7 @@ def _analysis_section(
             brain.get("prediction_summary"),
             _field(canonical_brain, "prediction_summary"),
         ),
+        "poom_combo": calculate_poom_combo_snapshot(ohlcv_rows) if ohlcv_rows else {},
     }
 
 

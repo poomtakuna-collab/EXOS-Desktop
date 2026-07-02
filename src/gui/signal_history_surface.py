@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QLabel,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -125,7 +129,7 @@ class SnapshotDetailDialog(QDialog):
         if isinstance(groups, tuple):
             for group in groups:
                 if isinstance(group, dict):
-                    tabs.addTab(_group_widget(group, self), str(group.get("title", "")))
+                    tabs.addTab(_detail_tab_widget(group, self), str(group.get("title", "")))
 
         raw_json = QTextEdit(self)
         raw_json.setReadOnly(True)
@@ -147,6 +151,58 @@ def _header_group(value: object, parent: QWidget) -> QGroupBox:
                 continue
             layout.addWidget(QLabel(str(item.get("label", "")), group), row, 0)
             layout.addWidget(QLabel(str(item.get("value", "")), group), row, 1)
+    group.setLayout(layout)
+    return group
+
+
+def _detail_tab_widget(group_model: dict[str, object], parent: QWidget) -> QWidget:
+    if group_model.get("layout") == "inspector":
+        return _summary_inspector_widget(group_model, parent)
+    return _group_widget(group_model, parent)
+
+
+def _summary_inspector_widget(group_model: dict[str, object], parent: QWidget) -> QScrollArea:
+    scroll_area = QScrollArea(parent)
+    scroll_area.setWidgetResizable(True)
+    scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+
+    content = QWidget(scroll_area)
+    layout = QVBoxLayout()
+    layout.setContentsMargins(8, 8, 8, 8)
+    layout.setSpacing(8)
+
+    sections = group_model.get("sections")
+    if isinstance(sections, tuple):
+        for section in sections:
+            if isinstance(section, dict):
+                layout.addWidget(_inspector_section_widget(section, content))
+    layout.addStretch(1)
+    content.setLayout(layout)
+    scroll_area.setWidget(content)
+    return scroll_area
+
+
+def _inspector_section_widget(section_model: dict[str, object], parent: QWidget) -> QGroupBox:
+    group = QGroupBox(str(section_model.get("title", "")), parent)
+    group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+    layout = QGridLayout()
+    layout.setContentsMargins(8, 6, 8, 8)
+    layout.setHorizontalSpacing(12)
+    layout.setVerticalSpacing(2)
+    items = section_model.get("items")
+    if isinstance(items, tuple):
+        for row, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            label = QLabel(str(item.get("label", "")), group)
+            label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            value = QLabel(str(item.get("value", "")), group)
+            value.setWordWrap(True)
+            value.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            layout.addWidget(label, row, 0)
+            layout.addWidget(value, row, 1)
+    layout.setColumnStretch(0, 0)
+    layout.setColumnStretch(1, 1)
     group.setLayout(layout)
     return group
 

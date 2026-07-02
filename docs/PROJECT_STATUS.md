@@ -100,7 +100,7 @@ Developer Reset Snapshot Tool is implemented and exposed through the EXOS Deskto
 
 Snapshot Payload Inspection Report is complete.
 
-SnapshotPayloadV2 contract and pure builder are implemented.
+SnapshotPayloadV2 contract and pure builder are implemented and FROZEN as the canonical EXOS analysis record.
 
 SnapshotPayloadV2 is wired into Daily Research Snapshot save JSON while preserving the existing table schema and SignalRecord compatibility projection, including Manual Save, Backfill, and Evidence Loop flows.
 
@@ -111,6 +111,12 @@ Evidence Loop SnapshotPayloadV2 saves now include the full analysis OHLCV window
 Developer SnapshotPayloadV2 validation is implemented for saved daily snapshot payloads, including required sections, schema version, OHLCV window, indicators, and context sections.
 
 Snapshot Detail UI displays SnapshotPayloadV2 sections in dedicated read-only tabs and prefers `daily_research_snapshots.canonical_snapshot_json` by snapshot record identity or symbol/date/timeframe before falling back to the legacy compatibility projection.
+
+Snapshot Detail UI now includes a readable SnapshotPayloadV2 Summary tab before Raw JSON, covering identity, OHLCV window, close/EMA values, trend, structure, squeeze, score, context, and probability/projection summaries.
+
+Snapshot Detail Summary now uses a fixed inspector-style layout with compact Identity, Input Window, Indicators, Brain / Score, Context, and Prediction sections that remain stable during dialog resize.
+
+POOM Combo Engine v1 is implemented as an additive deterministic analysis engine and is stored in SnapshotPayloadV2 `analysis.poom_combo`, with Snapshot Detail Summary displaying POOM EW, Volume Pressure, Trend Slope, Squeeze, and BOS/CHoCH status.
 
 Chart -> Data Source v1 integration foundation is implemented.
 
