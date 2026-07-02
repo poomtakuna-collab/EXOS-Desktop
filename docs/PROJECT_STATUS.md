@@ -94,15 +94,23 @@ EXOS Desktop Manual Evidence Loop action is implemented.
 
 EXOS Desktop Manual Evidence Loop progress display is implemented.
 
+EXOS Desktop Manual Evidence Loop failure reporting is implemented.
+
 Developer Reset Snapshot Tool is implemented and exposed through the EXOS Desktop Developer UI.
 
 Snapshot Payload Inspection Report is complete.
 
 SnapshotPayloadV2 contract and pure builder are implemented.
 
-SnapshotPayloadV2 is wired into Daily Research Snapshot save JSON while preserving the existing table schema and SignalRecord compatibility projection.
+SnapshotPayloadV2 is wired into Daily Research Snapshot save JSON while preserving the existing table schema and SignalRecord compatibility projection, including Manual Save, Backfill, and Evidence Loop flows.
 
-Snapshot Detail UI displays SnapshotPayloadV2 sections in dedicated read-only tabs.
+Evidence Loop SnapshotPayloadV2 saves now populate per-snapshot OHLCV input windows, query fields, data source provenance, analysis cutoff metadata, and UTC creation timestamps.
+
+Evidence Loop SnapshotPayloadV2 saves now include the full analysis OHLCV window, computed indicator snapshot values, and deterministic context sections available from existing context calculators.
+
+Developer SnapshotPayloadV2 validation is implemented for saved daily snapshot payloads, including required sections, schema version, OHLCV window, indicators, and context sections.
+
+Snapshot Detail UI displays SnapshotPayloadV2 sections in dedicated read-only tabs and prefers `daily_research_snapshots.canonical_snapshot_json` by snapshot record identity or symbol/date/timeframe before falling back to the legacy compatibility projection.
 
 Chart -> Data Source v1 integration foundation is implemented.
 

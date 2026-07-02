@@ -77,9 +77,17 @@ def load_desktop_snapshot_detail_view_model(
     database_path: Path | str | None = None,
     *,
     signal_id: str | None = None,
+    snapshot_record_id: str | None = None,
+    symbol: str | None = None,
+    market_date: str | None = None,
+    timeframe: str | None = None,
 ) -> dict[str, object]:
     safe_signal_id = str(signal_id or "").strip()
-    if not safe_signal_id:
+    safe_snapshot_record_id = str(snapshot_record_id or "").strip()
+    safe_symbol = _normalize_symbol(symbol)
+    safe_market_date = str(market_date or "").strip()
+    safe_timeframe = str(timeframe or "").strip() or "1D"
+    if not any((safe_signal_id, safe_snapshot_record_id, safe_symbol and safe_market_date)):
         return build_snapshot_detail_view_model()
 
     safe_database_path = Path(database_path or DEFAULT_SIGNAL_HISTORY_DATABASE_PATH)
@@ -89,27 +97,33 @@ def load_desktop_snapshot_detail_view_model(
     uri = safe_database_path.resolve().as_uri() + "?mode=ro"
     connection = sqlite3.connect(uri, uri=True)
     try:
-        if not _has_table(connection, "signal_ledger_signals"):
-            return build_snapshot_detail_view_model()
-
-        repository = SQLiteSignalLedgerRepository(connection)
-        signal = repository.load_signal(safe_signal_id)
-        outcomes = (
-            repository.list_outcomes_for_signal(safe_signal_id)
-            if signal is not None and _has_table(connection, "signal_ledger_outcomes")
-            else ()
+        signal_repository = (
+            SQLiteSignalLedgerRepository(connection)
+            if safe_signal_id and _has_table(connection, "signal_ledger_signals")
+            else None
         )
-        if signal is not None and _has_table(connection, "daily_research_snapshots"):
+        signal = signal_repository.load_signal(safe_signal_id) if signal_repository else None
+        if _has_table(connection, "daily_research_snapshots"):
             snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
-            v2_snapshot = _load_v2_snapshot_for_signal(
+            v2_snapshot = _load_preferred_v2_snapshot(
                 snapshot_repository,
+                snapshot_record_id=safe_snapshot_record_id,
+                symbol=safe_symbol or (signal.symbol if signal is not None else ""),
+                market_date=safe_market_date,
+                timeframe=safe_timeframe,
                 signal=signal,
             )
             if v2_snapshot is not None:
+                outcomes = _detail_outcomes(
+                    signal_repository,
+                    signal_id=safe_signal_id or v2_snapshot.signal_id or "",
+                )
                 return build_v2_snapshot_detail_view_model(
                     snapshot=v2_snapshot,
                     outcomes=outcomes,
                 )
+
+        outcomes = _detail_outcomes(signal_repository, signal_id=safe_signal_id)
         return build_snapshot_detail_view_model(signal=signal, outcomes=outcomes)
     finally:
         connection.close()
@@ -210,7 +224,7 @@ def build_v2_snapshot_detail_view_model(
             "header": _v2_detail_header(snapshot=snapshot, latest_outcome=latest_outcome),
             "tabs": _snapshot_payload_v2_tabs(canonical),
             "raw_json": _json_pretty(canonical),
-            "status": "Snapshot Payload v2",
+            "status": "SnapshotPayloadV2",
         }
 
     return {
@@ -255,6 +269,10 @@ def _signal_row(
     latest_outcome = outcomes[-1] if outcomes else None
     return {
         "signal_id": signal.signal_id,
+        "snapshot_record_id": "",
+        "symbol": signal.symbol,
+        "market_date": _market_date(signal),
+        "timeframe": signal.snapshot_reference.timeframe or "1D",
         "signal_date": signal.signal_date or "-",
         "signal_type": _format_label(_signal_type_value(signal.signal_type)),
         "confidence": _format_percent(signal.confidence),
@@ -292,12 +310,53 @@ def _status_text(*, symbol: str, row_count: int) -> str:
 
 
 
-def _load_v2_snapshot_for_signal(
+def _detail_outcomes(
+    repository: SQLiteSignalLedgerRepository | None,
+    *,
+    signal_id: str,
+) -> tuple[OutcomeRecord, ...]:
+    safe_signal_id = str(signal_id or "").strip()
+    if repository is None or not safe_signal_id:
+        return ()
+    try:
+        return repository.list_outcomes_for_signal(safe_signal_id)
+    except sqlite3.Error:
+        return ()
+
+
+def _load_preferred_v2_snapshot(
     repository: SQLiteDailyResearchSnapshotRepository,
     *,
-    signal: SignalRecord,
+    snapshot_record_id: str = "",
+    symbol: str = "",
+    market_date: str = "",
+    timeframe: str = "1D",
+    signal: SignalRecord | None = None,
 ) -> DailyResearchSnapshotRecord | None:
-    if signal.signal_id:
+    if snapshot_record_id:
+        try:
+            linked = repository.load_snapshot_by_record_id(snapshot_record_id)
+        except (sqlite3.Error, ValueError):
+            linked = None
+        if linked is not None:
+            return linked
+
+    safe_symbol = str(symbol or "").strip()
+    safe_market_date = str(market_date or "").strip()
+    safe_timeframe = str(timeframe or "").strip() or "1D"
+    if safe_symbol and safe_market_date:
+        try:
+            snapshot = repository.load_snapshot(
+                symbol=safe_symbol,
+                market_date=safe_market_date,
+                timeframe=safe_timeframe,
+            )
+        except (sqlite3.Error, ValueError):
+            snapshot = None
+        if snapshot is not None:
+            return snapshot
+
+    if signal is not None and signal.signal_id:
         try:
             linked = repository.load_snapshot_for_signal_id(signal.signal_id)
         except (sqlite3.Error, ValueError):
@@ -305,16 +364,18 @@ def _load_v2_snapshot_for_signal(
         if linked is not None:
             return linked
 
-    symbol = str(signal.symbol or "").strip()
-    timeframe = str(signal.snapshot_reference.timeframe or "1D").strip()
-    if not symbol:
+    if signal is None:
         return None
-    for market_date in _candidate_market_dates(signal):
+    fallback_symbol = str(signal.symbol or "").strip()
+    fallback_timeframe = str(signal.snapshot_reference.timeframe or "1D").strip()
+    if not fallback_symbol:
+        return None
+    for candidate_market_date in _candidate_market_dates(signal):
         try:
             snapshot = repository.load_snapshot(
-                symbol=symbol,
-                market_date=market_date,
-                timeframe=timeframe or "1D",
+                symbol=fallback_symbol,
+                market_date=candidate_market_date,
+                timeframe=fallback_timeframe or "1D",
             )
         except (sqlite3.Error, ValueError):
             snapshot = None

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 import hashlib
 import json
 import sqlite3
-from typing import Any, Mapping
+from datetime import datetime
+from typing import Any, Mapping, Sequence
 
 from src.canonical_result import CANONICAL_RESULT_SCHEMA_VERSION_V1, CanonicalResultV1
 from src.snapshot_payload_v2 import build_snapshot_payload_v2
@@ -99,14 +100,22 @@ class SQLiteDailyResearchSnapshotRepository:
         canonical_result: CanonicalResultV1,
         *,
         signal_id: str | None = None,
-        created_at: str = "",
+        created_at: datetime | str | None = None,
         compatibility: Mapping[str, Any] | None = None,
+        request: object | None = None,
+        ohlcv_rows: Sequence[Mapping[str, Any]] | None = None,
+        provenance: Mapping[str, Any] | None = None,
+        context: object | None = None,
     ) -> DailyResearchSnapshotRecord:
         record = build_daily_research_snapshot_record(
             canonical_result,
             signal_id=signal_id,
             created_at=created_at,
             compatibility=compatibility,
+            request=request,
+            ohlcv_rows=ohlcv_rows,
+            provenance=provenance,
+            context=context,
         )
         existing = self.load_snapshot(
             symbol=record.symbol,
@@ -223,6 +232,38 @@ class SQLiteDailyResearchSnapshotRepository:
             return None
         return _record_from_row(row)
 
+    def load_snapshot_by_record_id(
+        self,
+        snapshot_record_id: str,
+    ) -> DailyResearchSnapshotRecord | None:
+        safe_snapshot_record_id = _required_text(
+            snapshot_record_id,
+            "snapshot_record_id",
+        )
+        row = self.connection.execute(
+            """
+            SELECT
+                snapshot_record_id,
+                symbol,
+                market_date,
+                timeframe,
+                canonical_schema_version,
+                persistence_version,
+                canonical_snapshot_json,
+                signal_id,
+                payload_hash,
+                source,
+                created_at
+            FROM daily_research_snapshots
+            WHERE snapshot_record_id = ?
+            LIMIT 1
+            """,
+            (safe_snapshot_record_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _record_from_row(row)
+
     def list_snapshots(
         self,
         *,
@@ -276,8 +317,12 @@ def build_daily_research_snapshot_record(
     canonical_result: CanonicalResultV1,
     *,
     signal_id: str | None = None,
-    created_at: str = "",
+    created_at: datetime | str | None = None,
     compatibility: Mapping[str, Any] | None = None,
+    request: object | None = None,
+    ohlcv_rows: Sequence[Mapping[str, Any]] | None = None,
+    provenance: Mapping[str, Any] | None = None,
+    context: object | None = None,
 ) -> DailyResearchSnapshotRecord:
     if not isinstance(canonical_result, CanonicalResultV1):
         raise TypeError("canonical_result must be CanonicalResultV1")
@@ -285,6 +330,11 @@ def build_daily_research_snapshot_record(
     payload = canonical_result.to_dict()
     snapshot_payload = build_snapshot_payload_v2(
         canonical_result=canonical_result,
+        request=request,
+        ohlcv_rows=ohlcv_rows,
+        provenance=provenance,
+        context=context,
+        created_at=created_at,
         compatibility={
             **dict(compatibility or {}),
             "signal_id": _optional_text(signal_id) or str((compatibility or {}).get("signal_id") or ""),
@@ -327,7 +377,7 @@ def build_daily_research_snapshot_record(
         signal_id=_optional_text(signal_id),
         payload_hash=payload_hash,
         source=source,
-        created_at=_required_text(created_at or market_date, "created_at"),
+        created_at=_record_created_at(created_at, snapshot_payload),
     )
 
 
@@ -435,6 +485,20 @@ def _required_text(value: object, name: str) -> str:
 def _optional_text(value: object) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _record_created_at(
+    value: datetime | str | None,
+    snapshot_payload: Mapping[str, Any],
+) -> str:
+    if isinstance(value, str) and value.strip():
+        return _required_text(value, "created_at")
+    provenance = snapshot_payload.get("provenance")
+    if isinstance(provenance, Mapping):
+        created_at = str(provenance.get("created_at") or "").strip()
+        if created_at:
+            return created_at
+    return _required_text(_identity_value(dict(snapshot_payload), "market_date"), "created_at")
 
 
 def _same_payload_ignoring_created_at(

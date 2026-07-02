@@ -284,7 +284,7 @@ class SignalHistorySurfaceTest(unittest.TestCase):
                 signal_id="signal-1",
             )
 
-            self.assertEqual(view_model["status"], "Snapshot Payload v2")
+            self.assertEqual(view_model["status"], "SnapshotPayloadV2")
             header = view_model["header"]
             self.assertEqual(header[0]["value"], "AAPL")
             self.assertEqual(header[1]["value"], "2026-07-01")
@@ -368,8 +368,65 @@ class SignalHistorySurfaceTest(unittest.TestCase):
                 signal_id="signal-1",
             )
 
-            self.assertEqual(view_model["status"], "Snapshot Payload v2")
+            self.assertEqual(view_model["status"], "SnapshotPayloadV2")
             self.assertIn('"payload_schema_version": "snapshot_payload_v2"', view_model["raw_json"])
+
+    def test_snapshot_detail_prefers_v2_by_symbol_date_over_legacy_signal_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            canonical = _canonical_result()
+            connection = sqlite3.connect(db_path)
+            try:
+                signal_repository = SQLiteSignalLedgerRepository(connection)
+                signal_repository.initialize_schema()
+                signal_repository.save_signal(_signal("signal-1", "AAPL", SignalType.SETUP, 75.0))
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+                snapshot_repository.initialize_schema()
+                snapshot_repository.save_snapshot(
+                    canonical,
+                    signal_id="different-signal-id",
+                    created_at="2026-07-01",
+                )
+            finally:
+                connection.close()
+
+            view_model = load_desktop_snapshot_detail_view_model(
+                db_path,
+                signal_id="signal-1",
+                symbol="AAPL",
+                market_date="2026-07-01",
+                timeframe="1D",
+            )
+
+            self.assertEqual(view_model["status"], "SnapshotPayloadV2")
+            self.assertIn('"payload_schema_version": "snapshot_payload_v2"', view_model["raw_json"])
+            self.assertIn('"legacy_snapshot_id": "canonical-snapshot-1"', view_model["raw_json"])
+            self.assertNotIn('"signal_id": "signal-1"', view_model["raw_json"])
+
+    def test_snapshot_detail_can_load_v2_by_snapshot_record_id_without_signal_table(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "exos.db"
+            canonical = _canonical_result()
+            connection = sqlite3.connect(db_path)
+            try:
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
+                snapshot_repository.initialize_schema()
+                saved = snapshot_repository.save_snapshot(
+                    canonical,
+                    signal_id="signal-1",
+                    created_at="2026-07-01",
+                )
+            finally:
+                connection.close()
+
+            view_model = load_desktop_snapshot_detail_view_model(
+                db_path,
+                snapshot_record_id=saved.snapshot_record_id,
+            )
+
+            self.assertEqual(view_model["status"], "SnapshotPayloadV2")
+            self.assertIn('"payload_schema_version": "snapshot_payload_v2"', view_model["raw_json"])
+            self.assertIn('"legacy_snapshot_id": "canonical-snapshot-1"', view_model["raw_json"])
 
     def test_history_rows_include_hidden_signal_id_for_detail_loading(self) -> None:
         signal = _signal("signal-1", "AAPL", SignalType.SETUP, 75.0)
@@ -380,6 +437,9 @@ class SignalHistorySurfaceTest(unittest.TestCase):
         )
 
         self.assertEqual(view_model["rows"][0]["signal_id"], "signal-1")
+        self.assertEqual(view_model["rows"][0]["symbol"], "AAPL")
+        self.assertEqual(view_model["rows"][0]["market_date"], "2026-07-01")
+        self.assertEqual(view_model["rows"][0]["timeframe"], "1D")
 
     def test_snapshot_history_double_click_opens_detail_viewer(self) -> None:
         tree = ast.parse(Path("src/gui/signal_history_surface.py").read_text(encoding="utf-8"))

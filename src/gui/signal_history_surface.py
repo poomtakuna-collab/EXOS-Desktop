@@ -84,9 +84,14 @@ class SignalHistoryPanel(QWidget):
         signal_id = str(self._rows[row].get("signal_id", "")).strip()
         if not signal_id:
             return
+        selected_row = self._rows[row]
         view_model = load_desktop_snapshot_detail_view_model(
             self._database_path,
             signal_id=signal_id,
+            snapshot_record_id=str(selected_row.get("snapshot_record_id", "")).strip(),
+            symbol=str(selected_row.get("symbol", "")).strip(),
+            market_date=str(selected_row.get("market_date", "")).strip(),
+            timeframe=str(selected_row.get("timeframe", "")).strip(),
         )
         self._detail_dialog = SnapshotDetailDialog(view_model, self)
         self._detail_dialog.show()

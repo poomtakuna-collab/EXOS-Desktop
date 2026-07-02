@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
 import sqlite3
-from typing import Any, Protocol
+from typing import Any, Mapping, Protocol, Sequence
 
 from src.canonical_result import CanonicalResultV1
 from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
@@ -37,8 +38,12 @@ class DailyResearchSnapshotRepository(Protocol):
         canonical_result: CanonicalResultV1,
         *,
         signal_id: str | None = None,
-        created_at: str = "",
-        compatibility: dict[str, Any] | None = None,
+        created_at: datetime | str | None = None,
+        compatibility: Mapping[str, Any] | None = None,
+        request: object | None = None,
+        ohlcv_rows: Sequence[Mapping[str, Any]] | None = None,
+        provenance: Mapping[str, Any] | None = None,
+        context: object | None = None,
     ) -> object:
         pass
 
@@ -64,6 +69,11 @@ def save_manual_signal_candidate(
     repository: SignalRepository | None = None,
     snapshot_repository: DailyResearchSnapshotRepository | None = None,
     database_path: Path | str | None = None,
+    snapshot_request: object | None = None,
+    snapshot_ohlcv_rows: Sequence[Mapping[str, Any]] | None = None,
+    snapshot_provenance: Mapping[str, Any] | None = None,
+    snapshot_context: object | None = None,
+    snapshot_created_at: datetime | str | None = None,
 ) -> ManualSignalSaveResult:
     if not isinstance(canonical_result, CanonicalResultV1):
         return ManualSignalSaveResult(
@@ -78,6 +88,11 @@ def save_manual_signal_candidate(
             signal,
             canonical_result=canonical_result,
             snapshot_repository=snapshot_repository,
+            snapshot_request=snapshot_request,
+            snapshot_ohlcv_rows=snapshot_ohlcv_rows,
+            snapshot_provenance=snapshot_provenance,
+            snapshot_context=snapshot_context,
+            snapshot_created_at=snapshot_created_at,
         )
 
     path = Path(database_path or DEFAULT_SIGNAL_LEDGER_DATABASE_PATH)
@@ -100,6 +115,11 @@ def save_manual_signal_candidate(
             signal,
             canonical_result=canonical_result,
             snapshot_repository=snapshot_repository,
+            snapshot_request=snapshot_request,
+            snapshot_ohlcv_rows=snapshot_ohlcv_rows,
+            snapshot_provenance=snapshot_provenance,
+            snapshot_context=snapshot_context,
+            snapshot_created_at=snapshot_created_at,
         )
     except (sqlite3.Error, ValueError) as error:
         return ManualSignalSaveResult(
@@ -116,6 +136,11 @@ def _save_with_repository(
     *,
     canonical_result: CanonicalResultV1 | None = None,
     snapshot_repository: DailyResearchSnapshotRepository | None = None,
+    snapshot_request: object | None = None,
+    snapshot_ohlcv_rows: Sequence[Mapping[str, Any]] | None = None,
+    snapshot_provenance: Mapping[str, Any] | None = None,
+    snapshot_context: object | None = None,
+    snapshot_created_at: datetime | str | None = None,
 ) -> ManualSignalSaveResult:
     try:
         existing_for_date = _existing_signal_for_candidate_market_date(repository, signal)
@@ -136,12 +161,16 @@ def _save_with_repository(
             snapshot_repository.save_snapshot(
                 canonical_result,
                 signal_id=signal.signal_id,
-                created_at=_market_date(signal),
+                created_at=snapshot_created_at or _market_date(signal),
                 compatibility={
                     "signal_id": signal.signal_id,
                     "legacy_snapshot_id": signal.snapshot_reference.snapshot_id,
                     "legacy_signal_record_projection": signal.to_dict(),
                 },
+                request=snapshot_request,
+                ohlcv_rows=snapshot_ohlcv_rows,
+                provenance=snapshot_provenance,
+                context=snapshot_context,
             )
         saved_signal = repository.save_signal(signal)
     except (RuntimeError, ValueError, sqlite3.Error) as error:

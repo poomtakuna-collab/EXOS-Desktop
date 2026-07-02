@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 from src.application.signal_backfill_service import (
@@ -13,6 +14,7 @@ from src.application.signal_backfill_service import (
 from src.data_source import MarketDataRequest, MarketDataSource
 from src.outcome_tracking import OutcomeEvaluationSummary, evaluate_saved_signal_outcomes
 from src.outcome_tracking.repository import OutcomeRepository
+from src.gui.research_signal_save import DailyResearchSnapshotRepository
 from src.signal_ledger.contracts import SignalRecord
 from src.signal_ledger.repository import SignalLedgerRepository
 
@@ -56,22 +58,29 @@ def run_manual_evidence_loop(
     data_source: MarketDataSource,
     signal_repository: SignalLedgerRepository,
     outcome_repository: OutcomeRepository,
+    snapshot_repository: DailyResearchSnapshotRepository | None = None,
     row_limit: int | None = None,
     timeframe: str = "1D",
     as_of_date: date | str | None = None,
     default_horizon_days: int = 10,
     future_rows_by_signal_id: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
     progress_callback: Callable[[SignalBackfillProgress], None] | None = None,
+    error_log_path: Path | str | None = None,
 ) -> ManualEvidenceLoopSummary:
     normalized_symbol = str(symbol or "").strip().upper()
+    backfill_kwargs: dict[str, Any] = {}
+    if error_log_path is not None:
+        backfill_kwargs["error_log_path"] = error_log_path
     backfill_summary = backfill_missing_research_signals(
         symbol=normalized_symbol,
         data_source=data_source,
         signal_repository=signal_repository,
+        snapshot_repository=snapshot_repository,
         row_limit=row_limit,
         timeframe=timeframe,
         as_of_date=as_of_date,
         progress_callback=progress_callback,
+        **backfill_kwargs,
     )
     future_rows = future_rows_by_signal_id or _future_rows_by_signal_id(
         symbol=normalized_symbol,

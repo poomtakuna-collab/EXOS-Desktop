@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sqlite3
+import traceback
 from typing import Any
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal
@@ -22,11 +23,13 @@ from PySide6.QtWidgets import (
 )
 
 from src.application import run_manual_evidence_loop
+from src.application.signal_backfill_service import EVIDENCE_LOOP_LOG_PATH
 from src.core.dashboard_manager import DashboardManager
 from src.core.market_scope import MARKET_SCOPE
 from src.core.state_manager import StateManager
 from src.data import DataManager
 from src.data_source import SQLiteDataSource
+from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
 from src.developer import reset_snapshots
 from src.gui.chart_workspace import ChartWorkspace
 from src.gui.developer_panel import DeveloperPanel
@@ -331,6 +334,11 @@ class _EvidenceLoopWorker(QObject):
         super().__init__()
         self._symbol = symbol
         self._database_path = database_path
+        self._last_progress: object | None = None
+
+    def _emit_progress(self, progress: object) -> None:
+        self._last_progress = progress
+        self.progress.emit(progress)
 
     def run(self) -> None:
         try:
@@ -338,19 +346,65 @@ class _EvidenceLoopWorker(QObject):
             try:
                 signal_repository = SQLiteSignalLedgerRepository(connection)
                 outcome_repository = SQLiteOutcomeRepository(connection)
+                snapshot_repository = SQLiteDailyResearchSnapshotRepository(connection)
                 signal_repository.initialize_schema()
                 outcome_repository.initialize_schema()
+                snapshot_repository.initialize_schema()
                 summary = run_manual_evidence_loop(
                     symbol=self._symbol,
                     data_source=SQLiteDataSource(connection),
                     signal_repository=signal_repository,
                     outcome_repository=outcome_repository,
-                    progress_callback=self.progress.emit,
+                    snapshot_repository=snapshot_repository,
+                    progress_callback=self._emit_progress,
                 )
             finally:
                 connection.close()
         except Exception as error:
-            self.failed.emit(str(error))
+            _log_evidence_loop_exception(
+                symbol=self._symbol,
+                progress=self._last_progress,
+                error=error,
+            )
+            self.failed.emit(_evidence_loop_failure_message(error, self._last_progress))
             return
 
         self.finished.emit(summary)
+
+
+def _evidence_loop_failure_message(error: BaseException, progress: object | None) -> str:
+    error_symbol = str(getattr(error, "symbol", "") or "").strip().upper()
+    error_market_date = str(getattr(error, "market_date", "") or "").strip()
+    if error_symbol or error_market_date:
+        return str(error)
+
+    symbol = str(getattr(progress, "symbol", "") or "").strip().upper()
+    market_date = str(getattr(progress, "market_date", "") or "").strip()
+    detail = " ".join(value for value in (symbol, market_date) if value)
+    if detail:
+        return f"{detail}: {error}"
+    return str(error)
+
+
+def _log_evidence_loop_exception(
+    *,
+    symbol: str,
+    progress: object | None,
+    error: BaseException,
+) -> None:
+    market_date = str(getattr(error, "market_date", "") or "").strip()
+    if not market_date:
+        market_date = str(getattr(progress, "market_date", "") or "").strip()
+    try:
+        EVIDENCE_LOOP_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with EVIDENCE_LOOP_LOG_PATH.open("a", encoding="utf-8") as handle:
+            handle.write(
+                "\n"
+                f"Evidence Loop worker failure: {symbol}"
+                f"{(' ' + market_date) if market_date else ''}\n"
+            )
+            handle.writelines(
+                traceback.format_exception(type(error), error, error.__traceback__)
+            )
+    except Exception:
+        return

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from contextlib import closing
+from pathlib import Path
 import sqlite3
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from src.application.signal_backfill_service import backfill_missing_research_signals
+from src.application.signal_backfill_service import (
+    SignalBackfillSnapshotError,
+    backfill_missing_research_signals,
+)
 from src.data_source import MemoryDataSource
 from src.daily_research_snapshot import SQLiteDailyResearchSnapshotRepository
 from src.signal_ledger import (
@@ -212,6 +217,44 @@ class SignalBackfillServiceTest(unittest.TestCase):
                 },
             ],
         )
+
+    def test_backfill_logs_and_raises_failed_snapshot_with_symbol_and_date(self) -> None:
+        repository = InMemorySignalLedgerRepository()
+
+        def fake_analysis(request: object) -> object:
+            if request.ohlcv_rows[-1]["date"] == "2026-06-30":
+                raise RuntimeError("fixture analysis failure")
+            return _fake_analysis(request)
+
+        with TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "evidence_loop.log"
+            with patch(
+                "src.application.signal_backfill_service.analyze_symbol_v2",
+                side_effect=fake_analysis,
+            ):
+                with self.assertRaises(SignalBackfillSnapshotError) as raised:
+                    backfill_missing_research_signals(
+                        symbol="aapl",
+                        data_source=MemoryDataSource(
+                            [
+                                _row("AAPL", "2026-06-29", 100.0),
+                                _row("AAPL", "2026-06-30", 101.0),
+                                _row("AAPL", "2026-07-01", 102.0),
+                            ]
+                        ),
+                        signal_repository=repository,
+                        as_of_date="2026-07-01",
+                        error_log_path=log_path,
+                    )
+
+            self.assertEqual(raised.exception.symbol, "AAPL")
+            self.assertEqual(raised.exception.market_date, "2026-06-30")
+            self.assertEqual(raised.exception.current, 2)
+            self.assertEqual(raised.exception.total, 2)
+            self.assertIn("AAPL 2026-06-30", str(raised.exception))
+            log_text = log_path.read_text(encoding="utf-8")
+            self.assertIn("Evidence Loop snapshot failure: AAPL 2026-06-30", log_text)
+            self.assertIn("fixture analysis failure", log_text)
 
 
 def _fake_analysis(request: object) -> object:

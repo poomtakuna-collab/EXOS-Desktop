@@ -253,8 +253,51 @@ class MainWindowWiringTest(unittest.TestCase):
         keywords = {keyword.arg: keyword.value for keyword in runner_calls[0].keywords}
         self.assertEqual(
             _attribute_name(keywords["progress_callback"]),
-            "self.progress.emit",
+            "self._emit_progress",
         )
+        self.assertEqual(
+            _attribute_name(keywords["snapshot_repository"]),
+            "snapshot_repository",
+        )
+
+    def test_evidence_loop_worker_initializes_daily_snapshot_repository(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "run")
+        assignments = {
+            _attribute_name(target): _attribute_name(node.value)
+            for node in ast.walk(method)
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+        }
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+        }
+
+        self.assertEqual(
+            assignments["snapshot_repository"],
+            "SQLiteDailyResearchSnapshotRepository()",
+        )
+        self.assertIn("snapshot_repository.initialize_schema", called_names)
+
+    def test_evidence_loop_worker_records_last_progress_before_emitting(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_emit_progress")
+        assigned_names = {
+            _attribute_name(target): _attribute_name(node.value)
+            for node in ast.walk(method)
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+        }
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+        }
+
+        self.assertEqual(assigned_names["self._last_progress"], "progress")
+        self.assertIn("self.progress.emit", called_names)
 
     def test_evidence_loop_progress_updates_status_bar_with_count_and_symbol_date(
         self,
@@ -306,6 +349,8 @@ class MainWindowWiringTest(unittest.TestCase):
         }
 
         self.assertIn("Exception", handled_names)
+        self.assertIn("_log_evidence_loop_exception", called_names)
+        self.assertIn("_evidence_loop_failure_message", called_names)
         self.assertIn("self.failed.emit", called_names)
 
     def test_evidence_loop_worker_references_are_retained_until_thread_finishes(self) -> None:
