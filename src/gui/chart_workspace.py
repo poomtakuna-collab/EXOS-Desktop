@@ -4,8 +4,8 @@ from collections import OrderedDict
 from datetime import date
 from time import perf_counter
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import QObject, QThread, Qt, Signal
+from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QLabel, QPushButton, QSplitter, QVBoxLayout, QWidget
 
 from src.core.state_manager import StateManager
 from src.data import (
@@ -17,6 +17,10 @@ from src.data import (
     is_historical_data_fresh,
 )
 from src.gui.chart_data_adapter import ChartDataAdapter, LegacyChartDataLoader
+from src.gui.chart_research_sidebar_view_model import (
+    empty_chart_research_sidebar_view_model,
+    load_chart_research_sidebar_view_model,
+)
 from src.gui.candlestick_chart import CandlestickChart
 from src.indicators import build_indicator_snapshot
 
@@ -30,12 +34,17 @@ VISIBLE_ROW_OPTIONS = (60, 120, 240, None)
 
 class ChartWorkspace(QWidget):
     data_changed = Signal()
+    loading_started = Signal(str)
+    loading_progress = Signal(str)
+    loading_finished = Signal(str, float)
+    loading_failed = Signal(str, str)
 
     def __init__(
         self,
         data_manager: DataManager | None = None,
         chart_data_loader: LegacyChartDataLoader | None = None,
         state_manager: StateManager | None = None,
+        dashboard_widget: QWidget | None = None,
         dev_sample_fallback_enabled: bool = False,
     ) -> None:
         super().__init__()
@@ -53,18 +62,35 @@ class ChartWorkspace(QWidget):
         self._market_header_label = QLabel("", self)
         self._detail_label = QLabel("", self)
         self._chart = CandlestickChart()
+        self._dashboard_widget = dashboard_widget or QWidget(self)
+        self._load_thread: QThread | None = None
+        self._load_worker: _SymbolLoadWorker | None = None
 
         self._title_label.setAlignment(Qt.AlignCenter)
         self._market_header_label.setAlignment(Qt.AlignCenter)
         self._detail_label.setAlignment(Qt.AlignCenter)
 
-        layout = QVBoxLayout()
-        layout.addLayout(self._create_timeframe_controls())
-        layout.addLayout(self._create_visible_rows_controls())
-        layout.addWidget(self._title_label)
-        layout.addWidget(self._market_header_label)
-        layout.addWidget(self._detail_label)
-        layout.addWidget(self._chart, 1)
+        chart_panel = QWidget(self)
+        chart_layout = QVBoxLayout()
+        chart_layout.setContentsMargins(0, 0, 0, 0)
+        chart_layout.addLayout(self._create_timeframe_controls())
+        chart_layout.addLayout(self._create_visible_rows_controls())
+        chart_layout.addWidget(self._title_label)
+        chart_layout.addWidget(self._market_header_label)
+        chart_layout.addWidget(self._detail_label)
+        chart_layout.addWidget(self._chart, 1)
+        chart_panel.setLayout(chart_layout)
+
+        main_splitter = QSplitter(Qt.Horizontal, self)
+        main_splitter.addWidget(chart_panel)
+        main_splitter.addWidget(self._dashboard_widget)
+        main_splitter.setStretchFactor(0, 6)
+        main_splitter.setStretchFactor(1, 1)
+        main_splitter.setChildrenCollapsible(False)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(main_splitter)
         self.setLayout(layout)
 
     def _create_timeframe_controls(self) -> QHBoxLayout:
@@ -107,6 +133,9 @@ class ChartWorkspace(QWidget):
         self._visible_rows = visible_rows
         self.refresh_from_state()
 
+    def is_loading(self) -> bool:
+        return self._load_thread is not None
+
     def refresh_from_state(self) -> None:
         symbol = self._state_manager.current_symbol
         if not symbol:
@@ -118,73 +147,95 @@ class ChartWorkspace(QWidget):
             self.data_changed.emit()
             return
 
+        if self.is_loading():
+            self.loading_progress.emit(f"Loading {symbol} already in progress...")
+            return
+
         self._title_label.setText("")
+        self._market_header_label.setText("")
+        self._detail_label.setText("")
+        self._chart.set_projection_overlay(None)
+        self._start_symbol_load(symbol)
 
-        start_time = perf_counter()
-        try:
-            historical_data = self._chart_data_loader.get_cached_historical_data(symbol)
-        except DataLoadError as error:
-            self._handle_load_error(str(error))
-            return
-
-        last_load_time = perf_counter() - start_time
-        if (
-            len(historical_data.rows) >= REQUIRED_ROW_COUNT
-            and is_historical_data_fresh(historical_data)
-        ):
-            self._show_historical_data(historical_data, last_load_time)
-            return
-
-        if self._dev_sample_fallback_enabled:
-            sample_data = HistoricalDataResult(
-                rows=self._sample_ohlc_data(), source=SAMPLE_FALLBACK_SOURCE
-            )
-            self._show_historical_data(sample_data, last_load_time)
-            return
-
-        self._detail_label.setText(
-            self._get_display_status(
-                symbol=symbol,
-                source=historical_data.source,
-                cached_rows=len(historical_data.rows),
-                timeframe_rows=len(self._rows_for_timeframe(historical_data.rows)),
-                rendered_rows=[],
-                extra_status="Data status: Refreshing OHLC cache...",
-            )
-        )
-        self._load_and_show_cached_data(symbol, last_load_time)
-
-    def _load_and_show_cached_data(
-        self, symbol: str, cache_check_time: float
-    ) -> None:
-        start_time = perf_counter()
-        try:
-            fetched_data = self._chart_data_loader.get_historical_data(symbol)
-        except DataLoadError as error:
-            self._show_no_data_status(
-                symbol=symbol,
-                source="SQLite Cache",
-                load_time=cache_check_time,
-                message=f"Data status: {error}",
-            )
-            return
-
-        cached_data = self._chart_data_loader.get_cached_historical_data(symbol)
-        load_time = cache_check_time + (perf_counter() - start_time)
-        if cached_data.rows:
-            self._show_historical_data(cached_data, load_time)
-            return
-
-        source = fetched_data.source or cached_data.source
-        self._show_no_data_status(
+    def _start_symbol_load(self, symbol: str) -> None:
+        sample_rows = self._sample_ohlc_data() if self._dev_sample_fallback_enabled else None
+        thread = QThread(self)
+        worker = _SymbolLoadWorker(
             symbol=symbol,
-            source=source,
-            load_time=load_time,
-            message="Data status: No OHLC data returned",
+            chart_data_loader=self._chart_data_loader,
+            dev_sample_fallback_enabled=self._dev_sample_fallback_enabled,
+            sample_rows=sample_rows,
         )
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.progress.connect(self._handle_symbol_load_progress)
+        worker.chart_ready.connect(self._handle_symbol_chart_ready)
+        worker.no_data.connect(self._handle_symbol_no_data)
+        worker.sidebar_ready.connect(self._handle_symbol_sidebar_ready)
+        worker.finished.connect(self._handle_symbol_load_finished)
+        worker.failed.connect(self._handle_symbol_load_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        worker.failed.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._clear_symbol_load_worker)
+        self._load_thread = thread
+        self._load_worker = worker
+        self.loading_started.emit(symbol)
+        self.loading_progress.emit(f"Loading {symbol}...")
+        thread.start()
+
+    def _handle_symbol_load_progress(self, message: str) -> None:
+        self.loading_progress.emit(message)
+
+    def _handle_symbol_chart_ready(self, payload: object) -> None:
+        if not isinstance(payload, dict):
+            return
+        historical_data = payload.get("historical_data")
+        if not isinstance(historical_data, HistoricalDataResult):
+            return
+        self._show_historical_data(
+            historical_data,
+            float(payload.get("last_load_time", 0.0)),
+            refresh_sidebar=False,
+        )
+
+    def _handle_symbol_no_data(self, payload: object) -> None:
+        if not isinstance(payload, dict):
+            return
+        self._show_no_data_status(
+            symbol=str(payload.get("symbol", "")),
+            source=str(payload.get("source", "SQLite Cache")),
+            load_time=float(payload.get("last_load_time", 0.0)),
+            message=str(payload.get("message", "Data status: No OHLC data returned")),
+            refresh_sidebar=False,
+        )
+
+    def _handle_symbol_sidebar_ready(self, view_model: object) -> None:
+        if isinstance(view_model, dict):
+            self._chart.set_projection_overlay(view_model.get("chart_action_overlay"))
+
+    def _handle_symbol_load_finished(self, symbol: str, elapsed_seconds: float) -> None:
+        self.loading_finished.emit(symbol, elapsed_seconds)
+
+    def _handle_symbol_load_failed(self, symbol: str, message: str) -> None:
+        self._handle_load_error(message, refresh_sidebar=False)
+        self._chart.set_projection_overlay(None)
+        self.loading_failed.emit(symbol, message)
+
+    def _clear_symbol_load_worker(self) -> None:
+        self._load_thread = None
+        self._load_worker = None
 
     def _show_no_data_status(
-        self, symbol: str, source: str, load_time: float, message: str
+        self,
+        symbol: str,
+        source: str,
+        load_time: float,
+        message: str,
+        *,
+        refresh_sidebar: bool = True,
     ) -> None:
         self._state_manager.set_market_data_state(
             rows=0,
@@ -193,6 +244,7 @@ class ChartWorkspace(QWidget):
         )
         self._state_manager.set_indicator_snapshot(None)
         self._chart.clear()
+        self._chart.set_projection_overlay(None)
         self._market_header_label.setText("")
         self._detail_label.setText(
             self._get_display_status(
@@ -204,10 +256,17 @@ class ChartWorkspace(QWidget):
                 extra_status=message,
             )
         )
+        if refresh_sidebar:
+            view_model = load_chart_research_sidebar_view_model(symbol=symbol)
+            self._chart.set_projection_overlay(view_model.get("chart_action_overlay"))
         self.data_changed.emit()
 
     def _show_historical_data(
-        self, historical_data: HistoricalDataResult, last_load_time: float
+        self,
+        historical_data: HistoricalDataResult,
+        last_load_time: float,
+        *,
+        refresh_sidebar: bool = True,
     ) -> None:
         timeframe_rows = self._rows_for_timeframe(historical_data.rows)
         visible_rows = self._rows_for_visible_count(timeframe_rows)
@@ -231,6 +290,9 @@ class ChartWorkspace(QWidget):
             )
         )
         self.data_changed.emit()
+        if refresh_sidebar:
+            view_model = load_chart_research_sidebar_view_model(symbol=self._state_manager.current_symbol)
+            self._chart.set_projection_overlay(view_model.get("chart_action_overlay"))
         self._detail_label.setText(
             self._get_display_status(
                 symbol=self._state_manager.current_symbol or "",
@@ -242,12 +304,12 @@ class ChartWorkspace(QWidget):
             )
         )
 
-    def _handle_load_error(self, message: str) -> None:
+    def _handle_load_error(self, message: str, *, refresh_sidebar: bool = True) -> None:
         if self._dev_sample_fallback_enabled:
             sample_data = HistoricalDataResult(
                 rows=self._sample_ohlc_data(), source=SAMPLE_FALLBACK_SOURCE
             )
-            self._show_historical_data(sample_data, 0.0)
+            self._show_historical_data(sample_data, 0.0, refresh_sidebar=refresh_sidebar)
             self._detail_label.setText(
                 self._get_display_status(
                     symbol=self._state_manager.current_symbol or "",
@@ -263,6 +325,7 @@ class ChartWorkspace(QWidget):
 
         self._state_manager.set_error_status(message)
         self._chart.clear()
+        self._chart.set_projection_overlay(None)
         self._market_header_label.setText("")
         self._detail_label.setText(
             self._get_display_status(
@@ -275,6 +338,9 @@ class ChartWorkspace(QWidget):
             )
         )
         self.data_changed.emit()
+        if refresh_sidebar:
+            view_model = load_chart_research_sidebar_view_model(symbol=self._state_manager.current_symbol)
+            self._chart.set_projection_overlay(view_model.get("chart_action_overlay"))
 
     def _get_market_header(self, symbol: str, rows: list[MarketDataRow]) -> str:
         if not rows:
@@ -433,3 +499,100 @@ class ChartWorkspace(QWidget):
             previous_close = close
 
         return rows
+
+
+class _SymbolLoadWorker(QObject):
+    progress = Signal(str)
+    chart_ready = Signal(object)
+    no_data = Signal(object)
+    sidebar_ready = Signal(object)
+    finished = Signal(str, float)
+    failed = Signal(str, str)
+
+    def __init__(
+        self,
+        *,
+        symbol: str,
+        chart_data_loader: LegacyChartDataLoader,
+        dev_sample_fallback_enabled: bool,
+        sample_rows: list[MarketDataRow] | None = None,
+    ) -> None:
+        super().__init__()
+        self._symbol = symbol
+        self._chart_data_loader = chart_data_loader
+        self._dev_sample_fallback_enabled = dev_sample_fallback_enabled
+        self._sample_rows = sample_rows or []
+
+    def run(self) -> None:
+        start_time = perf_counter()
+        try:
+            self.progress.emit(f"Loading {self._symbol}...")
+            self.progress.emit("Reading OHLCV...")
+            historical_data = self._chart_data_loader.get_cached_historical_data(
+                self._symbol
+            )
+            if (
+                len(historical_data.rows) < REQUIRED_ROW_COUNT
+                or not is_historical_data_fresh(historical_data)
+            ):
+                historical_data = self._load_refreshed_or_fallback(historical_data)
+            if historical_data.rows:
+                self.progress.emit("Building Indicators...")
+                self.chart_ready.emit(
+                    {
+                        "historical_data": historical_data,
+                        "last_load_time": perf_counter() - start_time,
+                    }
+                )
+            else:
+                self.no_data.emit(
+                    {
+                        "symbol": self._symbol,
+                        "source": historical_data.source,
+                        "last_load_time": perf_counter() - start_time,
+                        "message": "Data status: No OHLC data returned",
+                    }
+                )
+
+            self._emit_sidebar_stage("Loading Snapshot...")
+            self._emit_sidebar_stage("Loading POOM Combo...")
+            self._emit_sidebar_stage("Loading Statistics...")
+            self._emit_sidebar_stage("Loading Historical Edge...")
+            self.progress.emit("Loading Research Summary...")
+            self.sidebar_ready.emit(
+                load_chart_research_sidebar_view_model(symbol=self._symbol)
+            )
+        except Exception as error:
+            self.failed.emit(self._symbol, str(error))
+            return
+
+        self.finished.emit(self._symbol, perf_counter() - start_time)
+
+    def _load_refreshed_or_fallback(
+        self,
+        historical_data: HistoricalDataResult,
+    ) -> HistoricalDataResult:
+        if self._dev_sample_fallback_enabled:
+            return HistoricalDataResult(
+                rows=self._sample_rows,
+                source=SAMPLE_FALLBACK_SOURCE,
+            )
+
+        self.progress.emit("Refreshing OHLC cache...")
+        try:
+            fetched_data = self._chart_data_loader.get_historical_data(self._symbol)
+        except DataLoadError:
+            if historical_data.rows:
+                return historical_data
+            raise
+
+        cached_data = self._chart_data_loader.get_cached_historical_data(self._symbol)
+        if cached_data.rows:
+            return cached_data
+        return fetched_data
+
+    def _emit_sidebar_stage(self, message: str) -> None:
+        self.progress.emit(message)
+        self.sidebar_ready.emit(
+            empty_chart_research_sidebar_view_model(message, symbol=self._symbol)
+        )

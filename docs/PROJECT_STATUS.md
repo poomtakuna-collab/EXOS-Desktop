@@ -126,6 +126,26 @@ Pattern Statistics v1 is implemented as a developer-only read-only report over S
 
 Statistics and Pattern Statistics developer reports now support Current Symbol and All Symbols scopes, show scope summaries with symbol/date/snapshot counts, and display a building status while reports are generated.
 
+Chart Research Sidebar v1 is implemented as a right-side read-only Chart tab panel backed by latest SnapshotPayloadV2 data and scoped Statistics Engine edge summaries, including POOM, trend/structure, historical edge, and zone availability cards.
+
+Chart symbol loading now runs through a background Qt worker with status-bar progress, progressive Research Summary sidebar updates, disabled symbol switching during loads, and completion/failure recovery handling.
+
+Research Sidebar Polish v1 is implemented with an Overall Assessment section, readable POOM squeeze/BOS/CHoCH labels, directional POOM value coloring, separated support/resistance rows, and readable historical edge pattern descriptions.
+
+Research Reasoning Engine v1 is implemented as a pure deterministic explanation layer for SnapshotPayloadV2, POOM Combo, statistics, pattern statistics / historical edge, and existing recommendation data.
+
+Entry Strength Engine v1 is implemented as a pure deterministic setup-entry quality layer that consumes SnapshotPayloadV2, POOM Combo, Research Reasoning, and Historical Edge inputs without creating price zones or overriding recommendations.
+
+Chart Workspace Layout v2 is implemented: Research Summary moved to the upper-right, Dashboard/Watchlist moved to the lower-right, and the chart remains the primary left-side visual area.
+
+Research Sidebar UX v2 is implemented with a compact summary-first layout and raw details hidden/collapsed by default.
+
+Chart Action Overlay v1 is implemented: Chart tab now shows a single active action overlay based on EXOS recommendation/state, while detailed research remains in Research tab.
+
+EXOS Projection Indicator v1 is implemented as a chart rendering layer that reserves future candle space and draws one active bullish, neutral, or bearish EXOS projection directly in the chart canvas.
+
+Chart Action Overlay v1 cleanup is implemented: watchlist priority is fixed, projection hover no longer maps to the latest historical candle tooltip, the stale setup-strength placeholder is removed, detailed research remains available in the Research tab, and overlay view-model logic is split into a small pure module.
+
 Chart -> Data Source v1 integration foundation is implemented.
 
 Chart Data Source v1 integration coverage is implemented.
@@ -2152,6 +2172,7 @@ Current tests:
 - UI Backtest reports
 - AI Analysis / Overlay
 - UI reports for Market Learning and Prediction output
+- Zone Engine
 
 ## Parked / Future
 

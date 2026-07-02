@@ -57,9 +57,11 @@ class MainWindow(QMainWindow):
         self._data_manager = DataManager()
         self._dashboard_symbols = dashboard_symbols or self._dashboard_manager.load_symbols()
         self._dashboard_list = QListWidget(self)
+        self._dashboard_panel = self._create_dashboard_panel()
         self._chart_workspace = ChartWorkspace(
             data_manager=self._data_manager,
             state_manager=self._state_manager,
+            dashboard_widget=self._dashboard_panel,
         )
         self._research_panel = ResearchPanel(self._state_manager)
         self._performance_panel = PerformancePanel(state_manager=self._state_manager)
@@ -82,10 +84,13 @@ class MainWindow(QMainWindow):
         self._create_menu_bar()
         self._create_toolbar()
         self._create_central_workspace()
-        self._create_dashboard_dock()
         self._create_developer_dock()
         self._chart_workspace.data_changed.connect(self._developer_panel.refresh)
         self._chart_workspace.data_changed.connect(self._research_panel.refresh)
+        self._chart_workspace.loading_started.connect(self._handle_symbol_loading_started)
+        self._chart_workspace.loading_progress.connect(self.statusBar().showMessage)
+        self._chart_workspace.loading_finished.connect(self._handle_symbol_loading_finished)
+        self._chart_workspace.loading_failed.connect(self._handle_symbol_loading_failed)
         self._research_panel.signal_saved.connect(self._signal_history_panel.refresh)
         self._research_panel.signal_saved.connect(self._performance_panel.refresh)
         self._update_current_symbol_views()
@@ -130,15 +135,17 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._signal_history_panel, "Snapshot History")
         self.setCentralWidget(tabs)
 
-    def _create_dashboard_dock(self) -> None:
-        dashboard_dock = QDockWidget(f"Dashboard ({MARKET_SCOPE})", self)
-        dashboard_dock.setAllowedAreas(Qt.RightDockWidgetArea)
+    def _create_dashboard_panel(self) -> QWidget:
+        dashboard_widget = QWidget(self)
 
-        add_button = QPushButton("+", dashboard_dock)
+        title = QLabel(f"Dashboard ({MARKET_SCOPE})", dashboard_widget)
+        title.setStyleSheet("font-weight: 700;")
+
+        add_button = QPushButton("+", dashboard_widget)
         add_button.setFixedWidth(32)
         add_button.clicked.connect(self._add_dashboard_symbol)
 
-        remove_button = QPushButton("-", dashboard_dock)
+        remove_button = QPushButton("-", dashboard_widget)
         remove_button.setFixedWidth(32)
         remove_button.clicked.connect(self._remove_selected_dashboard_symbol)
 
@@ -150,14 +157,15 @@ class MainWindow(QMainWindow):
         dashboard_layout = QVBoxLayout()
         dashboard_layout.addLayout(button_layout)
         dashboard_layout.addWidget(self._dashboard_list)
+        dashboard_layout.setContentsMargins(8, 6, 8, 8)
+        dashboard_layout.setSpacing(6)
+        dashboard_layout.insertWidget(0, title)
 
-        dashboard_widget = QWidget(dashboard_dock)
         dashboard_widget.setLayout(dashboard_layout)
 
-        dashboard_dock.setWidget(dashboard_widget)
-        self.addDockWidget(Qt.RightDockWidgetArea, dashboard_dock)
         self._dashboard_list.currentItemChanged.connect(self._select_dashboard_symbol)
         self._refresh_dashboard_list()
+        return dashboard_widget
 
     def _create_developer_dock(self) -> None:
         self._developer_dock.setAllowedAreas(
@@ -207,6 +215,10 @@ class MainWindow(QMainWindow):
     def _select_dashboard_symbol(
         self, current: QListWidgetItem | None, previous: QListWidgetItem | None
     ) -> None:
+        if self._chart_workspace.is_loading():
+            self.statusBar().showMessage("Symbol load already in progress...")
+            return
+
         if current is None:
             self._state_manager.clear_current_symbol()
         else:
@@ -216,15 +228,38 @@ class MainWindow(QMainWindow):
 
     def _update_current_symbol_views(self) -> None:
         self._chart_workspace.refresh_from_state()
+
+        if self._state_manager.current_symbol:
+            return
+
         self._research_panel.refresh()
         self._performance_panel.refresh()
         self._signal_history_panel.refresh()
         self._developer_panel.refresh()
+        self.statusBar().showMessage("Ready")
 
-        if self._state_manager.current_symbol:
-            self.statusBar().showMessage(f"Selected: {self._state_manager.current_symbol}")
+    def _handle_symbol_loading_started(self, symbol: str) -> None:
+        self._dashboard_list.setEnabled(False)
+        self.statusBar().showMessage(f"Loading {symbol}...")
+
+    def _handle_symbol_loading_finished(
+        self,
+        symbol: str,
+        elapsed_seconds: float,
+    ) -> None:
+        self._dashboard_list.setEnabled(True)
+        self._research_panel.refresh()
+        self._performance_panel.refresh()
+        self._signal_history_panel.refresh()
+        self._developer_panel.refresh()
+        self.statusBar().showMessage(f"Loaded {symbol} in {elapsed_seconds:.1f}s")
+
+    def _handle_symbol_loading_failed(self, symbol: str, message: str) -> None:
+        self._dashboard_list.setEnabled(True)
+        if symbol:
+            self.statusBar().showMessage(f"Failed to load {symbol}: {message}")
         else:
-            self.statusBar().showMessage("Ready")
+            self.statusBar().showMessage(f"Symbol load failed: {message}")
 
     def _run_manual_evidence_loop(self) -> None:
         symbol = str(self._state_manager.current_symbol or "").strip().upper()

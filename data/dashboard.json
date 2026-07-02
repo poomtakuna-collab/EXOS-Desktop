@@ -14,6 +14,11 @@
       "symbol": "MA",
       "note": "",
       "priority": 0
+    },
+    {
+      "symbol": "AMZN",
+      "note": "",
+      "priority": 0
     }
   ]
 }

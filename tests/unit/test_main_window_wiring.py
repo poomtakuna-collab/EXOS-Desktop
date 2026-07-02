@@ -23,8 +23,19 @@ class MainWindowWiringTest(unittest.TestCase):
         self.assertEqual(call.args, [])
         self.assertIn("data_manager", keywords)
         self.assertIn("state_manager", keywords)
+        self.assertIn("dashboard_widget", keywords)
         self.assertEqual(_attribute_name(keywords["data_manager"]), "self._data_manager")
         self.assertEqual(_attribute_name(keywords["state_manager"]), "self._state_manager")
+        self.assertEqual(_attribute_name(keywords["dashboard_widget"]), "self._dashboard_panel")
+
+    def test_dashboard_is_embedded_in_chart_workspace_not_right_dock(self) -> None:
+        source = Path("src/gui/main_window.py").read_text(encoding="utf-8")
+
+        self.assertIn("self._dashboard_panel = self._create_dashboard_panel()", source)
+        self.assertIn("dashboard_widget=self._dashboard_panel", source)
+        self.assertNotIn("def _create_dashboard_dock", source)
+        self.assertNotIn("self._create_dashboard_dock()", source)
+        self.assertIn("Dashboard ({MARKET_SCOPE})", source)
 
     def test_research_signal_save_refreshes_signal_history_and_performance(self) -> None:
         tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
@@ -58,6 +69,100 @@ class MainWindowWiringTest(unittest.TestCase):
             ),
             connections,
         )
+
+    def test_chart_workspace_symbol_load_signals_are_wired_to_main_window(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "connect"
+        ]
+
+        connections = {
+            (
+                _attribute_name(call.func.value),
+                _attribute_name(call.args[0]) if call.args else "",
+            )
+            for call in calls
+        }
+
+        self.assertIn(
+            (
+                "self._chart_workspace.loading_started",
+                "self._handle_symbol_loading_started",
+            ),
+            connections,
+        )
+        self.assertIn(
+            (
+                "self._chart_workspace.loading_progress",
+                "self.statusBar().showMessage",
+            ),
+            connections,
+        )
+        self.assertIn(
+            (
+                "self._chart_workspace.loading_finished",
+                "self._handle_symbol_loading_finished",
+            ),
+            connections,
+        )
+        self.assertIn(
+            (
+                "self._chart_workspace.loading_failed",
+                "self._handle_symbol_loading_failed",
+            ),
+            connections,
+        )
+
+    def test_symbol_selection_is_ignored_while_background_load_is_active(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_select_dashboard_symbol")
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+        }
+        string_constants = {
+            node.value
+            for node in ast.walk(method)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
+
+        self.assertIn("self._chart_workspace.is_loading", called_names)
+        self.assertIn("self.statusBar().showMessage", called_names)
+        self.assertIn("Symbol load already in progress...", string_constants)
+
+    def test_symbol_load_completion_refreshes_views_and_reenables_dashboard(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_handle_symbol_loading_finished")
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+        }
+
+        self.assertIn("self._dashboard_list.setEnabled", called_names)
+        self.assertIn("self._research_panel.refresh", called_names)
+        self.assertIn("self._performance_panel.refresh", called_names)
+        self.assertIn("self._signal_history_panel.refresh", called_names)
+        self.assertIn("self._developer_panel.refresh", called_names)
+        self.assertIn("self.statusBar().showMessage", called_names)
+
+    def test_symbol_load_failure_reenables_dashboard_and_reports_status(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_handle_symbol_loading_failed")
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+        }
+
+        self.assertIn("self._dashboard_list.setEnabled", called_names)
+        self.assertIn("self.statusBar().showMessage", called_names)
 
     def test_evidence_loop_action_triggers_manual_runner_method(self) -> None:
         tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))

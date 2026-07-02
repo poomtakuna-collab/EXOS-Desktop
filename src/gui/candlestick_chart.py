@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QToolTip, QWidget
 
 
 PRICE_AXIS_WIDTH = 64
+PROJECTION_FUTURE_SLOTS = 30
 ENABLED_EMA_PERIODS = [20, 50, 200]
 EMA_COLORS = {
     20: QColor("#f4c542"),
@@ -21,6 +22,7 @@ class CandlestickChart(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._rows: list[dict[str, object]] = []
+        self._projection_overlay: dict[str, object] | None = None
         self._mouse_position: QPointF | None = None
         self.setMinimumHeight(360)
         self.setMouseTracking(True)
@@ -32,8 +34,13 @@ class CandlestickChart(QWidget):
     def rendered_rows(self) -> list[dict[str, object]]:
         return list(self._rows)
 
+    def set_projection_overlay(self, overlay: dict[str, object] | None) -> None:
+        self._projection_overlay = dict(overlay) if isinstance(overlay, dict) else None
+        self.update()
+
     def clear(self) -> None:
         self._rows = []
+        self._projection_overlay = None
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802
@@ -113,7 +120,8 @@ class CandlestickChart(QWidget):
         high_price = max(values)
         price_range = high_price - low_price or 1.0
         candle_count = len(self._rows)
-        slot_width = price_rect.width() / candle_count
+        future_slots = PROJECTION_FUTURE_SLOTS if self._projection_overlay else 0
+        slot_width = price_rect.width() / (candle_count + future_slots)
         candle_width = max(3.0, min(14.0, slot_width * 0.58))
         max_volume = max(int(row["volume"]) for row in self._rows) or 1
 
@@ -157,6 +165,8 @@ class CandlestickChart(QWidget):
             painter.fillRect(volume_rect_bar, candle_color)
 
         self._draw_ema_overlays(painter, price_rect, low_price, price_range, slot_width)
+        projection_rect = self._projection_rect(price_rect, slot_width, candle_count)
+        self._draw_projection_background(painter, projection_rect)
         self._draw_ema_legend(painter, price_rect)
         current_price = float(self._rows[-1]["close"])
         current_price_y = self._price_to_y(
@@ -175,6 +185,96 @@ class CandlestickChart(QWidget):
             painter, price_rect, low_price, price_range, current_price_y
         )
         self._draw_current_price_line(painter, price_rect, low_price, price_range)
+        self._draw_projection_foreground(painter, projection_rect)
+
+    def _projection_rect(
+        self,
+        price_rect: QRectF,
+        slot_width: float,
+        candle_count: int,
+    ) -> QRectF | None:
+        if not self._projection_overlay:
+            return None
+        left = price_rect.left() + slot_width * candle_count + 3
+        width = max(10.0, price_rect.right() - left)
+        return QRectF(left, price_rect.top() + 6, width, price_rect.height() - 12)
+
+    def _future_slot_count(self) -> int:
+        return PROJECTION_FUTURE_SLOTS if self._projection_overlay else 0
+
+    def _historical_chart_right(self, price_rect: QRectF) -> float:
+        if not self._rows:
+            return price_rect.right()
+        total_slots = len(self._rows) + self._future_slot_count()
+        if total_slots <= 0:
+            return price_rect.right()
+        return price_rect.left() + price_rect.width() * (len(self._rows) / total_slots)
+
+    def _is_projection_area(self, x_position: float, price_rect: QRectF) -> bool:
+        return bool(self._projection_overlay) and x_position > self._historical_chart_right(price_rect)
+
+    def _draw_projection_background(
+        self,
+        painter: QPainter,
+        projection_rect: QRectF | None,
+    ) -> None:
+        if projection_rect is None or not self._projection_overlay:
+            return
+        border, background, _ = self._projection_colors()
+        painter.fillRect(projection_rect, background)
+        painter.setPen(QPen(border, 1.4))
+        painter.drawRect(projection_rect)
+
+    def _draw_projection_foreground(
+        self,
+        painter: QPainter,
+        projection_rect: QRectF | None,
+    ) -> None:
+        if projection_rect is None or not self._projection_overlay:
+            return
+        border, _, text_color = self._projection_colors()
+        painter.setPen(QPen(border, 1.4))
+        painter.drawRect(projection_rect)
+        painter.setPen(text_color)
+
+        title = self._projection_title()
+        price_range = str(self._projection_overlay.get("price_range", "")).strip()
+        summary_lines = self._projection_summary_lines()
+        text_lines = [title]
+        if price_range and price_range != "No price zone available":
+            text_lines.append(price_range)
+        text_lines.extend(summary_lines[:6])
+        text = "\n".join(text_lines[:8])
+        text_rect = projection_rect.adjusted(8, 8, -8, -8)
+        painter.drawText(text_rect, Qt.AlignTop | Qt.AlignLeft | Qt.TextWordWrap, text)
+
+    def _projection_title(self) -> str:
+        state = str((self._projection_overlay or {}).get("state", "neutral"))
+        titles = {
+            "bullish": "TARGET ZONE",
+            "neutral": "WAIT ZONE",
+            "bearish": "RISK ZONE",
+        }
+        return titles.get(state, "WAIT ZONE")
+
+    def _projection_summary_lines(self) -> list[str]:
+        overlay = self._projection_overlay or {}
+        raw_lines = overlay.get("summary_lines")
+        if not isinstance(raw_lines, tuple):
+            return []
+        return [str(line).strip() for line in raw_lines if str(line).strip()]
+
+    def _projection_colors(self) -> tuple[QColor, QColor, QColor]:
+        state = str((self._projection_overlay or {}).get("state", "neutral"))
+        colors = {
+            "bullish": ("#22c55e", "#052e16", "#dcfce7"),
+            "neutral": ("#facc15", "#2a2100", "#fef3c7"),
+            "bearish": ("#ef4444", "#2a0909", "#fee2e2"),
+        }
+        border_hex, background_hex, text_hex = colors.get(state, colors["neutral"])
+        background = QColor(background_hex)
+        background.setAlpha(118)
+        return QColor(border_hex), background, QColor(text_hex)
 
     def _draw_axis_label(
         self, painter: QPainter, chart_rect: QRectF, y_position: float, text: str
@@ -446,6 +546,8 @@ class CandlestickChart(QWidget):
         chart_bottom = volume_rect.bottom()
         if x < price_rect.left() or x > price_rect.right():
             return
+        if self._is_projection_area(x, price_rect):
+            return
         if y < price_rect.top() or y > chart_bottom:
             return
 
@@ -467,6 +569,9 @@ class CandlestickChart(QWidget):
         if x < price_rect.left() or x > price_rect.right():
             QToolTip.hideText()
             return
+        if self._is_projection_area(x, price_rect):
+            QToolTip.hideText()
+            return
         if y < price_rect.top() or y > volume_rect.bottom():
             QToolTip.hideText()
             return
@@ -476,7 +581,8 @@ class CandlestickChart(QWidget):
         QToolTip.showText(global_position, self._tooltip_text(row_index, row), self)
 
     def _nearest_row_index(self, x_position: float, price_rect: QRectF) -> int:
-        slot_width = price_rect.width() / len(self._rows)
+        historical_width = max(1.0, self._historical_chart_right(price_rect) - price_rect.left())
+        slot_width = historical_width / len(self._rows)
         raw_index = int((x_position - price_rect.left()) / slot_width)
         return min(max(raw_index, 0), len(self._rows) - 1)
 

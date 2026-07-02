@@ -61,12 +61,14 @@ class ResearchSurfaceTest(unittest.TestCase):
                 ("prediction_summary", "Prediction"),
                 ("strategy_summary", "Strategy"),
                 ("signal_summary", "Snapshot Summary"),
+                ("research_details", "Research Details"),
             ],
         )
         self.assertIn("Confidence", _labels(view_model, "prediction_summary"))
         self.assertIn("Similarity", _labels(view_model, "prediction_summary"))
         self.assertIn("Notes", _labels(view_model, "strategy_summary"))
         self.assertIn("Score", _labels(view_model, "signal_summary"))
+        self.assertIn("Why", _labels(view_model, "research_details"))
 
     def test_context_cards_use_existing_snapshot_calculators(self) -> None:
         snapshot = {
@@ -127,6 +129,35 @@ class ResearchSurfaceTest(unittest.TestCase):
             _item(view_model, "signal_summary", "Status")["value"],
             SIGNAL_SUMMARY_PLACEHOLDER,
         )
+        self.assertEqual(_item(view_model, "research_details", "Why")["value"], PLACEHOLDER_TEXT)
+
+    def test_research_details_card_can_show_snapshot_reasoning_summary(self) -> None:
+        view_model = build_research_view_model(
+            selected_symbol="MSFT",
+            chart_research_summary={
+                "overall_assessment": (
+                    ("Rating", "A"),
+                    ("Recommendation", "Watchlist"),
+                ),
+                "entry_strength": (
+                    ("Strength", "Moderate"),
+                    ("Timing", "Valid"),
+                ),
+                "reasoning": (
+                    ("Recommendation Reason", "Momentum is mixed."),
+                    ("Historical Edge Explanation", "Historical edge is supportive."),
+                ),
+                "historical_edge": (
+                    ("Matched Pattern", "Squeeze: No Active Squeeze"),
+                    ("Win Rate", "61%"),
+                ),
+            },
+        )
+
+        self.assertEqual(_item(view_model, "research_details", "Recommendation")["value"], "Watchlist / A")
+        self.assertEqual(_item(view_model, "research_details", "Entry Strength")["value"], "Moderate / Valid")
+        self.assertEqual(_item(view_model, "research_details", "Why")["value"], "Momentum is mixed.")
+        self.assertEqual(_item(view_model, "research_details", "Historical Edge")["value"], "Historical edge is supportive.")
 
     def test_view_model_is_deterministic(self) -> None:
         snapshot = {"trend": {"state": "bearish"}, "trend_slope": {"direction": "down"}}

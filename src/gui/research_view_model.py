@@ -50,6 +50,7 @@ def build_research_view_model(
     analysis_cutoff_date: str = "",
     source: str = "",
     error: str = "",
+    chart_research_summary: Mapping[str, Any] | None = None,
 ) -> dict[str, object]:
     symbol = str(selected_symbol or "").strip().upper()
     loaded = _analysis_sections(analysis_result)
@@ -168,6 +169,7 @@ def build_research_view_model(
                 _item("Score", None),
             ),
         ),
+        _research_details_card(chart_research_summary),
     )
 
     return {
@@ -225,6 +227,7 @@ def load_desktop_research_view_model(
             indicator_snapshot=indicator_snapshot,
             source="",
         )
+    chart_research_summary = _load_snapshot_research_details(symbol, path)
 
     uri = path.resolve().as_uri() + "?mode=ro"
     try:
@@ -234,6 +237,7 @@ def load_desktop_research_view_model(
             selected_symbol=symbol,
             indicator_snapshot=indicator_snapshot,
             error=f"Research analysis unavailable: {error}",
+            chart_research_summary=chart_research_summary,
         )
 
     try:
@@ -244,6 +248,7 @@ def load_desktop_research_view_model(
             row_limit=row_limit,
             source_label="sqlite",
             as_of_date=as_of_date,
+            chart_research_summary=chart_research_summary,
         )
     finally:
         connection.close()
@@ -277,6 +282,7 @@ def _load_from_data_source(
     row_limit: int,
     source_label: str,
     as_of_date: date | str | None,
+    chart_research_summary: Mapping[str, Any] | None = None,
 ) -> dict[str, object]:
     try:
         market_data = data_source.load_ohlcv(
@@ -291,6 +297,7 @@ def _load_from_data_source(
             selected_symbol=selected_symbol,
             indicator_snapshot=indicator_snapshot,
             error=f"Research analysis unavailable: {error}",
+            chart_research_summary=chart_research_summary,
         )
 
     rows = [dict(row) for row in market_data.rows]
@@ -300,6 +307,7 @@ def _load_from_data_source(
             selected_symbol=selected_symbol,
             indicator_snapshot=indicator_snapshot,
             source=source,
+            chart_research_summary=chart_research_summary,
         )
 
     cutoff = determine_analysis_cutoff_date(rows, as_of_date=as_of_date)
@@ -312,6 +320,7 @@ def _load_from_data_source(
             chart_latest_date=cutoff.chart_latest_date,
             analysis_cutoff_date=cutoff.analysis_cutoff_date,
             source=source,
+            chart_research_summary=chart_research_summary,
         )
 
     try:
@@ -334,6 +343,7 @@ def _load_from_data_source(
             analysis_cutoff_date=cutoff.analysis_cutoff_date,
             source=source,
             error=f"Research analysis unavailable: {error}",
+            chart_research_summary=chart_research_summary,
         )
 
     canonical_result = _canonical_result_from_analysis(
@@ -354,6 +364,7 @@ def _load_from_data_source(
         chart_latest_date=cutoff.chart_latest_date,
         analysis_cutoff_date=cutoff.analysis_cutoff_date,
         source=source,
+        chart_research_summary=chart_research_summary,
     )
 
 
@@ -545,9 +556,80 @@ def _data_state(
     return "not loaded"
 
 
+def _load_snapshot_research_details(symbol: str, database_path: Path) -> Mapping[str, Any] | None:
+    try:
+        from src.gui.chart_research_sidebar_view_model import load_chart_research_sidebar_view_model
+
+        view_model = load_chart_research_sidebar_view_model(
+            symbol=symbol,
+            database_path=database_path,
+        )
+    except (RuntimeError, ValueError, OSError, sqlite3.Error):
+        return None
+    return view_model if isinstance(view_model, Mapping) else None
+
+
 def _enum_value(value: Any) -> str:
     raw_value = getattr(value, "value", value)
     return str(raw_value) if raw_value else ""
+
+
+def _research_details_card(summary: Mapping[str, Any] | None) -> dict[str, object]:
+    summary = summary if isinstance(summary, Mapping) else {}
+    overall = _items_map(summary.get("overall_assessment"))
+    entry = _items_map(summary.get("entry_strength"))
+    reasoning = _items_map(summary.get("reasoning"))
+    historical_edge = _items_map(summary.get("historical_edge"))
+    recommendation = overall.get("Recommendation")
+    rating = overall.get("Rating")
+    entry_strength = entry.get("Strength") or entry.get("Score")
+    entry_timing = entry.get("Timing")
+    recommendation_reason = reasoning.get("Recommendation Reason")
+    edge_text = _historical_edge_summary_text(historical_edge, reasoning)
+    return _card(
+        "research_details",
+        "Research Details",
+        (
+            _item("Recommendation", _join_visible(recommendation, rating)),
+            _item("Entry Strength", _join_visible(entry_strength, entry_timing)),
+            _item("Why", recommendation_reason),
+            _item("Historical Edge", edge_text),
+        ),
+    )
+
+
+def _items_map(value: object) -> dict[str, str]:
+    if not isinstance(value, (list, tuple)):
+        return {}
+    items: dict[str, str] = {}
+    for item in value:
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            continue
+        label = str(item[0]).strip()
+        item_value = str(item[1]).strip()
+        if label:
+            items[label] = item_value
+    return items
+
+
+def _historical_edge_summary_text(
+    historical_edge: Mapping[str, str],
+    reasoning: Mapping[str, str],
+) -> str:
+    explanation = reasoning.get("Historical Edge Explanation", "")
+    if explanation and explanation != PLACEHOLDER_TEXT:
+        return explanation
+    parts = [
+        historical_edge.get("Matched Pattern", ""),
+        historical_edge.get("Win Rate", ""),
+        historical_edge.get("Expectancy", ""),
+    ]
+    return " | ".join(part for part in parts if part and part != PLACEHOLDER_TEXT)
+
+
+def _join_visible(*values: object) -> str:
+    visible = [str(value).strip() for value in values if str(value or "").strip() and str(value).strip() != PLACEHOLDER_TEXT]
+    return " / ".join(visible)
 
 
 def _card(
