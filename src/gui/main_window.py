@@ -8,14 +8,20 @@ from typing import Any
 from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
+    QDialog,
     QDockWidget,
     QHBoxLayout,
+    QGridLayout,
+    QGroupBox,
     QInputDialog,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QTabWidget,
     QToolBar,
     QVBoxLayout,
@@ -35,8 +41,10 @@ from src.gui.chart_workspace import ChartWorkspace
 from src.gui.developer_panel import DeveloperPanel
 from src.gui.performance_view_model import DEFAULT_PERFORMANCE_DATABASE_PATH
 from src.gui.performance_surface import PerformancePanel
+from src.gui.pattern_statistics_view_model import load_pattern_statistics_view_model
 from src.gui.research_surface import ResearchPanel
 from src.gui.signal_history_surface import SignalHistoryPanel
+from src.gui.statistics_report_view_model import load_statistics_report_view_model
 from src.outcome_tracking.sqlite_repository import SQLiteOutcomeRepository
 from src.signal_ledger.sqlite_repository import SQLiteSignalLedgerRepository
 
@@ -60,9 +68,13 @@ class MainWindow(QMainWindow):
         self._developer_dock = QDockWidget("Developer Panel", self)
         self._developer_mode_action: QAction | None = None
         self._reset_snapshots_action: QAction | None = None
+        self._statistics_report_action: QAction | None = None
+        self._pattern_statistics_action: QAction | None = None
         self._evidence_loop_action: QAction | None = None
         self._evidence_loop_thread: QThread | None = None
         self._evidence_loop_worker: _EvidenceLoopWorker | None = None
+        self._statistics_report_dialog: StatisticsReportDialog | None = None
+        self._pattern_statistics_dialog: PatternStatisticsDialog | None = None
 
         self.setWindowTitle("EXOS Desktop")
         self.resize(1200, 800)
@@ -95,6 +107,12 @@ class MainWindow(QMainWindow):
         self._reset_snapshots_action = QAction("Reset Snapshots...", self)
         self._reset_snapshots_action.triggered.connect(self._confirm_and_reset_snapshots)
         developer_menu.addAction(self._reset_snapshots_action)
+        self._statistics_report_action = QAction("Statistics Report...", self)
+        self._statistics_report_action.triggered.connect(self._show_statistics_report)
+        developer_menu.addAction(self._statistics_report_action)
+        self._pattern_statistics_action = QAction("Pattern Statistics...", self)
+        self._pattern_statistics_action.triggered.connect(self._show_pattern_statistics)
+        developer_menu.addAction(self._pattern_statistics_action)
 
     def _create_toolbar(self) -> None:
         toolbar = QToolBar("Main Toolbar", self)
@@ -323,6 +341,222 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             f"Snapshot reset complete: {result.total_deleted} rows deleted."
         )
+
+    def _show_statistics_report(self) -> None:
+        self._open_statistics_report(
+            "current_symbol" if self._state_manager.current_symbol else "all_symbols"
+        )
+
+    def _open_statistics_report(self, scope_mode: str) -> None:
+        current_symbol = str(self._state_manager.current_symbol or "").strip().upper()
+        self.statusBar().showMessage("Building Statistics Report...")
+        try:
+            view_model = load_statistics_report_view_model(
+                DEFAULT_PERFORMANCE_DATABASE_PATH,
+                scope_mode=scope_mode,
+                current_symbol=current_symbol,
+            )
+        except Exception as error:
+            self.statusBar().showMessage(f"Statistics Report failed: {error}")
+            return
+
+        self._statistics_report_dialog = StatisticsReportDialog(
+            view_model,
+            self,
+            scope_callback=self._open_statistics_report,
+        )
+        self._statistics_report_dialog.show()
+        self.statusBar().showMessage(str(view_model.get("status", "")))
+
+    def _show_pattern_statistics(self) -> None:
+        self._open_pattern_statistics(
+            "current_symbol" if self._state_manager.current_symbol else "all_symbols"
+        )
+
+    def _open_pattern_statistics(self, scope_mode: str) -> None:
+        current_symbol = str(self._state_manager.current_symbol or "").strip().upper()
+        self.statusBar().showMessage("Building Pattern Statistics...")
+        try:
+            view_model = load_pattern_statistics_view_model(
+                DEFAULT_PERFORMANCE_DATABASE_PATH,
+                scope_mode=scope_mode,
+                current_symbol=current_symbol,
+            )
+        except Exception as error:
+            self.statusBar().showMessage(f"Pattern Statistics failed: {error}")
+            return
+
+        self._pattern_statistics_dialog = PatternStatisticsDialog(
+            view_model,
+            self,
+            scope_callback=self._open_pattern_statistics,
+        )
+        self._pattern_statistics_dialog.show()
+        self.statusBar().showMessage(str(view_model.get("status", "")))
+
+
+class StatisticsReportDialog(QDialog):
+    def __init__(
+        self,
+        view_model: dict[str, object],
+        parent: QWidget | None = None,
+        scope_callback: object | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(str(view_model.get("title", "Statistics Report")))
+        self.setMinimumWidth(920)
+        self.setMinimumHeight(640)
+
+        layout = QVBoxLayout()
+        layout.addLayout(_scope_button_layout(scope_callback))
+        layout.addWidget(_statistics_summary_group(view_model.get("scope_summary"), self))
+        layout.addWidget(_statistics_summary_group(view_model.get("summary"), self))
+        layout.addWidget(_statistics_table_group("Top Buckets by Sample Count", view_model.get("top_by_sample_count"), self))
+        layout.addWidget(_statistics_table_group("Top Buckets by Win Rate", view_model.get("top_by_win_rate"), self))
+        layout.addWidget(_statistics_table_group("Top Buckets by Expectancy", view_model.get("top_by_expectancy"), self))
+        layout.addWidget(QLabel(str(view_model.get("status", "")), self))
+        self.setLayout(layout)
+
+
+def _statistics_summary_group(value: object, parent: QWidget) -> QGroupBox:
+    group = QGroupBox("Summary", parent)
+    layout = QGridLayout()
+    if isinstance(value, tuple):
+        for row, item in enumerate(value):
+            if not isinstance(item, tuple) or len(item) != 2:
+                continue
+            layout.addWidget(QLabel(str(item[0]), group), row, 0)
+            layout.addWidget(QLabel(str(item[1]), group), row, 1)
+    group.setLayout(layout)
+    return group
+
+
+def _statistics_table_group(title: str, value: object, parent: QWidget) -> QGroupBox:
+    group = QGroupBox(title, parent)
+    layout = QVBoxLayout()
+    table = QTableWidget(group)
+    columns = (
+        "Feature",
+        "Bucket",
+        "Samples",
+        "Win Rate",
+        "Avg Return",
+        "Median Return",
+        "Avg Max Gain",
+        "Avg Drawdown",
+        "Expectancy",
+    )
+    rows = value if isinstance(value, tuple) else ()
+    table.setColumnCount(len(columns))
+    table.setHorizontalHeaderLabels(list(columns))
+    table.setRowCount(len(rows))
+    for row_index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        values = (
+            row.get("feature", ""),
+            row.get("bucket", ""),
+            row.get("sample_count", ""),
+            row.get("win_rate", ""),
+            row.get("average_return", ""),
+            row.get("median_return", ""),
+            row.get("average_max_gain", ""),
+            row.get("average_drawdown", ""),
+            row.get("expectancy", ""),
+        )
+        for column_index, item in enumerate(values):
+            table.setItem(row_index, column_index, QTableWidgetItem(str(item)))
+    table.resizeColumnsToContents()
+    layout.addWidget(table)
+    group.setLayout(layout)
+    return group
+
+
+class PatternStatisticsDialog(QDialog):
+    def __init__(
+        self,
+        view_model: dict[str, object],
+        parent: QWidget | None = None,
+        scope_callback: object | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(str(view_model.get("title", "Pattern Statistics")))
+        self.setMinimumWidth(980)
+        self.setMinimumHeight(720)
+
+        layout = QVBoxLayout()
+        layout.addLayout(_scope_button_layout(scope_callback))
+        layout.addWidget(_statistics_summary_group(view_model.get("scope_summary"), self))
+        layout.addWidget(_statistics_summary_group(view_model.get("summary"), self))
+        for title, rows in _named_sections(view_model.get("rankings")):
+            layout.addWidget(_pattern_statistics_table_group(title, rows, self))
+        for title, rows in _named_sections(view_model.get("insights")):
+            layout.addWidget(_pattern_statistics_table_group(title, rows, self))
+        layout.addWidget(QLabel(str(view_model.get("status", "")), self))
+        self.setLayout(layout)
+
+
+def _scope_button_layout(scope_callback: object | None) -> QHBoxLayout:
+    layout = QHBoxLayout()
+    current_button = QPushButton("Current Symbol")
+    all_button = QPushButton("All Symbols")
+    if callable(scope_callback):
+        current_button.clicked.connect(lambda: scope_callback("current_symbol"))
+        all_button.clicked.connect(lambda: scope_callback("all_symbols"))
+    else:
+        current_button.setEnabled(False)
+        all_button.setEnabled(False)
+    layout.addWidget(current_button)
+    layout.addWidget(all_button)
+    layout.addStretch()
+    return layout
+
+
+def _named_sections(value: object) -> tuple[tuple[str, object], ...]:
+    if not isinstance(value, tuple):
+        return ()
+    return tuple(
+        (str(item[0]), item[1])
+        for item in value
+        if isinstance(item, tuple) and len(item) == 2
+    )
+
+
+def _pattern_statistics_table_group(title: str, value: object, parent: QWidget) -> QGroupBox:
+    group = QGroupBox(title, parent)
+    layout = QVBoxLayout()
+    table = QTableWidget(group)
+    columns = (
+        "Bucket",
+        "Samples",
+        "Win Rate",
+        "Avg Return",
+        "Expectancy",
+        "Avg Drawdown",
+        "Interpretation",
+    )
+    rows = value if isinstance(value, tuple) else ()
+    table.setColumnCount(len(columns))
+    table.setHorizontalHeaderLabels(list(columns))
+    table.setRowCount(len(rows))
+    for row_index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        values = (
+            row.get("bucket_name", ""),
+            row.get("sample_count", ""),
+            row.get("win_rate", ""),
+            row.get("average_return_10d", ""),
+            row.get("expectancy", ""),
+            row.get("average_drawdown", ""),
+            row.get("interpretation", ""),
+        )
+        for column_index, item in enumerate(values):
+            table.setItem(row_index, column_index, QTableWidgetItem(str(item)))
+    table.resizeColumnsToContents()
+    layout.addWidget(table)
+    group.setLayout(layout)
+    return group
 
 
 class _EvidenceLoopWorker(QObject):

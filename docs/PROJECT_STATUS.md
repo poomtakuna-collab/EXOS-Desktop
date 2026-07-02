@@ -118,6 +118,14 @@ Snapshot Detail Summary now uses a fixed inspector-style layout with compact Ide
 
 POOM Combo Engine v1 is implemented as an additive deterministic analysis engine and is stored in SnapshotPayloadV2 `analysis.poom_combo`, with Snapshot Detail Summary displaying POOM EW, Volume Pressure, Trend Slope, Squeeze, and BOS/CHoCH status.
 
+Statistics Engine v1 is implemented as a read-only SnapshotPayloadV2 statistics engine that extracts deterministic feature buckets, calculates forward 5d/10d/20d outcomes from OHLCV, and aggregates win rate, returns, drawdown, and expectancy by bucket.
+
+Developer Statistics Report UI is implemented under `Developer -> Statistics Report...`, showing read-only SnapshotPayloadV2 statistics summaries and top feature buckets by sample count, win rate, and expectancy.
+
+Pattern Statistics v1 is implemented as a developer-only read-only report over Statistics Engine v1, ranking historical feature buckets and surfacing strong, weak, high-win/low-expectancy, and high-expectancy/low-sample insights under `Developer -> Pattern Statistics...`.
+
+Statistics and Pattern Statistics developer reports now support Current Symbol and All Symbols scopes, show scope summaries with symbol/date/snapshot counts, and display a building status while reports are generated.
+
 Chart -> Data Source v1 integration foundation is implemented.
 
 Chart Data Source v1 integration coverage is implemented.

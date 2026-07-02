@@ -109,6 +109,20 @@ class MainWindowWiringTest(unittest.TestCase):
             ),
             connections,
         )
+        self.assertIn(
+            (
+                "self._statistics_report_action.triggered",
+                "self._show_statistics_report",
+            ),
+            connections,
+        )
+        self.assertIn(
+            (
+                "self._pattern_statistics_action.triggered",
+                "self._show_pattern_statistics",
+            ),
+            connections,
+        )
 
     def test_view_menu_can_open_developer_panel(self) -> None:
         tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
@@ -148,6 +162,8 @@ class MainWindowWiringTest(unittest.TestCase):
         self.assertIn("Developer Panel", string_constants)
         self.assertIn("Developer", string_constants)
         self.assertIn("Reset Snapshots...", string_constants)
+        self.assertIn("Statistics Report...", string_constants)
+        self.assertIn("Pattern Statistics...", string_constants)
 
     def test_developer_panel_does_not_add_reset_button_clutter(self) -> None:
         tree = ast.parse(Path("src/gui/developer_panel.py").read_text(encoding="utf-8"))
@@ -199,6 +215,83 @@ class MainWindowWiringTest(unittest.TestCase):
         self.assertIn("self._signal_history_panel.refresh", called_names)
         self.assertIn("self._performance_panel.refresh", called_names)
         self.assertIn("self._developer_panel.refresh", called_names)
+
+    def test_statistics_report_action_loads_view_model_and_opens_dialog(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_open_statistics_report")
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+        }
+
+        self.assertIn("load_statistics_report_view_model", called_names)
+        self.assertIn("StatisticsReportDialog", called_names)
+        self.assertIn("self._statistics_report_dialog.show", called_names)
+        self.assertIn("self.statusBar().showMessage", called_names)
+        self.assertIn("Building Statistics Report...", {
+            node.value
+            for node in ast.walk(method)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        })
+
+    def test_statistics_report_dialog_shows_required_sections(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        string_constants = {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
+        dialog_init = _class_method(tree, "StatisticsReportDialog", "__init__")
+        source = ast.unparse(dialog_init)
+
+        self.assertIn("Top Buckets by Sample Count", string_constants)
+        self.assertIn("Top Buckets by Win Rate", string_constants)
+        self.assertIn("Top Buckets by Expectancy", string_constants)
+        self.assertIn("Current Symbol", string_constants)
+        self.assertIn("All Symbols", string_constants)
+        self.assertIn("top_by_sample_count", source)
+        self.assertIn("top_by_win_rate", source)
+        self.assertIn("top_by_expectancy", source)
+
+    def test_pattern_statistics_action_loads_view_model_and_opens_dialog(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        method = _method(tree, "_open_pattern_statistics")
+        called_names = {
+            _call_name(call)
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+        }
+
+        self.assertIn("load_pattern_statistics_view_model", called_names)
+        self.assertIn("PatternStatisticsDialog", called_names)
+        self.assertIn("self._pattern_statistics_dialog.show", called_names)
+        self.assertIn("self.statusBar().showMessage", called_names)
+        self.assertIn("Building Pattern Statistics...", {
+            node.value
+            for node in ast.walk(method)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        })
+
+    def test_pattern_statistics_dialog_shows_required_sections(self) -> None:
+        tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
+        string_constants = {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
+        dialog_init = _class_method(tree, "PatternStatisticsDialog", "__init__")
+        source = ast.unparse(dialog_init)
+
+        self.assertIn("Pattern Statistics", string_constants)
+        self.assertIn("Bucket", string_constants)
+        self.assertIn("Interpretation", string_constants)
+        self.assertIn("rankings", source)
+        self.assertIn("insights", source)
 
     def test_manual_evidence_loop_starts_background_worker_without_sync_runner_call(self) -> None:
         tree = ast.parse(Path("src/gui/main_window.py").read_text(encoding="utf-8"))
@@ -449,6 +542,8 @@ def _attribute_name(node: ast.AST) -> str:
         return f"{_attribute_name(node.func)}()"
     if isinstance(node, ast.Name):
         return node.id
+    if isinstance(node, ast.Lambda):
+        return "lambda"
     raise AssertionError(f"Unexpected AST node: {ast.dump(node)}")
 
 
@@ -461,6 +556,16 @@ def _method(tree: ast.Module, name: str) -> ast.FunctionDef:
         if isinstance(node, ast.FunctionDef) and node.name == name:
             return node
     raise AssertionError(f"Missing method: {name}")
+
+
+def _class_method(tree: ast.Module, class_name: str, method_name: str) -> ast.FunctionDef:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != class_name:
+            continue
+        for item in node.body:
+            if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                return item
+    raise AssertionError(f"Missing method: {class_name}.{method_name}")
 
 
 if __name__ == "__main__":
